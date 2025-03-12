@@ -6,9 +6,25 @@ $stmt = $pdo->query($sql);
 $sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <div class="filters">
-    <!-- Add your search bar and filter controls here (e.g., price slider, semester dropdown, etc.) -->
-    <input type="text" id="searchBar" placeholder="Search by address...">
-    <!-- For a price slider, you might use a library like noUiSlider or jQuery UI -->
+    <div class="filter-item">
+        <label for="price-slider">Price Range:</label>
+        <div id="price-slider"></div>
+        <div id="price-range-value"></div>
+    </div>
+    <div class="filter-item">
+        <label for="semester-filter">Semester:</label>
+        <select id="semester-filter">
+            <option value="">All</option>
+            <option value="summer25">Summer 2025</option>
+            <option value="fall25">Fall 2025</option>
+            <option value="spring26">Spring 2026</option>
+        </select>
+    </div>
+    <div class="filter-item">
+        <label for="distance-slider">Distance from Campus:</label>
+        <div id="distance-slider"></div>
+        <div id="distance-value"></div>
+    </div>
 </div>
 
 <div class="grid-container">
@@ -50,9 +66,9 @@ $sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
     });
     // Close modal when clicking outside the modal content
     window.addEventListener('click', event => {
-      if (event.target == modal) {
-        modal.style.display = "none";
-      }
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
     });
 </script>
 <?php include 'footer.php'; ?>

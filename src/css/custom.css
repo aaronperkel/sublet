@@ -1,6 +1,6 @@
-/* Global Reset */
+/* Global Variables & Reset */
 :root {
-  --main-bg-color: #FFFFFF;
+  --main-bg-color: #fff;
   --main-text-color: rgb(55, 53, 47);
   --nav-hover-color: rgb(138, 135, 132);
   --background-odd: rgba(253, 253, 253, 0.8);
@@ -8,58 +8,59 @@
 }
 
 * {
-  font-family: 'Verdana';
-  line-height: 1.25em;
   margin: 0;
   padding: 0;
+  font-family: 'Verdana';
+  line-height: 1.25;
 }
 
+/* Base Styles */
 html {
   background-color: var(--main-bg-color);
   font-size: 16px;
 }
 
 body {
-  margin: auto;
-  margin-top: 1%;
+  margin: 1% auto;
 }
 
 header {
-  font-size: 15pt;
-  margin-top: 1%;
-  margin-bottom: 1%;
+  background-color: #eaeaea;
+  padding: 1em;
+  text-align: center;
+  border-bottom: 2px solid #ccc;
+  margin-bottom: 1em;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  padding-bottom: 0px;
-  margin-bottom: 0px;
-  line-height: 1.2em;
-  background: var(--main-bg-color);
+/* Headings */
+h1, h3, h4, h5, h6 {
+  line-height: 1.2;
 }
 
 h2 {
+  background: var(--main-bg-color);
+  line-height: 1.2;
   padding-bottom: 15px;
-}
-
-h3 {
-  font-size: 1.25rem;
 }
 
 /* Navbar */
 nav {
   display: flex;
-  font-size: 18px;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #f1f1f1;
+  padding: 1em 2em;
+  border-radius: 8px;
 }
 
+
 nav a {
-  width: 10%;
-  text-align: center;
-  padding: .5em;
-  margin: 1em 1em;
+  padding: 0.5em 1em;
   color: var(--main-text-color);
   text-decoration: none;
   border: 1px solid var(--main-text-color);
   border-radius: 4px;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 nav a:hover:not(.activePage) {
@@ -73,13 +74,13 @@ footer {
   text-align: center;
 }
 
-/* a */
+/* Global Link Style */
 a {
   color: darkblue;
   text-decoration: none;
 }
 
-/* Form container styling */
+/* Form Styles */
 form.new-post-form {
   background-color: #f9f9f9;
   padding: 20px;
@@ -111,7 +112,6 @@ form.new-post-form textarea {
   box-sizing: border-box;
 }
 
-/* Submit button styling */
 form.new-post-form input[type="submit"] {
   background-color: var(--nav-hover-color);
   border: none;
@@ -119,19 +119,18 @@ form.new-post-form input[type="submit"] {
   font-size: 1rem;
   border-radius: 4px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: background-color 0.3s ease;
 }
 
 form.new-post-form input[type="submit"]:hover {
   background-color: rgb(120, 115, 110);
 }
 
-/* Hide the default file input */
+/* File Input & Custom Button */
 input[type="file"] {
   display: none;
 }
 
-/* Custom file upload button style */
 .custom-file-upload {
   display: inline-block;
   padding: 10px 20px;
@@ -140,7 +139,7 @@ input[type="file"] {
   border-radius: 4px;
   font-weight: bold;
   text-align: center;
-  transition: all 0.3s ease;
+  transition: background-color 0.3s ease;
   color: #fff;
 }
 
@@ -148,7 +147,7 @@ input[type="file"] {
   background-color: rgb(120, 115, 110);
 }
 
-/* Side-by-side layout for file upload and price */
+/* Layout Helpers */
 .flex-row {
   display: flex;
   gap: 20px;
@@ -158,21 +157,18 @@ input[type="file"] {
   flex: 1;
 }
 
-/* Modal Styles */
+/* Modal */
 .modal {
   display: none;
   position: fixed;
   z-index: 1000;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
   overflow: auto;
   background-color: rgba(0, 0, 0, 0.5);
 }
 
 .modal-content {
-  background-color: #ffffff;
+  background-color: #fff;
   margin: 5% auto;
   padding: 20px;
   border: 1px solid #456631;
@@ -189,6 +185,7 @@ input[type="file"] {
   border-radius: 0.25rem;
 }
 
+/* Grid Layout */
 .grid-item {
   padding: 1%;
 }
@@ -200,15 +197,12 @@ input[type="file"] {
   margin: auto;
 }
 
-.grid-container:hover {
+.grid-container img {
+  max-width: 250px;
   cursor: pointer;
 }
 
-.grid-container img {
-  max-width: 250px;
-}
-
-/* Nav Active Page */
+/* Active Nav Link */
 .activePage {
   background-color: var(--nav-hover-color);
   color: black;
@@ -218,7 +212,7 @@ input[type="file"] {
   cursor: default;
 }
 
-/* Container for form and map */
+/* New Post Layout */
 .new-post-container {
   display: flex;
   justify-content: space-between;
@@ -238,7 +232,33 @@ input[type="file"] {
   margin: 20px auto;
 }
 
+/* Map in New Post */
 .new_post #map {
   width: 100%;
   height: 100%;
+}
+
+.nav-links {
+  display: flex;
+  gap: 1em;
+}
+
+nav .nav-user {
+  font-weight: bold;
+  margin: 0;
+}
+
+.filters {
+  display: flex;
+  justify-content: space-between; /* or space-around for different spacing */
+  align-items: center;
+  width: 50%;
+  margin: 0 auto; /* centers the container */
+  padding: 1em 0;
+}
+
+.filter-item {
+  flex: 1;
+  text-align: center;
+  margin: 0 0.5em;
 }
