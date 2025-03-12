@@ -126,15 +126,6 @@ form.new-post-form input[type="submit"]:hover {
   background-color: rgb(120, 115, 110);
 }
 
-/* Valid/Invalid styles */
-input.valid, select.valid, textarea.valid {
-  border: 2px solid green !important;
-}
-
-input.invalid, select.invalid, textarea.invalid {
-  border: 2px solid red !important;
-}
-
 /* Hide the default file input */
 input[type="file"] {
   display: none;
@@ -149,7 +140,7 @@ input[type="file"] {
   border-radius: 4px;
   font-weight: bold;
   text-align: center;
-  transition: background 0.3s ease;
+  transition: all 0.3s ease;
   color: #fff;
 }
 
@@ -247,7 +238,7 @@ input[type="file"] {
   margin: 20px auto;
 }
 
-#map {
+.new_post #map {
   width: 100%;
   height: 100%;
 }

@@ -3,9 +3,7 @@
 include 'top.php';
 
 $google_api_key = $_ENV['GOOGLE_API'];
-// $username = $_SERVER['REMOTE_USER'] ?? 'unknown';
-
-$username = 'bkamont';
+$username = $_SERVER['REMOTE_USER'] ?? 'unknown';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Retrieve form fields
@@ -97,6 +95,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </main>
 
 <script>
+    // Move these to global scope
+    function debounce(func, delay) {
+        let timeout;
+        return function (...args) {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), delay);
+        };
+    }
+
+    function verifyAddress() {
+        const addressInput = document.getElementById("address");
+        geocoder.geocode({ address: addressInput.value }, function (results, status) {
+            if (status === "OK" && results[0]) {
+                const location = results[0].geometry.location;
+                document.getElementById("lat").value = location.lat();
+                document.getElementById("lon").value = location.lng();
+                // Update the marker's position and recenter the map
+                marker.setPosition(location);
+                map.setCenter(location);
+            }
+        });
+    }
+
     document.addEventListener("DOMContentLoaded", function () {
         // Update upload button text
         document.getElementById('image_url').addEventListener('change', function () {
@@ -104,111 +125,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             document.querySelector('label[for="image_url"]').textContent = fileName;
         });
 
-        // Debounce helper
-        function debounce(func, delay) {
-            let timeout;
-            return function (...args) {
-                clearTimeout(timeout);
-                timeout = setTimeout(() => func.apply(this, args), delay);
-            };
-        }
-
-        // Modified verifyAddress: update styling based on geocode results
-        function verifyAddress() {
-            const addressInput = document.getElementById("address");
-            if (!addressInput.value.trim()) {
-                addressInput.classList.remove("valid", "invalid");
-                return;
-            }
-            geocoder.geocode({ address: addressInput.value }, function (results, status) {
-                if (status === "OK" && results[0]) {
-                    addressInput.classList.add("valid");
-                    addressInput.classList.remove("invalid");
-                    document.getElementById("lat").value = results[0].geometry.location.lat();
-                    document.getElementById("lon").value = results[0].geometry.location.lng();
-                } else {
-                    addressInput.classList.add("invalid");
-                    addressInput.classList.remove("valid");
-                }
-            });
-        }
-
         const debouncedVerifyAddress = debounce(verifyAddress, 500);
         document.getElementById("address").addEventListener("input", debouncedVerifyAddress);
-
-        // Validate all inputs on form submission
-        function validateInputs() {
-            let isValid = true;
-
-            // Validate file upload (using the label as our visible element)
-            const fileInput = document.getElementById("image_url");
-            const fileLabel = document.querySelector('label[for="image_url"]');
-            if (fileInput.files.length === 0) {
-                fileLabel.classList.add("invalid");
-                fileLabel.classList.remove("valid");
-                isValid = false;
-            } else {
-                fileLabel.classList.add("valid");
-                fileLabel.classList.remove("invalid");
-            }
-
-            // Validate price (must not be empty and a valid number)
-            const priceInput = document.getElementById("price");
-            if (priceInput.value.trim() === "" || isNaN(priceInput.value)) {
-                priceInput.classList.add("invalid");
-                priceInput.classList.remove("valid");
-                isValid = false;
-            } else {
-                priceInput.classList.add("valid");
-                priceInput.classList.remove("invalid");
-            }
-
-            // Validate address
-            const addressInput = document.getElementById("address");
-            if (addressInput.value.trim() === "") {
-                addressInput.classList.add("invalid");
-                addressInput.classList.remove("valid");
-                isValid = false;
-            } else {
-                if (!addressInput.classList.contains("valid")) {
-                    isValid = false;
-                }
-            }
-
-            // Validate semester (ensure an option is selected)
-            const semesterInput = document.getElementById("semester");
-            if (semesterInput.value.trim() === "") {
-                semesterInput.classList.add("invalid");
-                semesterInput.classList.remove("valid");
-                isValid = false;
-            } else {
-                semesterInput.classList.add("valid");
-                semesterInput.classList.remove("invalid");
-            }
-
-            // Validate description
-            const descriptionInput = document.getElementById("description");
-            if (descriptionInput.value.trim() === "") {
-                descriptionInput.classList.add("invalid");
-                descriptionInput.classList.remove("valid");
-                isValid = false;
-            } else {
-                descriptionInput.classList.add("valid");
-                descriptionInput.classList.remove("invalid");
-            }
-
-            return isValid;
-        }
-
-        document.querySelector("form.new-post-form").addEventListener("submit", function (e) {
-            if (!validateInputs()) {
-                e.preventDefault();
-                alert("Please fill out all required fields correctly.");
-            }
-        });
     });
 
-    // Initialize map and autocomplete inside initMap
     function initMap() {
         map = new google.maps.Map(document.getElementById("map"), {
             zoom: 15,
@@ -218,23 +138,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         marker = new google.maps.Marker({ map: map });
         marker.setPosition({ lat: 44.477435, lng: -73.195323 });
 
-        // Initialize autocomplete
         let autocomplete = new google.maps.places.Autocomplete(document.getElementById('address'), {
             types: ['geocode']
         });
         autocomplete.addListener('place_changed', function () {
             let place = autocomplete.getPlace();
-            let addressInput = document.getElementById('address');
-            if (!place.geometry) {
-                addressInput.classList.add('invalid');
-                addressInput.classList.remove('valid');
-            } else {
-                addressInput.classList.add('valid');
-                addressInput.classList.remove('invalid');
+            if (place.geometry) {
                 document.getElementById('lat').value = place.geometry.location.lat();
                 document.getElementById('lon').value = place.geometry.location.lng();
+                // Update the marker position immediately:
+                marker.setPosition(place.geometry.location);
+                map.setCenter(place.geometry.location);
             }
-            // Call verifyAddress to ensure consistency
+            // Optionally, call verifyAddress to ensure consistency
             verifyAddress();
         });
     }
@@ -242,6 +158,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <script
     src="https://maps.googleapis.com/maps/api/js?key=<?php echo $google_api_key; ?>&libraries=places&callback=initMap"
-    async defer></script>
+    async defer>
+    </script>
 
 <?php include 'footer.php'; ?>
