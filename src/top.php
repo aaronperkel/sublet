@@ -9,7 +9,7 @@ $pathParts = pathinfo($phpSelf);
     <head>
         <meta charset="UTF-8">
         <title>Sublet Website</title>
-        <link rel="icon" type="image/x" href="./public/images/rallycat_final_icon.png">
+        <link rel="icon" type="image/x" href="./public/images/favicon.ico">
         <meta name="author" content="Aaron Perkel">
         <meta name="description" content="DESC HERE">
         
@@ -38,8 +38,6 @@ $pathParts = pathinfo($phpSelf);
 
         <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"
             rel="stylesheet">
-
-        <link rel="icon" href="./public/imagesfavicon.ico">
     </head>
     <?php
     print '<body class="' . $pathParts['filename'] . '">';

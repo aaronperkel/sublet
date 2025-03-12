@@ -1,2 +1,2 @@
 AuthType CAS
-require ldap-filter &((eduPersonAffiliation=Student)(!(uid=insertID)))
+Require ldap-filter &(eduPersonAffiliation=Student)(!(uid=netID))
