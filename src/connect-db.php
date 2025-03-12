@@ -1,8 +1,8 @@
 <!-- connect-db.php -->
 <?php
-require '../vendor/autoload.php';
+require __DIR__ . '/./vendor/autoload.php';
 
-$dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/');
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
 $dotenv->load();
 
 $databaseName = $_ENV['DBNAME'];
