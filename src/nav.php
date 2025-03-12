@@ -16,9 +16,11 @@
     }
     ?>" href="map.php">Map</a>
 
-<a class="<?php
+    <a class="<?php
     if ($pathParts['filename'] == 'new_post') {
         print 'activePage';
     }
     ?>" href="new_post.php">New Post</a>
+
+    <p>Hello, aperkel</p>
 </nav>

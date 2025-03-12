@@ -1,6 +1,6 @@
 /* Global Reset */
 :root {
-  --main-bg-color: #ddd9d9;
+  --main-bg-color: #FFFFFF;
   --main-text-color: rgb(55, 53, 47);
   --nav-hover-color: rgb(138, 135, 132);
   --background-odd: rgba(253, 253, 253, 0.8);
@@ -127,7 +127,7 @@ a {
 
 .grid-container {
   display: flex;
-  flex-wrap: flex;
+  flex-wrap: wrap;
   justify-content: center;
   margin: auto;
 }
