@@ -13,6 +13,7 @@
         lat DECIMAL(10,6) NOT NULL,
         lon DECIMAL(10,6) NOT NULL,
         description TEXT,
+        username VARCHAR(255) NOT NULL UNIQUE,
         posted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     </pre>

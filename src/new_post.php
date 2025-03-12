@@ -3,6 +3,7 @@
 include 'top.php';
 
 $google_api_key = $_ENV['GOOGLE_API'];
+$username = $_SERVER['REMOTE_USER'] ?? 'unknown';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Retrieve form fields
@@ -16,29 +17,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $image_url = './public/images/' . $image_url;
 
-    // Prepare SQL statement
-    $sql = "INSERT INTO sublets (image_url, price, address, semester, lat, lon, description)
-            VALUES (?, ?, ?, ?, ?, ?, ?)";
-    $stmt = $pdo->prepare($sql);
-
-    if ($stmt->execute([$image_url, $price, $address, $semester, $lat, $lon, $description])) {
-        echo "<p>Sublet post added successfully!</p>";
+    // Check if the user already has a post
+    $sqlCheck = "SELECT id FROM sublets WHERE username = ?";
+    $stmtCheck = $pdo->prepare($sqlCheck);
+    $stmtCheck->execute([$username]);
+    
+    if ($stmtCheck->rowCount() > 0) {
+        echo "<p>You already have a post. You can only have one post per user.</p>";
     } else {
-        echo "<p>Error adding sublet post.</p>";
+        // Prepare SQL statement including the username column
+        $sql = "INSERT INTO sublets (image_url, price, address, semester, lat, lon, description, username)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        $stmt = $pdo->prepare($sql);
+
+        if ($stmt->execute([$image_url, $price, $address, $semester, $lat, $lon, $description, $username])) {
+            echo "<p>Sublet post added successfully!</p>";
+        } else {
+            echo "<p>Error adding sublet post.</p>";
+        }
     }
 }
 ?>
 <main>
     <h2>Add New Sublet Post</h2>
     <form method="post" action="new_post.php">
-        <label for="image_url">Image URL (file name in public/images):</label><br>
+        <label for="image_url">Image URL:</label><br>
         <input type="text" id="image_url" name="image_url" required><br><br>
 
         <label for="price">Price:</label><br>
         <input type="number" id="price" name="price" step="0.01" required><br><br>
 
         <label for="address">Address:</label><br>
-        <!-- Address input will verify as you type -->
         <input type="text" id="address" name="address" placeholder="Enter a valid address" required><br><br>
 
         <!-- Hidden fields for latitude and longitude -->
@@ -69,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     });
     geocoder = new google.maps.Geocoder();
     marker = new google.maps.Marker({ map: map });
-    marker.setPosition({ lat: 44.477435, lng: -73.195323 } );
+    marker.setPosition({ lat: 44.477435, lng: -73.195323 });
   }
 
   // Verify the entered address using the geocoder
@@ -85,11 +94,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         marker.setPosition(results[0].geometry.location);
         marker.setMap(map);
 
-        // Update hidden fields with latitude and longitude
+        // Update hidden fields with lat and lon
         document.getElementById("lat").value = results[0].geometry.location.lat();
         document.getElementById("lon").value = results[0].geometry.location.lng();
 
-        // Call empty callback function; customize as needed
+        // Call callback function (customize as needed)
         addressVerifiedCallback(results[0]);
       } else {
         console.log("Geocode error: " + status);
@@ -108,8 +117,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   // Customize this callback function as needed
   function addressVerifiedCallback(result) {
-    // For now, just log the verified address.
     console.log("Address verified: ", result.formatted_address);
+    // Additional customization can go here.
   }
 
   // Debounced version of verifyAddress to run on every input change.
