@@ -20,8 +20,6 @@ html {
 }
 
 body {
-  /* font-family: "Montserrat", sans-serif; */
-  /* color: #456631; */
   margin: auto;
   margin-top: 1%;
 }
@@ -32,12 +30,7 @@ header {
   margin-bottom: 1%;
 }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
+h1, h2, h3, h4, h5, h6 {
   padding-bottom: 0px;
   margin-bottom: 0px;
   line-height: 1.2em;
@@ -86,7 +79,6 @@ a {
   text-decoration: none;
 }
 
-/* Form */
 /* Form container styling */
 form.new-post-form {
   background-color: #f9f9f9;
@@ -134,13 +126,36 @@ form.new-post-form input[type="submit"]:hover {
   background-color: rgb(120, 115, 110);
 }
 
-form input[type="file"] {
+/* Valid/Invalid styles */
+input.valid, select.valid, textarea.valid {
+  border: 2px solid green !important;
+}
+
+input.invalid, select.invalid, textarea.invalid {
+  border: 2px solid red !important;
+}
+
+/* Hide the default file input */
+input[type="file"] {
   display: none;
 }
 
-/* 
-***** CLASSES *****
-*/
+/* Custom file upload button style */
+.custom-file-upload {
+  display: inline-block;
+  padding: 10px 20px;
+  cursor: pointer;
+  background-color: var(--nav-hover-color);
+  border-radius: 4px;
+  font-weight: bold;
+  text-align: center;
+  transition: background 0.3s ease;
+  color: #fff;
+}
+
+.custom-file-upload:hover {
+  background-color: rgb(120, 115, 110);
+}
 
 /* Side-by-side layout for file upload and price */
 .flex-row {
@@ -148,7 +163,7 @@ form input[type="file"] {
   gap: 20px;
 }
 
-.flex-row>div {
+.flex-row > div {
   flex: 1;
 }
 
@@ -230,21 +245,6 @@ form input[type="file"] {
   flex: 1;
   max-width: 500px;
   margin: 20px auto;
-}
-
-.custom-file-upload {
-  display: inline-block;
-  padding: 10px 20px;
-  cursor: pointer;
-  background-color: var(--nav-hover-color);
-  border-radius: 4px;
-  font-weight: bold;
-  text-align: center;
-  transition: all 0.3s ease;
-}
-
-.custom-file-upload:hover {
-  background-color: rgb(120, 115, 110);
 }
 
 #map {

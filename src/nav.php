@@ -22,5 +22,5 @@
     }
     ?>" href="new_post.php">New Post</a>
 
-    <p>Hello, <?php print $_SERVER['REMOTE_USER']; ?></p>
+    <!-- <p>Hello, <?php print $_SERVER['REMOTE_USER']; ?></p> -->
 </nav>

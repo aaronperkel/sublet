@@ -5,7 +5,7 @@ $sql = "SELECT * FROM sublets";
 $stmt = $pdo->query($sql);
 $sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
-<div id="map" style="height: 500px;"></div>
+<div id="map" style="height: 600px; padding: 1%"></div>
 <!-- Load Leaflet CSS and JS -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
