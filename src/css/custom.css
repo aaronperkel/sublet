@@ -321,15 +321,49 @@ nav .nav-user {
 
 .filters {
   display: flex;
-  justify-content: space-between; /* or space-around for different spacing */
-  align-items: center;
-  width: 50%;
-  margin: 0 auto; /* centers the container */
-  padding: 1em 0;
+  gap: 1em;
+  background-color: var(--secondary-bg);
+  padding: 1em;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 4px var(--shadow-color);
+  margin-bottom: 1em;
 }
 
 .filter-item {
   flex: 1;
   text-align: center;
-  margin: 0 0.5em;
+}
+
+.filter-item label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 0.5em;
+  color: var(--text-color);
+}
+
+.filter-item select,
+.filter-item #price-slider,
+.filter-item #distance-slider {
+  margin: 0 auto;
+  max-width: 100%;
+  border-radius: 6px;
+}
+
+/* Style the Apply Filters button */
+.filters button[type="submit"] {
+  padding: 0.4em 0.8em;
+  font-size: 0.9em;
+  border: none;
+  background-color: var(--accent-color);
+  color: var(--secondary-bg);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  /* Optional: reduce margins if needed */
+  margin-top: 0.5em;
+}
+
+.filters button[type="submit"]:hover {
+  background-color: #4077c1;
 }
