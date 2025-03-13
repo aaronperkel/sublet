@@ -50,7 +50,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 
 <main>
-    <h2>Add New Sublet Post</h2>
     <div class="new-post-container">
         <div class="form-container">
             <form method="post" action="new_post.php" class="new-post-form" enctype="multipart/form-data">
