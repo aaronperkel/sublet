@@ -61,6 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 
+<!-- edit_post.php -->
 <main>
     <h2>Edit Your Sublet Post</h2>
     <form method="post" action="edit_post.php" class="new-post-form" enctype="multipart/form-data">

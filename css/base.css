@@ -1,0 +1,36 @@
+/* Global Variables & Reset */
+:root {
+  /* Color Palette */
+  --primary-bg: #f5f5f5;
+  /* Light grey background */
+  --secondary-bg: #ffffff;
+  /* White */
+  --accent-color: #4a90e2;
+  /* Accent blue */
+  --text-color: #333333;
+  /* Dark grey text */
+  --border-color: #dddddd;
+  /* Light border */
+  --shadow-color: rgba(0, 0, 0, 0.1);
+  --active-bg: #357ABD
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  font-family: 'Verdana', sans-serif;
+  line-height: 1.5;
+}
+
+/* Base Styles */
+html {
+  background-color: var(--primary-bg);
+  font-size: 16px;
+}
+
+body {
+  margin: 1% auto;
+  background-color: var(--primary-bg);
+  color: var(--text-color);
+  padding: 0 1%;
+}

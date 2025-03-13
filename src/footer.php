@@ -5,5 +5,6 @@
             March 2025<br>
             <a href="https://github.com/aaronperkel/sublet" target="_blank">Source Code</a>
         </footer>
+        <script src="../js/main.js"></script>
     </body>
 </html>

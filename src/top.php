@@ -14,19 +14,22 @@ $pathParts = pathinfo($phpSelf);
     <link rel="icon" type="image/x" href="./public/images/favicon.ico">
     <meta name="author" content="Aaron Perkel">
     <meta name="description" content="DESC HERE">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta name="viewport" content="width=device-width, 
-        initial-scale=1.0">
+    <!-- New CSS files -->
+    <link rel="stylesheet" href="../css/base.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/grid.css">
+    <link rel="stylesheet" href="../css/responsive.css">
 
-    <link href="css/custom.css?version=<?php print time(); ?>" rel="stylesheet" type="text/css">
+    <!-- Other external CSS/JS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.js"></script>
 
-    <!-- LEAVE THESE HERE RN
-        <link href="css/layout-desktop.css?version=" 
-            rel="stylesheet" 
-            type="text/css">
--->
+    <!-- <link href="css/custom.css?version=<?php print time(); ?>" rel="stylesheet" type="text/css"> -->
 
-        <link href="css/layout-tablet.css?version" 
+    <!-- <link href="css/layout-tablet.css?version" 
             media="(max-width: 820px)"
             rel="stylesheet" 
             type="text/css">
@@ -34,7 +37,7 @@ $pathParts = pathinfo($phpSelf);
         <link href="css/layout-phone.css?version=" 
             media="(max-width: 430px)"
             rel="stylesheet" 
-            type="text/css">
+            type="text/css"> -->
 
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
 
@@ -102,7 +105,7 @@ $pathParts = pathinfo($phpSelf);
     </script>
 </head>
 <?php
-print '<body class="' . $pathParts['filename'] . '">';
+print '<body class="' . $pathParts['filename'] . '" data-user="' . ($_SERVER['REMOTE_USER'] ?? 'Guest') . '">';
 print '<!-- #################   Body element    ################# -->';
 include 'connect-db.php';
 include 'nav.php';

@@ -1,4 +1,3 @@
-<!-- new_post.php -->
 <?php
 include 'top.php';
 
@@ -50,6 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 
+<!-- new_post.php -->
 <main>
     <div class="new-post-container">
         <div class="form-container">
@@ -93,76 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </div>
 </main>
+<script src = "https://maps.googleapis.com/maps/api/js?key=<?php echo $google_api_key ?>&libraries=places,marker&callback=initMap" async defer></script>
 
-<script>
-    // Move these to global scope
-    function debounce(func, delay) {
-        let timeout;
-        return function (...args) {
-            clearTimeout(timeout);
-            timeout = setTimeout(() => func.apply(this, args), delay);
-        };
-    }
 
-    function verifyAddress() {
-        const addressInput = document.getElementById("address");
-        geocoder.geocode({ address: addressInput.value }, function (results, status) {
-            if (status === "OK" && results[0]) {
-                const location = results[0].geometry.location;
-                document.getElementById("lat").value = location.lat();
-                document.getElementById("lon").value = location.lng();
-                // Update the marker's position and recenter the map
-                marker.setPosition(location);
-                map.setCenter(location);
-            }
-        });
-    }
-
-    document.addEventListener("DOMContentLoaded", function () {
-        // Update upload button text
-        document.getElementById('image_url').addEventListener('change', function () {
-            let fileName = this.files[0]?.name || 'UPLOAD';
-            document.querySelector('label[for="image_url"]').textContent = fileName;
-        });
-
-        const debouncedVerifyAddress = debounce(verifyAddress, 500);
-        document.getElementById("address").addEventListener("input", debouncedVerifyAddress);
-    });
-
-    function initMap() {
-        map = new google.maps.Map(document.getElementById("map"), {
-            zoom: 15,
-            center: { lat: 44.477435, lng: -73.195323 },
-            mapId: '3bd5c9ae8c849605' // Replace YOUR_MAP_ID with your actual Map ID
-        });
-        geocoder = new google.maps.Geocoder();
-
-        // Create an Advanced Marker Element (requires the marker library)
-        marker = new google.maps.marker.AdvancedMarkerElement({
-            map: map,
-            position: { lat: 44.477435, lng: -73.195323 },
-            title: "Sublet Location"
-        });
-
-        let autocomplete = new google.maps.places.Autocomplete(document.getElementById('address'), {
-            types: ['geocode']
-        });
-        autocomplete.addListener('place_changed', function () {
-            let place = autocomplete.getPlace();
-            if (place.geometry) {
-                document.getElementById('lat').value = place.geometry.location.lat();
-                document.getElementById('lon').value = place.geometry.location.lng();
-                // Update the marker position using AdvancedMarkerElement:
-                marker.position = place.geometry.location;
-                map.setCenter(place.geometry.location);
-            }
-            verifyAddress();
-        });
-    }
-</script>
-
-<script
-    src="https://maps.googleapis.com/maps/api/js?key=<?php echo $google_api_key ?>&libraries=places,marker&callback=initMap"
-    async defer>
-    </script>
 <?php include 'footer.php'; ?>
