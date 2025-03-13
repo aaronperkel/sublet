@@ -258,9 +258,44 @@ input[type="file"] {
   height: 100%;
 }
 
-.nav-links {
+.main-nav {
   display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #f1f1f1;
+  padding: 1em 2em;
+  border-radius: 8px;
+  border-bottom: 2px solid #ccc; /* if you like a bottom border */
+}
+
+.nav-left h1 {
+  margin: 0;
+  font-size: 1.5em;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
   gap: 1em;
+}
+
+.nav-links a {
+  padding: 0.5em 1em;
+  text-decoration: none;
+  border: 1px solid var(--main-text-color);
+  border-radius: 4px;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  color: var(--main-text-color);
+}
+
+.nav-links a:hover:not(.activePage) {
+  background-color: var(--main-text-color);
+  color: var(--main-bg-color);
+}
+
+.activePage {
+  background-color: var(--nav-hover-color);
+  color: black;
 }
 
 nav .nav-user {
