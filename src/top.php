@@ -19,6 +19,7 @@ $pathParts = pathinfo($phpSelf);
     <!-- New CSS files -->
     <link rel="stylesheet" href="./css/base.css">
     <link rel="stylesheet" href="./css/components.css">
+    <link rel="stylesheet" href="./css/form.css">
     <link rel="stylesheet" href="./css/grid.css">
     <link rel="stylesheet" href="./css/responsive.css">
 

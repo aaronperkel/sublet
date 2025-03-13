@@ -20,6 +20,12 @@ if (!$userPost) {
 if (isset($_GET['action']) && $_GET['action'] === 'delete') {
     $stmtDelete = $pdo->prepare("DELETE FROM sublets WHERE username = ?");
     $stmtDelete->execute([$username]);
+
+    $to = 'aperkel@uvm.edu';
+    $subject = 'Sublet Post Deleted';
+    $message = "The sublet post for user $username has been deleted.";
+    mail($to, $subject, $message);
+
     header("Location: index.php");
     exit;
 }
@@ -52,6 +58,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt = $pdo->prepare($sql);
     if ($stmt->execute([$image_url, $price, $address, $semester, $lat, $lon, $description, $username])) {
         echo "<p>Sublet post updated successfully!</p>";
+
+        $to = 'aperkel@uvm.edu';
+        $subject = 'Sublet Post Updated';
+        $message = "The sublet post for user $username has been edited.";
+        mail($to, $subject, $message);
+
         // Refresh the user post data
         $stmtCheck->execute([$username]);
         $userPost = $stmtCheck->fetch(PDO::FETCH_ASSOC);
@@ -63,7 +75,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <!-- edit_post.php -->
 <main>
-    <h2>Edit Your Sublet Post</h2>
     <form method="post" action="edit_post.php" class="new-post-form" enctype="multipart/form-data">
         <div class="flex-row">
             <div>

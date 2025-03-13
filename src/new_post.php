@@ -40,6 +40,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->prepare($sql);
 
         if ($stmt->execute([$image_url, $price, $address, $semester, $lat, $lon, $description, $username])) {
+            $to = 'aperkel@uvm.edu';
+            $subject = 'New Sublet Post Created';
+            $message = "A new sublet post has been created by $username.\nPrice: $price\nAddress: $address";
+            mail($to, $subject, $message);
+            
             header("Location: edit_post.php");
             exit;
         } else {

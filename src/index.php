@@ -67,8 +67,15 @@ $sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <!-- Optional hidden input if using a distance filter -->
             <input type="hidden" name="max_distance" id="max_distance">
         </div>
-        <div class="filter-item button">
-            <button type="submit">Apply Filters</button>
+        <div class="filter-buttons" style="display: flex; flex-direction: column; align-items: center">
+            <div class="filter-item button" style="width: 100%; max-width: 300px;">
+                <button type="submit" style="width: 100%; padding: 0.8em;">Apply Filters</button>
+            </div>
+            <div class="button">
+                <a href="index.php" class="clear-filters"
+                    style="display: inline-block; font-size: 0.9em; padding: 0.2em 0.5em; background-color: #f1f1f1; border: 1px solid #ccc; border-radius: 4px; text-decoration: none; color: #333; margin-left: 20px;">Clear
+                    Filters</a>
+            </div>
         </div>
     </form>
 
@@ -89,14 +96,16 @@ $sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <div id="subletModal" class="modal">
         <div class="modal-content">
             <img id="modalImage" src="" alt="Sublet image">
-            <h2 id="modalUsername"></h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 15px;">
+                <h2 id="modalUsername" style="padding: 0"></h2>
+                <a id="modalContact" href="#"
+                    style="padding: 0.5em 1em; background-color: var(--accent-color); color: var(--secondary-bg); text-decoration: none; border-radius: 4px;">Contact</a>
+            </div>
             <hr>
             <p id="modalPrice"></p>
             <p id="modalAddress"></p>
             <p id="modalSemester"></p>
             <p id="modalDesc"></p>
-            <a id="modalContact" href="#"
-                style="display: inline-block; margin-top: 1em; padding: 0.5em 1em; background-color: var(--accent-color); color: var(--secondary-bg); text-decoration: none; border-radius: 4px;">Contact</a>
             <span class="close" style="cursor:pointer;">&times;</span>
         </div>
     </div>
