@@ -1,5 +1,6 @@
 <!-- top.php -->
 <?php
+ob_start();
 $phpSelf = htmlspecialchars($_SERVER['PHP_SELF']);
 $pathParts = pathinfo($phpSelf);
 # session_start();
