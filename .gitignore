@@ -2,6 +2,8 @@
 composer.phar
 vendor/
 
+public/images/
+
 # MacOS .DS_Store
 **/.DS_Store
 
