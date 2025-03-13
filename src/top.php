@@ -24,6 +24,7 @@ $pathParts = pathinfo($phpSelf);
         <link href="css/layout-desktop.css?version=" 
             rel="stylesheet" 
             type="text/css">
+-->
 
         <link href="css/layout-tablet.css?version" 
             media="(max-width: 820px)"
@@ -34,7 +35,6 @@ $pathParts = pathinfo($phpSelf);
             media="(max-width: 430px)"
             rel="stylesheet" 
             type="text/css">
-        -->
 
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
 

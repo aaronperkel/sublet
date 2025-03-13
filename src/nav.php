@@ -2,7 +2,6 @@
 // Assuming $pdo is already defined (from connect-db.php) and REMOTE_USER is set
 $buttonText = "New Post";
 $buttonLink = "new_post.php";
-$_SERVER['REMOTE_USER'] = 'aperkel';
 if (isset($_SERVER['REMOTE_USER'])) {
     $stmt = $pdo->prepare("SELECT id FROM sublets WHERE username = ?");
     $stmt->execute([$_SERVER['REMOTE_USER']]);
@@ -14,7 +13,7 @@ if (isset($_SERVER['REMOTE_USER'])) {
 ?>
 <nav class="main-nav">
   <div class="nav-left">
-    <h1>UVM Sublets</h1>
+    <a href='index.php' style="padding: 0; margin: 0"><h1>UVM Sublets</h1></a>
   </div>
   <div class="nav-right">
     <div class="nav-links">
