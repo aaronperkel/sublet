@@ -76,7 +76,8 @@ $sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <div class="grid-container">
     <?php foreach ($sublets as $sublet): ?>
         <div class="grid-item" data-id="<?= $sublet['id'] ?>" data-price="<?= $sublet['price'] ?>"
-            data-semester="<?= $sublet['semester'] ?>" data-address="<?= htmlspecialchars($sublet['address']) ?>">
+            data-semester="<?= $sublet['semester'] ?>" data-address="<?= htmlspecialchars($sublet['address']) ?>"
+            data-username="<?= htmlspecialchars($sublet['username']) ?>"> <!-- new attribute -->
             <img src="<?= $sublet['image_url'] ?>" alt="Sublet image">
         </div>
     <?php endforeach; ?>
@@ -85,65 +86,103 @@ $sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <!-- Modal Structure -->
 <div id="subletModal" class="modal">
     <div class="modal-content">
-        <span class="close" style="cursor:pointer;">&times;</span>
-        <img id="modalImage" src="" alt="Sublet">
+        <img id="modalImage" src="" alt="Sublet image">
+        <h2 id="modalUsername"></h2>
+        <hr>
         <p id="modalPrice"></p>
         <p id="modalAddress"></p>
         <p id="modalSemester"></p>
+        <a id="modalContact" href="#"
+            style="display: inline-block; margin-top: 1em; padding: 0.5em 1em; background-color: var(--accent-color); color: var(--secondary-bg); text-decoration: none; border-radius: 4px;">Contact</a>
+        <span class="close" style="cursor:pointer;">&times;</span>
     </div>
 </div>
 
 <script>
-    // Basic modal functionality
+    // Define the current logged-in user (from PHP)
+    var currentUser = "<?php echo $_SERVER['REMOTE_USER'] ?? 'Guest'; ?>";
+
+    // Mapping function for semester codes
+    function getFriendlySemester(code) {
+        const mapping = {
+            "summer25": "Summer 2025",
+            "fall25": "Fall 2025",
+            "spring26": "Spring 2026"
+        };
+        return mapping[code] || code;
+    }
+
+    // Basic modal functionality (existing code)
     var modal = document.getElementById('subletModal');
 
     document.querySelectorAll('.grid-item').forEach(function (item) {
         item.addEventListener('click', function () {
+            var posterUsername = item.getAttribute('data-username');
+            var price = item.getAttribute('data-price');
+            var address = item.getAttribute('data-address');
+            var semesterCode = item.getAttribute('data-semester');
+            var friendlySemester = getFriendlySemester(semesterCode);
+
+            // Set modal values
             document.getElementById('modalImage').src = item.querySelector('img').src;
-            document.getElementById('modalPrice').textContent = "Price: $" + item.getAttribute('data-price');
-            document.getElementById('modalAddress').textContent = "Address: " + item.getAttribute('data-address');
-            document.getElementById('modalSemester').textContent = "Semester: " + item.getAttribute('data-semester');
+            document.getElementById('modalPrice').textContent = "Price: $" + price;
+            document.getElementById('modalAddress').textContent = "Address: " + address;
+            document.getElementById('modalSemester').textContent = "Semester: " + friendlySemester;
+            document.getElementById('modalUsername').textContent = "Posted by: " + posterUsername;
+
+            // Build mailto URL
+            var toEmail = posterUsername + "@uvm.edu";
+            var subject = "Interested in Your " + friendlySemester + " Sublet Posting";
+            var body = "Hello!\n\nI’m interested in your sublet posting for " + friendlySemester + " at " + address + ". Could you send me more details when you have a moment?\n\nThanks,\n" + currentUser;
+            var mailtoLink = "mailto:" + encodeURIComponent(toEmail) +
+                "?subject=" + encodeURIComponent(subject) +
+                "&body=" + encodeURIComponent(body);
+
+            // Set the contact button's href
+            document.getElementById('modalContact').setAttribute('href', mailtoLink);
+
             modal.style.display = "block";
         });
     });
+
     // Close modal when the close button is clicked
     document.querySelector('.close').addEventListener('click', function () {
-        document.getElementById('subletModal').style.display = "none";
+        modal.style.display = "none";
     });
+
     // Close modal when clicking outside the modal content
-    window.addEventListener('click', event => {
+    window.addEventListener('click', function (event) {
         if (event.target == modal) {
             modal.style.display = "none";
         }
     });
 
+    // Resize grid items when images load (existing code remains unchanged)
     function resizeGridItem(item) {
         const grid = document.querySelector('.grid-container');
         const rowHeight = parseInt(window.getComputedStyle(grid).getPropertyValue('grid-auto-rows'));
         const rowGap = parseInt(window.getComputedStyle(grid).getPropertyValue('grid-gap'));
         const img = item.querySelector('img');
-        // Measure the image's height accurately
         const height = img.getBoundingClientRect().height;
-        // Calculate row span including the gap
         const rowSpan = Math.ceil((height + rowGap) / (rowHeight + rowGap));
         item.style.gridRowEnd = "span " + rowSpan;
     }
 
-    // Resize grid items when images load
     const gridImages = document.querySelectorAll('.grid-item img');
-    gridImages.forEach(img => {
+    gridImages.forEach(function (img) {
         if (img.complete) {
             resizeGridItem(img.parentElement);
         } else {
-            img.addEventListener('load', () => {
+            img.addEventListener('load', function () {
                 resizeGridItem(img.parentElement);
             });
         }
     });
 
-    // Also recalc on window resize
-    window.addEventListener('resize', () => {
-        document.querySelectorAll('.grid-item').forEach(item => resizeGridItem(item));
+    window.addEventListener('resize', function () {
+        document.querySelectorAll('.grid-item').forEach(function (item) {
+            resizeGridItem(item);
+        });
     });
 </script>
 <?php include 'footer.php'; ?>
