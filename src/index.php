@@ -1,10 +1,10 @@
-<!-- index.php -->
 <?php
 include 'top.php';
 $sql = "SELECT * FROM sublets";
 $stmt = $pdo->query($sql);
 $sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
+<!-- index.php -->
 <div class="filters">
     <div class="filter-item">
         <label for="price-slider">Price Range:</label>
@@ -69,6 +69,35 @@ $sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
         if (event.target == modal) {
             modal.style.display = "none";
         }
+    });
+
+    function resizeGridItem(item) {
+        const grid = document.querySelector('.grid-container');
+        const rowHeight = parseInt(window.getComputedStyle(grid).getPropertyValue('grid-auto-rows'));
+        const rowGap = parseInt(window.getComputedStyle(grid).getPropertyValue('grid-gap'));
+        const img = item.querySelector('img');
+        // Measure the image's height accurately
+        const height = img.getBoundingClientRect().height;
+        // Calculate row span including the gap
+        const rowSpan = Math.ceil((height + rowGap) / (rowHeight + rowGap));
+        item.style.gridRowEnd = "span " + rowSpan;
+    }
+
+    // Resize grid items when images load
+    const gridImages = document.querySelectorAll('.grid-item img');
+    gridImages.forEach(img => {
+        if (img.complete) {
+            resizeGridItem(img.parentElement);
+        } else {
+            img.addEventListener('load', () => {
+                resizeGridItem(img.parentElement);
+            });
+        }
+    });
+
+    // Also recalc on window resize
+    window.addEventListener('resize', () => {
+        document.querySelectorAll('.grid-item').forEach(item => resizeGridItem(item));
     });
 </script>
 <?php include 'footer.php'; ?>

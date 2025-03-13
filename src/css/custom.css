@@ -185,21 +185,41 @@ input[type="file"] {
   border-radius: 0.25rem;
 }
 
-/* Grid Layout */
-.grid-item {
-  padding: 1%;
-}
-
 .grid-container {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  margin: auto;
+  padding: 0 5%;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  grid-auto-rows: 1px; /* base row height used for calculating spans */
+  grid-gap: 1em;
 }
 
 .grid-container img {
-  max-width: 250px;
+  max-width: none;
+  width: 100%;
   cursor: pointer;
+}
+
+/* Grid Layout */
+/* Style for grid items to create a 3D rounded square effect */
+.grid-item {
+  overflow: hidden;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Ensure images fill the container */
+.grid-item img {
+  display: block;
+  width: 100%;
+  height: auto;
+  transition: transform 0.3s ease;
+}
+
+/* Zoom animation on hover */
+.grid-item:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
 }
 
 /* Active Nav Link */

@@ -11,7 +11,7 @@ $sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script>
     // Initialize the map centered at UVM campus (example coordinates)
-    var map = L.map('map').setView([44.4759, -73.2121], 13);
+    var map = L.map('map').setView([44.477435, -73.195323], 14);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
