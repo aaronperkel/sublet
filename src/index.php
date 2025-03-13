@@ -28,6 +28,7 @@ $sql = "SELECT * FROM sublets";
 if ($filters) {
     $sql .= " WHERE " . implode(" AND ", $filters);
 }
+$sql .= " ORDER BY RAND()";
 
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);

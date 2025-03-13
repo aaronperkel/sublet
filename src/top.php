@@ -46,7 +46,7 @@ $pathParts = pathinfo($phpSelf);
             var priceSlider = document.getElementById('price-slider');
             if (priceSlider) {
                 noUiSlider.create(priceSlider, {
-                    start: [0, 3000],
+                    start: [800, 1500],
                     connect: true,
                     step: 50,
                     range: { 'min': 0, 'max': 3000 },
@@ -67,8 +67,8 @@ $pathParts = pathinfo($phpSelf);
                 });
 
                 // Set initial slider values from GET parameters if available
-                const initialMinPrice = <?php echo isset($_GET['min_price']) ? $_GET['min_price'] : 0; ?>;
-                const initialMaxPrice = <?php echo isset($_GET['max_price']) ? $_GET['max_price'] : 3000; ?>;
+                const initialMinPrice = <?php echo isset($_GET['min_price']) ? $_GET['min_price'] : 800; ?>;
+                const initialMaxPrice = <?php echo isset($_GET['max_price']) ? $_GET['max_price'] : 1500; ?>;
                 priceSlider.noUiSlider.set([initialMinPrice, initialMaxPrice]);
             }
 
@@ -76,7 +76,7 @@ $pathParts = pathinfo($phpSelf);
             var distanceSlider = document.getElementById('distance-slider');
             if (distanceSlider) {
                 noUiSlider.create(distanceSlider, {
-                    start: [2],
+                    start: [5.5],
                     connect: [true, false],
                     step: 0.5,
                     range: { 'min': 0.5, 'max': 20 },
@@ -94,7 +94,7 @@ $pathParts = pathinfo($phpSelf);
                 });
 
                 // Set initial value from GET parameter (or default to 6)
-                const initialDistance = <?php echo isset($_GET['max_distance']) && $_GET['max_distance'] !== '' ? $_GET['max_distance'] : 2; ?>;
+                const initialDistance = <?php echo isset($_GET['max_distance']) && $_GET['max_distance'] !== '' ? $_GET['max_distance'] : 5.5; ?>;
                 distanceSlider.noUiSlider.set([initialDistance]);
             }
         });
