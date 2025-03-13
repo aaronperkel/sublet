@@ -321,18 +321,22 @@ nav .nav-user {
 
 .filters {
   display: flex;
-  gap: 1em;
-  background-color: var(--secondary-bg);
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1.5em; /* Increased gap between filter items */
   padding: 1em;
   border-radius: 8px;
   border: 1px solid var(--border-color);
   box-shadow: 0 2px 4px var(--shadow-color);
+  background-color: var(--secondary-bg);
   margin-bottom: 1em;
 }
 
 .filter-item {
-  flex: 1;
+  flex: 1 1 200px;  /* Allow filter items to grow/shrink with a minimum width */
   text-align: center;
+  padding: 0.5em;
 }
 
 .filter-item label {
@@ -342,26 +346,55 @@ nav .nav-user {
   color: var(--text-color);
 }
 
-.filter-item select,
-.filter-item #price-slider,
-.filter-item #distance-slider {
+#price-slider, 
+#distance-slider {
   margin: 0 auto;
-  max-width: 100%;
+  width: 90%;  /* Adjust width as needed */
+  margin-bottom: 0.5em;
+}
+
+#price-range-value, 
+#distance-value {
+  font-size: 0.95em;
+  color: var(--text-color);
+  margin-top: 0.3em;
+}
+
+.filter-item select {
+  width: 90%;
+  padding: 0.8em 1.2em 0.8em 0.8em;  /* extra right padding for the arrow */
+  font-size: 1rem;
+  border: 1px solid var(--border-color);
   border-radius: 6px;
+  background-color: var(--primary-bg);
+  background-image: url('data:image/svg+xml;utf8,<svg fill="%23333333" xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M7 10l5 5 5-5z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: right 0.5em center;
+  background-size: 1em;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+.filter-item.button {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: auto;
 }
 
 /* Style the Apply Filters button */
 .filters button[type="submit"] {
-  padding: 0.4em 0.8em;
-  font-size: 0.9em;
+  padding: 0.6em 1.2em;
+  font-size: 1.1em;
   border: none;
   background-color: var(--accent-color);
   color: var(--secondary-bg);
   border-radius: 4px;
   cursor: pointer;
   transition: background-color 0.3s;
-  /* Optional: reduce margins if needed */
-  margin-top: 0.5em;
+  margin-left: 1em;
 }
 
 .filters button[type="submit"]:hover {

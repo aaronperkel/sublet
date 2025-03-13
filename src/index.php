@@ -65,7 +65,7 @@ $sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <!-- Optional hidden input if using a distance filter -->
         <input type="hidden" name="max_distance" id="max_distance">
     </div>
-    <div class="filter-item">
+    <div class="filter-item button">
         <button type="submit">Apply Filters</button>
     </div>
 </form>
