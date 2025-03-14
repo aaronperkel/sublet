@@ -22,13 +22,30 @@ function verifyAddress() {
 
 document.addEventListener("DOMContentLoaded", function () {
     // Update upload button text
-    document.getElementById('image_url').addEventListener('change', function () {
-        let fileName = this.files[0]?.name || 'UPLOAD';
-        document.querySelector('label[for="image_url"]').textContent = fileName;
-    });
+    const imageInput = document.getElementById('image_url');
+    if (imageInput) {
+        imageInput.addEventListener('change', function () {
+            let fileName = this.files[0]?.name || 'UPLOAD';
+            document.querySelector('label[for="image_url"]').textContent = fileName;
+        });
+    }
 
-    const debouncedVerifyAddress = debounce(verifyAddress, 500);
-    document.getElementById("address").addEventListener("input", debouncedVerifyAddress);
+    const addressInput = document.getElementById("address");
+    if (addressInput) {
+        addressInput.addEventListener("input", debouncedVerifyAddress);
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+    var modalDelete = document.getElementById('modalDelete');
+    if (modalDelete) {
+        modalDelete.addEventListener('click', function (e) {
+            e.preventDefault();
+            if (confirm("Are you sure you want to delete this post?")) {
+                window.location.href = "delete_post.php?id=" + window.currentPostId;
+            }
+        });
+    }
 });
 
 function initMap() {
@@ -86,12 +103,15 @@ document.addEventListener('DOMContentLoaded', function () {
             var friendlySemester = getFriendlySemester(semesterCode);
             var desc = item.getAttribute('data-desc');
 
+            window.currentPostId = item.getAttribute('data-id');
+
             document.getElementById('modalImage').src = item.querySelector('img').src;
             document.getElementById('modalPrice').textContent = "Price: $" + price;
             document.getElementById('modalAddress').textContent = "Address: " + address;
             document.getElementById('modalSemester').textContent = "Semester: " + friendlySemester;
             document.getElementById('modalUsername').textContent = "Posted by: " + posterUsername;
             document.getElementById('modalDesc').innerHTML = "<br>Description: <br>" + desc;
+            document.getElementById('subletModal').style.display = "block";
 
             // Use data attribute from body for current user
             var currentUser = document.body.getAttribute('data-user') || "Guest";

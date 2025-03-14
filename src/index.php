@@ -52,12 +52,19 @@ $sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <option value="" <?php if (!isset($_GET['semester']) || $_GET['semester'] === '')
                     echo 'selected'; ?>>All
                 </option>
-                <option value="summer25" <?php if (isset($_GET['semester']) && $_GET['semester'] === 'summer25')
-                    echo 'selected'; ?>>Summer 2025</option>
-                <option value="fall25" <?php if (isset($_GET['semester']) && $_GET['semester'] === 'fall25')
-                    echo 'selected'; ?>>Fall 2025</option>
-                <option value="spring26" <?php if (isset($_GET['semester']) && $_GET['semester'] === 'spring26')
-                    echo 'selected'; ?>>Spring 2026</option>
+                <?php
+                // Optional friendly name mapping
+                $semesterMapping = [
+                    'summer25' => 'Summer 2025',
+                    'fall25' => 'Fall 2025',
+                    'spring26' => 'Spring 2026'
+                ];
+                foreach ($semesters as $semester): ?>
+                    <option value="<?= htmlspecialchars($semester) ?>" <?php if (isset($_GET['semester']) && $_GET['semester'] == $semester)
+                          echo 'selected'; ?>>
+                        <?= isset($semesterMapping[$semester]) ? $semesterMapping[$semester] : htmlspecialchars($semester) ?>
+                    </option>
+                <?php endforeach; ?>
             </select>
         </div>
         <div class="filter-item">
@@ -91,15 +98,26 @@ $sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
             </div>
         <?php endforeach; ?>
     </div>
-
     <!-- Modal Structure -->
     <div id="subletModal" class="modal">
         <div class="modal-content">
             <img id="modalImage" src="" alt="Sublet image">
             <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 15px;">
-                <h2 id="modalUsername" style="padding: 0"></h2>
-                <a id="modalContact" href="#"
-                    style="padding: 0.5em 1em; background-color: var(--accent-color); color: var(--secondary-bg); text-decoration: none; border-radius: 4px;">Contact</a>
+                <div style="display: flex; align-items: center;">
+                    <h2 id="modalUsername" style="padding: 0; margin-right: 10px;"></h2>
+                </div>
+                <div>
+                    <?php if (isset($_SERVER['REMOTE_USER']) && $_SERVER['REMOTE_USER'] === 'aperkel'): ?>  
+                        <a id="modalDelete"
+                            style="padding: 0.5em 1em; background-color: red; color: var(--secondary-bg); text-decoration: none; border-radius: 4px; cursor: pointer; margin-right: 5%;">
+                            Delete
+                        </a>
+                    <?php endif; ?>
+                    <a id="modalContact" href="#"
+                        style="padding: 0.5em 1em; background-color: var(--accent-color); color: var(--secondary-bg); text-decoration: none; border-radius: 4px;">
+                        Contact
+                    </a>
+                </div>
             </div>
             <hr>
             <p id="modalPrice"></p>

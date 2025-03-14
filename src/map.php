@@ -48,14 +48,15 @@ $sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
             var marker = L.marker([sublet.lat, sublet.lon]).addTo(map);
             marker.bindPopup(
                 `<div class="popup-content" style="text-align:center;">
-      <img src="${sublet.image_url}" 
-           style="width:200px; cursor:pointer; display:block; margin:0 auto; border-radius:8px; box-shadow:0 4px 8px rgba(0,0,0,0.1);" 
-           onclick='openSubletModal(${JSON.stringify(sublet)})'>
-      <p style="margin:10px 0 0; font-size:0.9em; color:#555;">Click image for details</p>
-      <div style="margin-top:10px;">
-         Price: $${sublet.price}<br>
-         ${sublet.address}
-      </div>
+    <img src="${sublet.image_url}" 
+         style="width:200px; cursor:pointer; display:block; margin:0 auto; border-radius:8px; box-shadow:0 4px 8px rgba(0,0,0,0.1);" 
+         data-sublet="${btoa(JSON.stringify(sublet))}"
+         onclick="openSubletModal(JSON.parse(atob(this.getAttribute('data-sublet'))))">
+    <p style="margin:10px 0 0; font-size:0.9em; color:#555;">Click image for details</p>
+    <div style="margin-top:10px;">
+       Price: $${sublet.price}<br>
+       ${sublet.address}
+    </div>
   </div>`
             );
             // Extend the bounds to include this marker's position
