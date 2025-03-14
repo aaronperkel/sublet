@@ -1,4 +1,4 @@
 AuthType CAS
 # Require ldap-filter &(eduPersonAffiliation=Student)(!(uid=bkamont))(!(uid=rpantale))
 # Require ldap-filter &(eduPersonAffiliation=Student)(|(uid=aperkel))
-Require ldap-filter |(uid=aperkel)(uid=cwhite21)(uid=slynch)(uid=gmontano)(uid=svenman)(uid=ejackso8)(uid=bkamont)(uid=jwdelane)(uid=malexan7)(uid=edelane4)(uid=cmelisky)
+Require ldap-filter |(uid=aperkel)(uid=cwhite21)(uid=slynch)(uid=gmontano)(uid=svenman)(uid=ejackso8)(uid=bkamont)(uid=jwdelane)(uid=malexan7)(uid=edelane4)(uid=cmelisky)(uid=akerns)(uid=hrthomps)(uid=nwberg)(uid=apalmer9)(uid=hprevost)(uid=skgoldma)(uid=gbotero)(uid=gmerseli)(uid=tracicot)(uid=jhibbele)(uid=cbcafier)(uid=ldion2)(uid=jlhorton)
