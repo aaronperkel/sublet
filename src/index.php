@@ -116,6 +116,10 @@ $sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         style="padding: 0.5em 1em; background-color: var(--accent-color); color: var(--secondary-bg); text-decoration: none; border-radius: 4px;">
                         Contact
                     </a>
+                    <a id="modalEdit" href="edit_post.php"
+                        style="padding: 0.5em 1em; background-color: lightgreen; color: var(--secondary-bg); text-decoration: none; border-radius: 4px;">
+                        Edit
+                    </a>
                 </div>
             </div>
             <hr>

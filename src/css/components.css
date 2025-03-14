@@ -46,6 +46,13 @@ nav a:hover:not(.activePage) {
     color: var(--main-bg-color);
 }
 
+a.disabled {
+    pointer-events: none;
+    /* makes it unclickable */
+    opacity: 0.5;
+    /* greys it out */
+}
+
 /* Footer */
 /* Footer */
 footer {
@@ -207,5 +214,6 @@ nav .nav-user {
 }
 
 .map-wrapper {
-    margin: 1em auto; /* or some margin */
-  }
+    margin: 1em auto;
+    /* or some margin */
+}

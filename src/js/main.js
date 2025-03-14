@@ -119,12 +119,14 @@ document.addEventListener('DOMContentLoaded', function () {
             // If the current user is the same as the poster, hide the Contact button.
             if (currentUser === posterUsername) {
                 document.getElementById('modalContact').style.display = "none";
+                document.getElementById('modalEdit').style.display = "inline-block";
             } else {
                 // Otherwise, show it and set up the mailto link.
+                document.getElementById('modalEdit').style.display = "none";
                 document.getElementById('modalContact').style.display = "inline-block";
                 var toEmail = posterUsername + "@uvm.edu";
                 var subject = "Interested in Your " + friendlySemester + " Sublet Posting";
-                var body = "Hello!\n\nI’m interested in your sublet posting for " + friendlySemester +
+                var body = "Hello!\n\nI'm interested in your sublet posting for " + friendlySemester +
                     " at " + address +
                     ". Could you send me more details when you have a moment?\n\nThanks,\n" + currentUser;
                 var mailtoLink = "mailto:" + encodeURIComponent(toEmail) +
