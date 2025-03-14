@@ -205,3 +205,7 @@ nav .nav-user {
 .filters button[type="submit"]:hover {
     background-color: #4077c1;
 }
+
+.map-wrapper {
+    margin: 1em auto; /* or some margin */
+  }

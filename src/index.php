@@ -71,7 +71,6 @@ $sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <label for="distance-slider">Distance from Campus:</label>
             <div id="distance-slider"></div>
             <div id="distance-value"></div>
-            <!-- Optional hidden input if using a distance filter -->
             <input type="hidden" name="max_distance" id="max_distance">
         </div>
         <div class="filter-buttons" style="display: flex; flex-direction: column; align-items: center">

@@ -17,9 +17,6 @@ $stmtDistance = $pdo->query("SELECT MAX(3959 * acos(cos(radians(44.477435)) * co
 $distanceResult = $stmtDistance->fetch(PDO::FETCH_ASSOC);
 $maxDistance = $distanceResult['max_distance'] ?? 20;
 $maxDistanceRounded = ceil($maxDistance * 2) / 2;
-if ($maxDistanceRounded < 20) {
-    $maxDistanceRounded = 20;
-}
 
 // Query distinct semesters available
 $stmtSem = $pdo->query("SELECT DISTINCT semester FROM sublets");
@@ -38,18 +35,22 @@ $semesters = $stmtSem->fetchAll(PDO::FETCH_COLUMN);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <!-- New CSS files -->
-    <link rel="stylesheet" href="./css/base.css">
-    <link rel="stylesheet" href="./css/components.css">
-    <link rel="stylesheet" href="./css/form.css">
-    <link rel="stylesheet" href="./css/grid.css">
-    <link rel="stylesheet" href="./css/responsive.css">
+    <link rel="stylesheet" type="text/css" href="./css/base.css?version=<?php print time(); ?>">
+    <link rel="stylesheet" type="text/css" href="./css/components.css?version=<?php print time(); ?>">
+    <link rel="stylesheet" type="text/css" href="./css/form.css?version=<?php print time(); ?>">
+    <link rel="stylesheet" type="text/css" href="./css/grid.css?version=<?php print time(); ?>">
+    <link rel="stylesheet" type="text/css" href="./css/responsive.css?version=<?php print time(); ?>">
 
     <!-- Other external CSS/JS -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.css" />
+    <?php if ($pathParts['filename'] === 'map'): ?>
+        <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <?php endif; ?>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.js"></script>
-
-    <!-- <link href="css/custom.css?version=<?php print time(); ?>" rel="stylesheet" type="text/css"> -->
+    <?php if ($pathParts['filename'] !== 'map'): ?>
+        <script src="./js/main.js"></script>
+    <?php endif; ?>
 
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
 
@@ -62,7 +63,7 @@ $semesters = $stmtSem->fetchAll(PDO::FETCH_COLUMN);
             var priceSlider = document.getElementById('price-slider');
             if (priceSlider) {
                 noUiSlider.create(priceSlider, {
-                    start: [800, 1500],
+                    start: [0, <?php echo $maxPriceRounded; ?>],
                     connect: true,
                     step: 50,
                     range: { 'min': 0, 'max': <?php echo $maxPriceRounded; ?> },
@@ -83,15 +84,15 @@ $semesters = $stmtSem->fetchAll(PDO::FETCH_COLUMN);
                 });
 
                 // Set initial slider values from GET parameters if available
-                const initialMinPrice = <?php echo isset($_GET['min_price']) ? $_GET['min_price'] : 800; ?>;
-                const initialMaxPrice = <?php echo isset($_GET['max_price']) ? $_GET['max_price'] : 1500; ?>;
+                const initialMinPrice = <?php echo isset($_GET['min_price']) ? $_GET['min_price'] : 0; ?>;
+                const initialMaxPrice = <?php echo isset($_GET['max_price']) ? $_GET['max_price'] : $maxPriceRounded; ?>;
                 priceSlider.noUiSlider.set([initialMinPrice, initialMaxPrice]);
             }
 
             var distanceSlider = document.getElementById('distance-slider');
             if (distanceSlider) {
                 noUiSlider.create(distanceSlider, {
-                    start: [5.5],
+                    start: [<?php echo $maxDistanceRounded; ?>],
                     connect: [true, false],
                     step: 0.5,
                     range: { 'min': 0.5, 'max': <?php echo $maxDistanceRounded; ?> },
@@ -105,7 +106,7 @@ $semesters = $stmtSem->fetchAll(PDO::FETCH_COLUMN);
                     document.getElementById('distance-value').innerText = ">" + numericValue + " mi";
                     document.getElementById('max_distance').value = numericValue;
                 });
-                const initialDistance = <?php echo isset($_GET['max_distance']) && $_GET['max_distance'] !== '' ? $_GET['max_distance'] : 5.5; ?>;
+                const initialDistance = <?php echo isset($_GET['max_distance']) && $_GET['max_distance'] !== '' ? $_GET['max_distance'] : $maxDistanceRounded; ?>;
                 distanceSlider.noUiSlider.set([initialDistance]);
             }
         });
