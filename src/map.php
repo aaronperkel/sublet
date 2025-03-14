@@ -29,7 +29,6 @@ $sql = "SELECT * FROM sublets";
 if ($filters) {
     $sql .= " WHERE " . implode(" AND ", $filters);
 }
-$sql .= " ORDER BY RAND()";
 
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
@@ -166,21 +165,43 @@ $sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 document.getElementById('modalDesc').innerHTML = "<br>Description: <br>" + sublet.description;
                 document.getElementById('modalUsername').textContent = "Posted by: " + sublet.username;
 
-                // Setup contact button with email info
+                // Get the current user from the body data attribute.
                 var currentUser = document.body.getAttribute('data-user') || "Guest";
-                var toEmail = sublet.username + "@uvm.edu";
-                var subject = "Interested in Your " + friendlySemester + " Sublet Posting";
-                var body = "Hello!\n\nI’m interested in your sublet posting for " + friendlySemester +
-                    " at " + sublet.address +
-                    ". Could you send me more details when you have a moment?\n\nThanks,\n" + currentUser;
-                var mailtoLink = "mailto:" + encodeURIComponent(toEmail) +
-                    "?subject=" + encodeURIComponent(subject) +
-                    "&body=" + encodeURIComponent(body);
-                document.getElementById('modalContact').setAttribute('href', mailtoLink);
+
+                // If the current user is the same as the poster, hide the Contact button.
+                if (currentUser === sublet.username) {
+                    document.getElementById('modalContact').style.display = "none";
+                } else {
+                    // Otherwise, show it and set up the mailto link.
+                    document.getElementById('modalContact').style.display = "inline-block";
+                    var toEmail = sublet.username + "@uvm.edu";
+                    var subject = "Interested in Your " + friendlySemester + " Sublet Posting";
+                    var body = "Hello!\n\nI’m interested in your sublet posting for " + friendlySemester +
+                        " at " + sublet.address +
+                        ". Could you send me more details when you have a moment?\n\nThanks,\n" + currentUser;
+                    var mailtoLink = "mailto:" + encodeURIComponent(toEmail) +
+                        "?subject=" + encodeURIComponent(subject) +
+                        "&body=" + encodeURIComponent(body);
+                    document.getElementById('modalContact').setAttribute('href', mailtoLink);
+                }
 
                 // Display the modal
                 document.getElementById('subletModal').style.display = "block";
             }
+
+            document.addEventListener('DOMContentLoaded', function () {
+                var modal = document.getElementById('subletModal');
+                var closeBtn = document.querySelector('#subletModal .close');
+                closeBtn.addEventListener('click', function () {
+                    modal.style.display = 'none';
+                });
+                window.addEventListener('click', function (event) {
+                    if (event.target === modal) {
+                        modal.style.display = 'none';
+                    }
+                });
+            });
+
         </script>
 </main>
 <?php include 'footer.php'; ?>

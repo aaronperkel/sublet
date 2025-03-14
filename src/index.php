@@ -105,10 +105,10 @@ $sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <div style="display: flex; align-items: center;">
                     <h2 id="modalUsername" style="padding: 0; margin-right: 10px;"></h2>
                 </div>
-                <div>
-                    <?php if (isset($_SERVER['REMOTE_USER']) && $_SERVER['REMOTE_USER'] === 'aperkel'): ?>  
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <?php if (isset($_SERVER['REMOTE_USER']) && $_SERVER['REMOTE_USER'] === 'aperkel'): ?>
                         <a id="modalDelete"
-                            style="padding: 0.5em 1em; background-color: red; color: var(--secondary-bg); text-decoration: none; border-radius: 4px; cursor: pointer; margin-right: 5%;">
+                            style="padding: 0.5em 1em; background-color: red; color: var(--secondary-bg); text-decoration: none; border-radius: 4px; cursor: pointer;">
                             Delete
                         </a>
                     <?php endif; ?>
