@@ -125,7 +125,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const rowGap = parseInt(window.getComputedStyle(grid).getPropertyValue('grid-gap'));
         const img = item.querySelector('img');
         const height = img.getBoundingClientRect().height;
-        const rowSpan = Math.ceil((height + rowGap) / (rowHeight + rowGap));
+        const rowSpan = Math.ceil((height + rowGap) / (rowHeight + rowGap)) - 1;
         item.style.gridRowEnd = "span " + rowSpan;
     }
 
