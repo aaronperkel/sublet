@@ -31,7 +31,7 @@ $semesters = $stmtSem->fetchAll(PDO::FETCH_COLUMN);
     <title>UVM Sublets</title>
     <link rel="icon" type="image/x" href="./public/images/favicon.ico">
     <meta name="author" content="Aaron Perkel">
-    <meta name="description" content="DESC HERE">
+    <meta name="description" content="A platform created exclusively for UVM students to post and find sublet listings.">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <!-- New CSS files -->
