@@ -118,7 +118,7 @@ a {
 }
 
 .activePage {
-    background-color: var(--active-bg);
+    background-color: var(--accent-color);
     color: var(--secondary-bg);
 }
 
@@ -162,6 +162,10 @@ nav .nav-user {
     width: 90%;
     /* Adjust width as needed */
     margin-bottom: 0.5em;
+}
+
+.noUi-connect {
+    background: var(--accent-color) !important;
 }
 
 #price-range-value,
