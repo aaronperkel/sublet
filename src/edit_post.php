@@ -1,3 +1,4 @@
+<!-- edit_post.php -->
 <?php
 ob_start();
 include 'top.php';

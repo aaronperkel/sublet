@@ -12,6 +12,7 @@ if (isset($_SERVER['REMOTE_USER'])) {
   }
 }
 ?>
+<!-- nav.php -->
 <nav class="main-nav">
   <div class="nav-left">
     <a href='index.php' style="padding: 0; margin: 0">

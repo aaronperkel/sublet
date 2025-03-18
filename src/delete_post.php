@@ -1,3 +1,4 @@
+<!-- delete_post.php -->
 <?php
 include 'connect-db.php';
 
