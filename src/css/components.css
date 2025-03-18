@@ -168,6 +168,23 @@ nav .nav-user {
     background: var(--accent-color) !important;
 }
 
+#price-slider .noUi-handle-lower {
+    right: -2px;
+}
+
+#price-slider .noUi-handle-upper,
+#distance-slider .noUi-handle {
+    right: -32px;
+}
+
+#price-slider {
+    padding: 0 30px;
+}
+
+#distance-slider {
+    padding: 0 30px 0 0;
+}
+
 #price-range-value,
 #distance-value {
     font-size: 0.95em;
