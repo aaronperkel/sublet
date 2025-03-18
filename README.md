@@ -26,7 +26,7 @@ Use Composer to install the required PHP packages.
 3.	Setup Environment Variables:
 Create a `.env` file in the root directory with the following keys:
     ```bash
-    DBNAMEUTIL=your_database_name
+    DBNAME=your_database_name
     DBUSER=your_database_user
     DBPASS=your_database_password
     GOOGLE_API=your_google_api_key
