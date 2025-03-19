@@ -45,7 +45,7 @@ include 'top.php';
             marker.bindPopup(
                 `<div class="popup-content" style="text-align:center;">
               <img src="${sublet.image_url}" style="width:200px; cursor:pointer; display:block; margin:0 auto; border-radius:8px; box-shadow:0 4px 8px rgba(0,0,0,0.1);" 
-                   data-sublet="${btoa(JSON.stringify(sublet))}"
+                   data-sublet="${b64EncodeUnicode(JSON.stringify(sublet))}"
                    onclick="openSubletModal(JSON.parse(atob(this.getAttribute('data-sublet'))))">
               <p style="margin:10px 0 0; font-size:0.9em; color:#555;">Click image for details</p>
               <div style="margin-top:10px;">
@@ -121,6 +121,12 @@ include 'top.php';
                 }
             });
         });
+
+        function b64EncodeUnicode(str) {
+            return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function (match, p1) {
+                return String.fromCharCode('0x' + p1);
+            }));
+        }
 
     </script>
 </main>
