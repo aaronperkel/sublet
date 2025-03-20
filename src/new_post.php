@@ -124,8 +124,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <option value="spring26">Spring 2026</option>
                 </select>
 
-                <label for="description">Description:</label>
-                <textarea id="description" name="description" rows="4" cols="50"></textarea>
+                <label for="description">Description: <span id="charCount">(0/350)</span></label>
+                <textarea id="description" name="description" rows="4" cols="50" maxlength="350"></textarea>
 
                 <input type="submit" value="Add Post">
             </form>
@@ -136,6 +136,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </div>
 </main>
+
+<script>
+    const textarea = document.getElementById('description');
+    const charCount = document.getElementById('charCount');
+
+    textarea.addEventListener('input', () => {
+        charCount.textContent = `(${textarea.value.length}/350)`;
+    });
+</script>
+
 <script
     src="https://maps.googleapis.com/maps/api/js?key=<?php echo $google_api_key ?>&libraries=places,marker&callback=initMap"
     async defer></script>
