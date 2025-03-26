@@ -78,7 +78,13 @@ $sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <button type="submit" style="width: 100%; padding: 0.8em;">Apply Filters</button>
         </div>
         <div class="button">
-            <a href="index.php" class="clear-filters"
+            <a href="<?php 
+            if ($pathParts['filename'] == 'map') { 
+                echo 'map.php';
+             } else { 
+                echo 'index.php';
+            } ?>" 
+                class="clear-filters"
                 style="display: inline-block; font-size: 0.9em; padding: 0.2em 0.5em; background-color: #f1f1f1; border: 1px solid #ccc; border-radius: 4px; text-decoration: none; color: #333; margin-left: 20px;">Clear
                 Filters</a>
         </div>
