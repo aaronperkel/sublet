@@ -238,3 +238,18 @@ nav .nav-user {
     margin: 1em auto;
     /* or some margin */
 }
+
+.fa-flag,
+.fa-github {
+    padding: .5em;
+    border: 2px solid black;
+    border-radius: 4px;
+    cursor: pointer;
+    background-color: #f1f1f1;
+    transition: background-color 0.3s;
+}
+
+.fa-flag:hover,
+.fa-github:hover {
+    background-color: #999;
+}

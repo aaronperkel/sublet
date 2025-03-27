@@ -42,20 +42,17 @@ $semesters = $stmtSem->fetchAll(PDO::FETCH_COLUMN);
     <link rel="stylesheet" type="text/css" href="./css/responsive.css?version=<?php print time(); ?>">
 
     <!-- Other external CSS/JS -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css?version=<?php print time(); ?>" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.css?version=<?php print time(); ?>" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.js"></script>
+    <script src="https://kit.fontawesome.com/c428e5511d.js" crossorigin="anonymous"></script>
+
     <?php if ($pathParts['filename'] === 'map'): ?>
         <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <?php endif; ?>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.js"></script>
+
     <?php if ($pathParts['filename'] !== 'map'): ?>
         <script src="./js/main.js"></script>
     <?php endif; ?>
-
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css?version=<?php print time(); ?>" rel="stylesheet">
-
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.css?version=<?php print time(); ?>" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.js"></script>
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {

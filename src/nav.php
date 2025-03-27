@@ -31,7 +31,7 @@ if (isset($_SERVER['REMOTE_USER'])) {
         echo 'activePage';
       } ?>" href="<?= $buttonLink; ?>"><?= $buttonText; ?></a>
     </div>
-    <p class="nav-user">Hello, <?= $_SERVER['REMOTE_USER'] ?? 'Guest'; ?></p>
+      <p class="nav-user">Hello, <?= $_SERVER['REMOTE_USER'] ?? 'Guest'; ?></p>
   </div>
 </nav>
 
