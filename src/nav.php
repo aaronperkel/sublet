@@ -35,6 +35,10 @@ if (isset($_SERVER['REMOTE_USER'])) {
   </div>
 </nav>
 
+<div style="background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; padding: 10px; margin-bottom: 15px;">
+  I accidentally deleted all of the images from the site......oops. SAA is working on rolling back the mistake. SORRY!
+</div>
+
 <div style="background-color: #dbe9f9; color: #4a90e2; border: 1px solid #b7d3f3; border-radius: 4px; padding: 10px; margin-bottom: 15px;">
   Adding multiple photos, as well as scrolling in the posting pop-up are coming soon! Thank you for using my site! -AP
 </div>
