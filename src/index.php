@@ -18,8 +18,10 @@ include 'top.php';
         <div class="modal-content">
             <!-- Container for slider images -->
             <div class="modal-image-slider"></div>
-            <button class="prev" style="display:none;">Prev</button>
-            <button class="next" style="display:none;">Next</button>
+            <button class="prev"
+                style="padding: 0.5em 1em; background-color: var(--accent-color); color: var(--secondary-bg); border: none; border-radius: 4px; cursor: pointer; display: none;">Prev</button>
+            <button class="next"
+                style="padding: 0.5em 1em; background-color: var(--accent-color); color: var(--secondary-bg); border: none; border-radius: 4px; cursor: pointer; display: none;">Next</button>
             <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 15px;">
                 <div style="display: flex; align-items: center;">
                     <h2 id="modalUsername" style="padding: 0; margin-right: 10px;"></h2>

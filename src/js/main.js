@@ -156,17 +156,21 @@ document.addEventListener("DOMContentLoaded", function () {
 
             // Fetch additional images via AJAX.
             fetch('get_sublet_images.php?id=' + window.currentPostId)
-                .then(response => response.json())
-                .then(fetchedImages => {
-                    if (Array.isArray(fetchedImages) && fetchedImages.length > 0) {
-                        images = fetchedImages;
-                        currentIndex = 0;
-                        renderImage();
-                        // Reset scroll after images are rendered.
-                        setTimeout(() => {
-                            const modalContent = document.querySelector('.modal-content');
-                            if (modalContent) modalContent.scrollTop = 0;
-                        }, 50);
+                .then(response => response.text())
+                .then(text => {
+                    try {
+                        let fetchedImages = JSON.parse(text);
+                        if (Array.isArray(fetchedImages) && fetchedImages.length > 0) {
+                            images = fetchedImages;
+                            currentIndex = 0;
+                            renderImage();
+                            setTimeout(() => {
+                                const modalContent = document.querySelector('.modal-content');
+                                if (modalContent) modalContent.scrollTop = 0;
+                            }, 50);
+                        }
+                    } catch (e) {
+                        console.error('JSON parse error:', e);
                     }
                 })
                 .catch(error => console.error('Error fetching images:', error));

@@ -31,9 +31,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $lat = (float) $lat;
     $lon = (float) $lon;
     $distance = haversineGreatCircleDistance($campusLat, $campusLon, $lat, $lon);
-    // if ($distance > 50) {
-    //     $error_message .= "<p>Error: The location is more than 50 miles from campus (calculated distance: " . round($distance, 2) . " miles).</p>";
-    // }
+    if ($distance > 50) {
+        $error_message .= "<p>Error: The location is more than 50 miles from campus (calculated distance: " . round($distance, 2) . " miles).</p>";
+    }
 
     if (empty($_FILES['image_url']['name'][0])) {
         $error_message .= "<p>Please upload at least one image.</p>";
@@ -143,7 +143,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                 </div>
                 <label for="address">Address:</label>
-                <input type="text" id="address" name="address" placeholder="Enter a valid address">
+                <input type="text" id="address" name="address" placeholder="Enter a valid address" required>
                 <input type="hidden" id="lat" name="lat">
                 <input type="hidden" id="lon" name="lon">
                 <label for="semester">Semester:</label>

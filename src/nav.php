@@ -17,7 +17,10 @@ if (isset($_SERVER['REMOTE_USER'])) {
   <div class="nav-left">
     <a href='index.php' style="padding: 0; margin: 0">
       <div class="title-box" style="display: flex; align-items: center;">
-        <img src="./public/images/favicon-removebg-preview.png" alt="Logo" width="50">
+        <span class="fa-stack" style="font-size: 23px;">
+          <i class="fa-solid fa-circle fa-stack-2x" style="color: rgb(10, 67, 114);"></i>
+          <i class="fa-solid fa-house fa-stack-1x" style="color: white;"></i>
+        </span>
         <h1 style="margin-left: 10px;">UVM Sublets</h1>
       </div>
     </a>
