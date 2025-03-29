@@ -16,7 +16,10 @@ if (isset($_SERVER['REMOTE_USER'])) {
 <nav class="main-nav">
   <div class="nav-left">
     <a href='index.php' style="padding: 0; margin: 0">
-      <h1>UVM Sublets</h1>
+      <div class="title-box" style="display: flex; align-items: center;">
+        <img src="./public/images/favicon-removebg-preview.png" alt="Logo" width="50">
+        <h1 style="margin-left: 10px;">UVM Sublets</h1>
+      </div>
     </a>
   </div>
   <div class="nav-right">
@@ -31,7 +34,7 @@ if (isset($_SERVER['REMOTE_USER'])) {
         echo 'activePage';
       } ?>" href="<?= $buttonLink; ?>"><?= $buttonText; ?></a>
     </div>
-      <p class="nav-user">Hello, <?= $_SERVER['REMOTE_USER'] ?? 'Guest'; ?></p>
+    <p class="nav-user">Hello, <?= $_SERVER['REMOTE_USER'] ?? 'Guest'; ?></p>
   </div>
 </nav>
 
