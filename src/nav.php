@@ -36,5 +36,5 @@ if (isset($_SERVER['REMOTE_USER'])) {
 </nav>
 
 <div style="background-color: #dbe9f9; color: #4a90e2; border: 1px solid #b7d3f3; border-radius: 4px; padding: 10px; margin-bottom: 15px;">
-  Adding multiple photos, as well as scrolling in the posting pop-up are coming soon! Thank you for using my site! -AP
+  Adding multiple photos is coming soon! Thank you for using my site! -AP
 </div>
