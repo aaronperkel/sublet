@@ -31,9 +31,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $lat = (float) $lat;
     $lon = (float) $lon;
     $distance = haversineGreatCircleDistance($campusLat, $campusLon, $lat, $lon);
-    if ($distance > 50) {
-        $error_message .= "<p>Error: The location is more than 50 miles from campus (calculated distance: " . round($distance, 2) . " miles).</p>";
-    }
+    // if ($distance > 50) {
+    //     $error_message .= "<p>Error: The location is more than 50 miles from campus (calculated distance: " . round($distance, 2) . " miles).</p>";
+    // }
 
     if (empty($_FILES['image_url']['name'][0])) {
         $error_message .= "<p>Please upload at least one image.</p>";
@@ -43,7 +43,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $target_dir = "./public/images/";
         // Process the first image as the thumbnail.
         $firstImage = $_FILES['image_url']['name'][0];
-        $target_file = $target_dir . basename($firstImage);
+        $fileType = pathinfo($firstImage, PATHINFO_EXTENSION);
+        $target_file = $target_dir . $username . '_0.' . $fileType;
         if (!move_uploaded_file($_FILES['image_url']['tmp_name'][0], $target_file)) {
             $error_message .= "<p>Error uploading first image. Error code: " . $_FILES['image_url']['error'][0] . "</p>";
         } else {
@@ -66,7 +67,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Process additional images (if any)
             for ($i = 1; $i < count($_FILES['image_url']['name']); $i++) {
                 $imageName = $_FILES['image_url']['name'][$i];
-                $target_file = $target_dir . basename($imageName);
+                $fileType = pathinfo($imageName, PATHINFO_EXTENSION);
+                $target_file = $target_dir . $username . '_' . $i . '.' . $fileType;
                 if (move_uploaded_file($_FILES['image_url']['tmp_name'][$i], $target_file)) {
                     $stmtImage->execute([$subletId, $target_file, $i]);
                 }
@@ -141,7 +143,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                 </div>
                 <label for="address">Address:</label>
-                <input type="text" id="address" name="address" placeholder="Enter a valid address" required>
+                <input type="text" id="address" name="address" placeholder="Enter a valid address">
                 <input type="hidden" id="lat" name="lat">
                 <input type="hidden" id="lon" name="lon">
                 <label for="semester">Semester:</label>
