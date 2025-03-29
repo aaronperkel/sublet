@@ -22,6 +22,16 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
+    var modalDelete = document.getElementById('modalDelete');
+    if (modalDelete) {
+        modalDelete.addEventListener('click', function (e) {
+            e.preventDefault();
+            if (confirm("Are you sure you want to delete this post?")) {
+                window.location.href = "delete_post.php?id=" + window.currentPostId;
+            }
+        });
+    }
+
     // Opens the modal and resets the scroll position
     function openModal() {
         const modalContent = document.querySelector('.modal-content');
