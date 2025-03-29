@@ -50,9 +50,7 @@ $semesters = $stmtSem->fetchAll(PDO::FETCH_COLUMN);
         <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <?php endif; ?>
 
-    <?php if ($pathParts['filename'] !== 'map'): ?>
-        <script src="./js/main.js"></script>
-    <?php endif; ?>
+    <script src="./js/main.js"></script>
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {
