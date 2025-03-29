@@ -17,4 +17,15 @@
         posted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     </pre>
+
+    <h2>Create Table sublet_images</h2>
+    <pre>
+    CREATE TABLE sublet_images (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        sublet_id INT NOT NULL,
+        image_url VARCHAR(255) NOT NULL,
+        sort_order INT DEFAULT 0,
+        FOREIGN KEY (sublet_id) REFERENCES sublets(id) ON DELETE CASCADE
+    );
+    </pre>
 </main>
