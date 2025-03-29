@@ -1,167 +1,208 @@
-function debounce(func, delay) {
-    let timeout;
-    return function (...args) {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func.apply(this, args), delay);
-    };
-}
-
-function verifyAddress() {
-    const addressInput = document.getElementById("address");
-    geocoder.geocode({ address: addressInput.value }, function (results, status) {
-        if (status === "OK" && results[0]) {
-            const location = results[0].geometry.location;
-            document.getElementById("lat").value = location.lat();
-            document.getElementById("lon").value = location.lng();
-            // Update the marker's position and recenter the map
-            marker.setPosition(location);
-            map.setCenter(location);
-        }
-    });
-}
-
 document.addEventListener("DOMContentLoaded", function () {
-    // Update upload button text
-    const imageInput = document.getElementById('image_url');
-    if (imageInput) {
-        imageInput.addEventListener('change', function () {
-            let fileName = this.files[0]?.name || 'UPLOAD';
-            document.querySelector('label[for="image_url"]').textContent = fileName;
-        });
-    }
+    // Global variable for current user (assumes a "data-user" attribute on the <body>)
+    var currentUser = document.body.getAttribute('data-user') || "Guest";
 
-    const addressInput = document.getElementById("address");
-    if (addressInput) {
-        addressInput.addEventListener("input", debouncedVerifyAddress);
-    }
-});
+    // Global variables for image slider
+    let currentIndex = 0;
+    let images = [];
 
-document.addEventListener('DOMContentLoaded', function () {
-    var modalDelete = document.getElementById('modalDelete');
-    if (modalDelete) {
-        modalDelete.addEventListener('click', function (e) {
-            e.preventDefault();
-            if (confirm("Are you sure you want to delete this post?")) {
-                window.location.href = "delete_post.php?id=" + window.currentPostId;
+    // Renders the image slider if available
+    function renderImage() {
+        const slider = document.querySelector('.modal-image-slider');
+        if (slider && images.length > 0) {
+            slider.innerHTML = `<img src="${images[currentIndex]}" alt="Sublet image">`;
+            const prevBtn = document.querySelector('.prev');
+            const nextBtn = document.querySelector('.next');
+            if (prevBtn) {
+                prevBtn.style.display = currentIndex > 0 ? 'block' : 'none';
             }
-        });
-    }
-});
-
-function initMap() {
-    map = new google.maps.Map(document.getElementById("map"), {
-        zoom: 15,
-        center: { lat: 44.477435, lng: -73.195323 },
-        mapId: '3bd5c9ae8c849605' // Replace YOUR_MAP_ID with your actual Map ID
-    });
-    geocoder = new google.maps.Geocoder();
-
-    // Create an Advanced Marker Element (requires the marker library)
-    marker = new google.maps.marker.AdvancedMarkerElement({
-        map: map,
-        position: { lat: 44.477435, lng: -73.195323 },
-        title: "Sublet Location"
-    });
-
-    let autocomplete = new google.maps.places.Autocomplete(document.getElementById('address'), {
-        types: ['geocode']
-    });
-    autocomplete.addListener('place_changed', function () {
-        let place = autocomplete.getPlace();
-        if (place.geometry) {
-            document.getElementById('lat').value = place.geometry.location.lat();
-            document.getElementById('lon').value = place.geometry.location.lng();
-            // Update the marker position using AdvancedMarkerElement:
-            marker.position = place.geometry.location;
-            map.setCenter(place.geometry.location);
+            if (nextBtn) {
+                nextBtn.style.display = currentIndex < images.length - 1 ? 'block' : 'none';
+            }
         }
-        verifyAddress();
-    });
-}
-
-
-
-document.addEventListener('DOMContentLoaded', function () {
-    // Mapping function for semester codes
-    function getFriendlySemester(code) {
-        const mapping = {
-            "summer25": "Summer 2025",
-            "fall25": "Fall 2025",
-            "spring26": "Spring 2026"
-        };
-        return mapping[code] || code;
     }
 
-    var modal = document.getElementById('subletModal');
-
-    document.querySelectorAll('.grid-item').forEach(function (item) {
-        item.addEventListener('click', function () {
-            var posterUsername = item.getAttribute('data-username');
-            var price = item.getAttribute('data-price');
-            var address = item.getAttribute('data-address');
-            var semesterCode = item.getAttribute('data-semester');
-            var friendlySemester = getFriendlySemester(semesterCode);
-            var desc = item.getAttribute('data-desc');
-
-            window.currentPostId = item.getAttribute('data-id');
-
-            document.getElementById('modalImage').src = item.querySelector('img').src;
-            document.getElementById('modalPrice').textContent = "Price: $" + price;
-            document.getElementById('modalAddress').textContent = "Address: " + address;
-            document.getElementById('modalSemester').textContent = "Semester: " + friendlySemester;
-            document.getElementById('modalUsername').textContent = "Posted by: " + posterUsername;
-            document.getElementById('modalDesc').innerHTML = "<br>Description: <br>" + desc;
-            document.getElementById('subletModal').style.display = "block";
-
-            // Use data attribute from body for current user
-            var currentUser = document.body.getAttribute('data-user') || "Guest";
-
-            // If the current user is the same as the poster, hide the Contact button.
-            if (currentUser === posterUsername) {
-                document.getElementById('modalContact').style.display = "none";
-                document.getElementById('modalEdit').style.display = "inline-block";
-            } else {
-                // Otherwise, show it and set up the mailto link.
-                document.getElementById('modalEdit').style.display = "none";
-                document.getElementById('modalContact').style.display = "inline-block";
-                var toEmail = posterUsername + "@uvm.edu";
-                var subject = "Interested in Your " + friendlySemester + " Sublet Posting";
-                var body = "Hello!\n\nI'm interested in your sublet posting for " + friendlySemester +
-                    " at " + address +
-                    ". Could you send me more details when you have a moment?\n\nThanks,\n" + currentUser;
-                var mailtoLink = "mailto:" + encodeURIComponent(toEmail) +
-                    "?subject=" + encodeURIComponent(subject) +
-                    "&body=" + encodeURIComponent(body);
-                document.getElementById('modalContact').setAttribute('href', mailtoLink);
-            }
-
-            modal.style.display = "block";
-            openModal();
-        });
-    });
-
+    // Opens the modal and resets the scroll position
     function openModal() {
         const modalContent = document.querySelector('.modal-content');
-        modalContent.scrollTop = 0; // reset scroll position
+        setTimeout(() => {
+            if (modalContent) {
+                modalContent.scrollTop = 0;
+            }
+        }, 50);
         document.body.classList.add('modal-open');
         document.getElementById('subletModal').style.display = 'block';
     }
 
+    // Closes the modal
     function closeModal() {
         document.body.classList.remove('modal-open');
         document.getElementById('subletModal').style.display = 'none';
     }
 
+    // Debounce utility function
+    function debounce(func, delay) {
+        let timeout;
+        return function (...args) {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), delay);
+        };
+    }
+
+    // Verify address function (uses Google Maps geocoder)
+    function verifyAddress() {
+        const addressInput = document.getElementById("address");
+        if (!addressInput) return;
+        geocoder.geocode({ address: addressInput.value }, function (results, status) {
+            if (status === "OK" && results[0]) {
+                const location = results[0].geometry.location;
+                document.getElementById("lat").value = location.lat();
+                document.getElementById("lon").value = location.lng();
+                if (marker) marker.setPosition(location);
+                if (map) map.setCenter(location);
+            }
+        });
+    }
+
+    // Set up debounced version of verifyAddress
+    const debouncedVerifyAddress = debounce(verifyAddress, 300);
+
+    // Update upload button text
+    const imageInput = document.getElementById('image_url');
+    if (imageInput) {
+        imageInput.addEventListener('change', function () {
+            let fileName = this.files[0]?.name || 'UPLOAD';
+            const label = document.querySelector('label[for="image_url"]');
+            if (label) label.textContent = fileName;
+        });
+    }
+
+    // Add input event listener for address
+    const addressInput = document.getElementById("address");
+    if (addressInput) {
+        addressInput.addEventListener("input", debouncedVerifyAddress);
+    }
+
     // Modal close events
-    document.querySelector('.close').addEventListener('click', function () {
-        modal.style.display = "none";
-    });
-    window.addEventListener('click', function (event) {
-        if (event.target == modal) {
-            modal.style.display = "none";
-            closeModal();
+    const modal = document.getElementById('subletModal');
+    if (modal) {
+        const closeBtn = modal.querySelector('.close');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', closeModal);
         }
+        window.addEventListener('click', function (event) {
+            if (event.target === modal) {
+                closeModal();
+            }
+        });
+    }
+
+    // Event listeners for grid items (for index page)
+    document.querySelectorAll('.grid-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const postId = item.getAttribute('data-id');
+            window.currentPostId = postId;
+            const posterUsername = item.getAttribute('data-username');
+            const price = item.getAttribute('data-price');
+            const address = item.getAttribute('data-address');
+            const semesterCode = item.getAttribute('data-semester');
+            const desc = item.getAttribute('data-desc');
+
+            // Set modal content
+            document.getElementById('modalPrice').textContent = "Price: $" + price;
+            document.getElementById('modalAddress').textContent = "Address: " + address;
+            document.getElementById('modalSemester').textContent = "Semester: " +
+                (semesterCode === 'summer25' ? 'Summer 2025' :
+                    semesterCode === 'fall25' ? 'Fall 2025' :
+                        semesterCode === 'spring26' ? 'Spring 2026' : semesterCode);
+            document.getElementById('modalUsername').textContent = "Posted by: " + posterUsername;
+            document.getElementById('modalDesc').innerHTML = "<br>Description: <br>" + desc;
+
+            // Set images (using the grid image as default)
+            images = [item.querySelector('img').src];
+            currentIndex = 0;
+            renderImage();
+
+            // Toggle buttons based on user identity
+            const modalContact = document.getElementById('modalContact');
+            const modalEdit = document.getElementById('modalEdit');
+            if (currentUser === posterUsername) {
+                if (modalContact) modalContact.style.display = "none";
+                if (modalEdit) modalEdit.style.display = "inline-block";
+            } else {
+                if (modalEdit) modalEdit.style.display = "none";
+                if (modalContact) {
+                    modalContact.style.display = "inline-block";
+                    const toEmail = posterUsername + "@uvm.edu";
+                    const subject = "Interested in Your Sublet Posting";
+                    const body = "Hello!\n\nI'm interested in your sublet posting at " + address +
+                        ". Could you send me more details?\n\nThanks,\n" + currentUser;
+                    const mailtoLink = "mailto:" + encodeURIComponent(toEmail) +
+                        "?subject=" + encodeURIComponent(subject) +
+                        "&body=" + encodeURIComponent(body);
+                    modalContact.setAttribute('href', mailtoLink);
+                }
+            }
+
+            // Fetch additional images via AJAX.
+            fetch('get_sublet_images.php?id=' + window.currentPostId)
+                .then(response => response.json())
+                .then(fetchedImages => {
+                    if (Array.isArray(fetchedImages) && fetchedImages.length > 0) {
+                        images = fetchedImages;
+                        currentIndex = 0;
+                        renderImage();
+                        // Reset scroll after images are rendered.
+                        setTimeout(() => {
+                            const modalContent = document.querySelector('.modal-content');
+                            if (modalContent) modalContent.scrollTop = 0;
+                        }, 50);
+                    }
+                })
+                .catch(error => console.error('Error fetching images:', error));
+
+            openModal();
+        });
     });
+
+    // Expose function for map markers to use
+    window.openSubletModal = function (sublet) {
+        document.getElementById('modalPrice').textContent = "Price: $" + sublet.price;
+        document.getElementById('modalAddress').textContent = "Address: " + sublet.address;
+        document.getElementById('modalSemester').textContent = "Semester: " +
+            (sublet.semester === 'summer25' ? 'Summer 2025' :
+                sublet.semester === 'fall25' ? 'Fall 2025' :
+                    sublet.semester === 'spring26' ? 'Spring 2026' : sublet.semester);
+        document.getElementById('modalUsername').textContent = "Posted by: " + sublet.username;
+        document.getElementById('modalDesc').innerHTML = "<br>Description: <br>" + sublet.description;
+
+        // Set images from marker (if applicable)
+        images = [sublet.image_url];
+        currentIndex = 0;
+        renderImage();
+
+        openModal();
+    };
+
+    // Slider navigation buttons
+    const prevBtn = document.querySelector('.prev');
+    const nextBtn = document.querySelector('.next');
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            if (currentIndex > 0) {
+                currentIndex--;
+                renderImage();
+            }
+        });
+    }
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            if (currentIndex < images.length - 1) {
+                currentIndex++;
+                renderImage();
+            }
+        });
+    }
 
     // Grid resizing function
     function resizeGridItem(item) {
@@ -190,4 +231,110 @@ document.addEventListener('DOMContentLoaded', function () {
             resizeGridItem(item);
         });
     });
+
+    if (document.body.classList.contains('new_post')) {
+        function verifyAddress() {
+            const addressInput = document.getElementById("address");
+            geocoder.geocode({ address: addressInput.value }, function (results, status) {
+                if (status === "OK" && results[0]) {
+                    const location = results[0].geometry.location;
+                    document.getElementById("lat").value = location.lat();
+                    document.getElementById("lon").value = location.lng();
+                    // Update the marker's position and recenter the map
+                    marker.setPosition(location);
+                    map.setCenter(location);
+                }
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            // Update upload button text
+            const imageInput = document.getElementById('image_url');
+            if (imageInput) {
+                imageInput.addEventListener('change', function () {
+                    let fileName = this.files[0]?.name || 'UPLOAD';
+                    document.querySelector('label[for="image_url"]').textContent = fileName;
+                });
+            }
+
+            const addressInput = document.getElementById("address");
+            if (addressInput) {
+                addressInput.addEventListener("input", debouncedVerifyAddress);
+            }
+        });
+    }
+
+    // Map-specific code:
+    if (document.body.classList.contains("map")) {
+        const mapElem = document.getElementById('map');
+        if (mapElem) {
+            // Initialize Leaflet map
+            const leafletMap = L.map('map').setView([44.477435, -73.195323], 14);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(leafletMap);
+
+            // Use a global 'sublets' variable (set in map.php) if it exists
+            if (window.sublets && Array.isArray(window.sublets)) {
+                const bounds = L.latLngBounds();
+                window.sublets.forEach(function (sublet) {
+                    const marker = L.marker([sublet.lat, sublet.lon]).addTo(leafletMap);
+                    marker.bindPopup(`
+          <div class="popup-content" style="text-align:center;">
+            <img src="${sublet.image_url}" style="width:200px; cursor:pointer; display:block; margin:0 auto; border-radius:8px; box-shadow:0 4px 8px rgba(0,0,0,0.1);"
+                 data-sublet="${b64EncodeUnicode(JSON.stringify(sublet))}"
+                 onclick="openSubletModal(JSON.parse(atob(this.getAttribute('data-sublet'))))">
+            <p style="margin:10px 0 0; font-size:0.9em; color:#555;">Click image for details</p>
+            <div style="margin-top:10px;">
+               Price: $${sublet.price}<br>
+               ${sublet.address}
+            </div>
+          </div>
+        `);
+                    bounds.extend(marker.getLatLng());
+                    marker.on('click', function (e) {
+                        leafletMap.setView(new L.LatLng(e.latlng.lat + 0.005, e.latlng.lng), leafletMap.getZoom());
+                    });
+                });
+                if (bounds.isValid()) {
+                    leafletMap.fitBounds(bounds, { padding: [50, 50] });
+                }
+            }
+
+            // Invalidate map size after load/resize
+            window.addEventListener('load', () => {
+                setTimeout(() => leafletMap.invalidateSize(), 100);
+            });
+            window.addEventListener('resize', () => leafletMap.invalidateSize());
+
+            // Utility function
+            function b64EncodeUnicode(str) {
+                return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g,
+                    (match, p1) => String.fromCharCode('0x' + p1)));
+            }
+        }
+
+        // Modify openSubletModal to support both index & map modals
+        window.openSubletModal = function (sublet) {
+            document.getElementById('modalPrice').textContent = "Price: $" + sublet.price;
+            document.getElementById('modalAddress').textContent = "Address: " + sublet.address;
+            document.getElementById('modalSemester').textContent =
+                "Semester: " + (sublet.semester === 'summer25' ? 'Summer 2025' :
+                    sublet.semester === 'fall25' ? 'Fall 2025' :
+                        sublet.semester === 'spring26' ? 'Spring 2026' : sublet.semester);
+            document.getElementById('modalUsername').textContent = "Posted by: " + sublet.username;
+            document.getElementById('modalDesc').innerHTML = "<br>Description: <br>" + sublet.description;
+
+            // For map page, check if modal image exists; otherwise use image slider logic
+            const modalImg = document.getElementById('modalImage');
+            if (modalImg) {
+                modalImg.src = sublet.image_url;
+            } else if (document.querySelector('.modal-image-slider')) {
+                window.images = [sublet.image_url];
+                window.currentIndex = 0;
+                renderImage();
+            }
+            openModal();
+        }
+    };
 });
