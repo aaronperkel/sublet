@@ -55,6 +55,10 @@ include 'top.php';
           </div>`
             );
             bounds.extend(marker.getLatLng());
+
+            marker.on('click', function (e) {
+                leafletMap.setView(new L.LatLng(e.latlng.lat + 0.005, e.latlng.lng), leafletMap.getZoom());
+            });
         });
 
         if (bounds.isValid()) {
@@ -69,6 +73,7 @@ include 'top.php';
         window.addEventListener('resize', function () {
             leafletMap.invalidateSize();
         });
+
 
         function openSubletModal(sublet) {
             // Convert semester code to a friendly string
@@ -107,6 +112,7 @@ include 'top.php';
 
             // Display the modal
             document.getElementById('subletModal').style.display = "block";
+            openModal();
         }
 
         document.addEventListener('DOMContentLoaded', function () {
@@ -118,6 +124,7 @@ include 'top.php';
             window.addEventListener('click', function (event) {
                 if (event.target === modal) {
                     modal.style.display = 'none';
+                    closeModal();
                 }
             });
         });
@@ -126,6 +133,18 @@ include 'top.php';
             return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function (match, p1) {
                 return String.fromCharCode('0x' + p1);
             }));
+        }
+
+        function openModal() {
+            const modalContent = document.querySelector('.modal-content');
+            modalContent.scrollTop = 0; // reset scroll position
+            document.body.classList.add('modal-open');
+            document.getElementById('subletModal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.body.classList.remove('modal-open');
+            document.getElementById('subletModal').style.display = 'none';
         }
 
     </script>
