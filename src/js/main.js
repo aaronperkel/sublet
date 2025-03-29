@@ -136,8 +136,21 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             modal.style.display = "block";
+            openModal();
         });
     });
+
+    function openModal() {
+        const modalContent = document.querySelector('.modal-content');
+        modalContent.scrollTop = 0; // reset scroll position
+        document.body.classList.add('modal-open');
+        document.getElementById('subletModal').style.display = 'block';
+    }
+
+    function closeModal() {
+        document.body.classList.remove('modal-open');
+        document.getElementById('subletModal').style.display = 'none';
+    }
 
     // Modal close events
     document.querySelector('.close').addEventListener('click', function () {
@@ -146,6 +159,7 @@ document.addEventListener('DOMContentLoaded', function () {
     window.addEventListener('click', function (event) {
         if (event.target == modal) {
             modal.style.display = "none";
+            closeModal();
         }
     });
 

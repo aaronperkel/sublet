@@ -103,8 +103,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <option value="spring26" <?= $userPost['semester'] === 'spring26' ? 'selected' : '' ?>>Spring 2026</option>
         </select>
 
-        <label for="description">Description: <span id="charCount">(0/350)</span></label>
-        <textarea id="description" name="description" rows="4" cols="50" maxlength="350"><?= htmlspecialchars($userPost['description']) ?></textarea>
+        <label for="description">Description:</label>
+        <textarea id="description" name="description" rows="4" cols="50"><?= htmlspecialchars($userPost['description']) ?></textarea>
 
         <input type="submit" value="Update Post">
     </form>
@@ -115,14 +115,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <button type="submit" style="background-color:#d9534f; color:#fff; border:none; padding:0.6em 1.2em; border-radius:4px; cursor:pointer;">Delete Post</button>
     </form>
 </main>
-
-<script>
-    const textarea = document.getElementById('description');
-    const charCount = document.getElementById('charCount');
-
-    textarea.addEventListener('input', () => {
-        charCount.textContent = `(${textarea.value.length}/350)`;
-    });
-</script>
 
 <?php include 'footer.php'; ?>

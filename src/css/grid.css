@@ -23,19 +23,21 @@
     /* Optional: adds a blur effect */
 }
 
-/* Modal content */
 .modal-content {
     background-color: #fff;
     margin: 5% auto;
-    /* Adjust vertical spacing */
     padding: 2rem;
-    /* Increased padding for better spacing */
     max-width: 600px;
+    max-height: 75vh;  /* Limit modal height */
+    overflow-y: scroll;  /* Force vertical scrollbar */
     border-radius: 12px;
-    /* Rounded corners */
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    /* Softer shadow */
     position: relative;
+    -webkit-overflow-scrolling: touch; /* For smoother scrolling on iOS */
+}
+
+.modal-open {
+    overflow: hidden;
 }
 
 .modal-content .close {
