@@ -3,6 +3,8 @@
 $buttonText = "New Post";
 $buttonLink = "new_post.php";
 
+$_SERVER['REMOTE_USER'] = 'aperkel';
+
 if (isset($_SERVER['REMOTE_USER'])) {
   $stmt = $pdo->prepare("SELECT id FROM sublets WHERE username = ?");
   $stmt->execute([$_SERVER['REMOTE_USER']]);
@@ -36,6 +38,17 @@ if (isset($_SERVER['REMOTE_USER'])) {
       <a class="<?php if ($pathParts['filename'] == 'new_post' || $pathParts['filename'] == 'edit_post') {
         echo 'activePage';
       } ?>" href="<?= $buttonLink; ?>"><?= $buttonText; ?></a>
+
+      <?php
+      if ($_SERVER['REMOTE_USER'] == 'aperkel') {
+        echo "<a ";
+        if ($pathParts['filename'] == 'send_mail') {
+          echo 'class=activePage';
+        }
+        echo " href='send_mail.php'>Send Mail</a>";
+      }
+      ?>
+
     </div>
     <p class="nav-user">Hello, <?= $_SERVER['REMOTE_USER'] ?? 'Guest'; ?></p>
   </div>
