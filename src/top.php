@@ -42,7 +42,7 @@ $semesters = $stmtSem->fetchAll(PDO::FETCH_COLUMN);
     <link rel="stylesheet" type="text/css" href="./css/responsive.css?version=<?php print time(); ?>">
 
     <!-- Other external CSS/JS -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.css?version=<?php print time(); ?>" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.js"></script>
     <script src="https://kit.fontawesome.com/c428e5511d.js" crossorigin="anonymous"></script>
 
