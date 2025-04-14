@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Append signature block
         $html_body .= '
 <p style="font: 14pt serif;">
-  <span style="color: green;">UVM Sublets</span><br>
+  <span style="color: green;"><a href="https://sublet.aperkel.w3.uvm.edu">UVM Sublets</a></span><br>
   P: (478)262-8935 | E: aperkel@uvm.edu
 </p>';
 
