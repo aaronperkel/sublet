@@ -3,8 +3,6 @@
 $buttonText = "New Post";
 $buttonLink = "new_post.php";
 
-$_SERVER['REMOTE_USER'] = 'aperkel';
-
 if (isset($_SERVER['REMOTE_USER'])) {
   $stmt = $pdo->prepare("SELECT id FROM sublets WHERE username = ?");
   $stmt->execute([$_SERVER['REMOTE_USER']]);
