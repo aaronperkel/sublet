@@ -52,7 +52,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $sql = "UPDATE sublets SET price = ?, address = ?, semester = ?, lat = ?, lon = ?, description = ? WHERE username = ?";
     $stmt = $pdo->prepare($sql);
     if ($stmt->execute([$price, $address, $semester, $lat, $lon, $description, $username])) {
-        echo "<p>Sublet post updated successfully!</p>";
+        $msg = <<<HTML
+            <div style="background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; padding: 10px; margin-bottom: 15px;">
+            Sublet post updated successfully!
+            </div>
+            HTML;
+        echo $msg;
 
         $to = 'aperkel@uvm.edu';
         $subject = 'Sublet Post Updated';
