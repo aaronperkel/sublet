@@ -151,6 +151,13 @@ document.addEventListener("DOMContentLoaded", function () {
                         "?subject=" + encodeURIComponent(subject) +
                         "&body=" + encodeURIComponent(body);
                     modalContact.setAttribute('href', mailtoLink);
+
+                    modalContact.addEventListener('click', () => {
+                        // fire & forget: let the server know which post and who clicked
+                        fetch(`notify_contact.php?post_id=${postId}&owner=${encodeURIComponent(posterUsername)}`)
+                            .catch(console.error);
+                        // (the mailto will still open immediately)
+                    });
                 }
             }
 
