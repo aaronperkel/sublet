@@ -100,14 +100,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <label for="description">Description:</label>
         <textarea id="description" name="description" rows="4"
             cols="50"><?= htmlspecialchars($userPost['description']) ?></textarea>
-        <input type="submit" value="Update Post">
-    </form>
-    <br>
-    <form method="get" action="edit_post.php" onsubmit="return confirm('Are you sure you want to delete your post?');">
-        <input type="hidden" name="action" value="delete">
-        <button type="submit"
-            style="background-color:#d9534f; color:#fff; border:none; padding:0.6em 1.2em; border-radius:4px; cursor:pointer;">Delete
-            Post</button>
-    </form>
+        <div style="display:flex; gap:1em; margin-top:1em; justify-content: space-between;">
+            <input type="submit" value="Update Post" style="background:var(--accent-color);color:var(--secondary-bg);border:none;
+            padding:0.6em 1.2em;border-radius:4px;cursor:pointer;">
+
+            <a href="edit_post.php?action=delete" onclick="return confirm('Delete your post?');" style="background:#d9534f;color:#fff;border:none;text-decoration:none;
+              padding:0.6em 1.2em;border-radius:4px;cursor:pointer;font-size:1rem;display:inline-block;">
+                Delete Post
+            </a>
+        </div>
 </main>
 <?php include 'footer.php'; ?>
