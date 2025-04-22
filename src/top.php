@@ -98,7 +98,7 @@ $semesters = $stmtSem->fetchAll(PDO::FETCH_COLUMN);
                 });
                 distanceSlider.noUiSlider.on('update', function (values) {
                     var numericValue = parseFloat(values[0]);
-                    document.getElementById('distance-value').innerText = ">" + numericValue + " mi";
+                    document.getElementById('distance-value').innerText = "<" + numericValue + " mi";
                     document.getElementById('max_distance').value = numericValue;
                 });
                 const initialDistance = <?php echo isset($_GET['max_distance']) && $_GET['max_distance'] !== '' ? $_GET['max_distance'] : $maxDistanceRounded; ?>;
