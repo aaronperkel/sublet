@@ -314,7 +314,7 @@ document.addEventListener("DOMContentLoaded", function () {
         `);
                     bounds.extend(marker.getLatLng());
                     marker.on('click', function (e) {
-                        leafletMap.setView(new L.LatLng(e.latlng.lat + 0.005, e.latlng.lng), leafletMap.getZoom());
+                        leafletMap.setView(new L.LatLng(e.latlng.lat, e.latlng.lng), leafletMap.getZoom());
                     });
                 });
                 if (bounds.isValid()) {

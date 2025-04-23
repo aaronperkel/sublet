@@ -478,3 +478,33 @@ composer.lock
 
 # Ignore environment configuration files (contains sensitive data)
 .env
+
+Thumbs.db
+
+# Ignore Composer's vendor directory (PHP dependencies)
+vendor/
+
+# Ignore bills PDFs and other uploaded files (potentially sensitive and large)
+public/
+
+# Ignore Python cache and compiled files
+scripts/__pycache__/
+scripts/*.pyc
+
+# Ignore log files (if any)
+*.log
+
+# Ignore temporary or backup files
+*.tmp
+*.bak
+*.swp
+*.swo
+*~
+
+# Ignore IDE or editor-specific files
+.vscode/
+.idea/
+*.code-workspace
+
+# Ignore node_modules if you have any Node.js dependencies (optional)
+node_modules/
