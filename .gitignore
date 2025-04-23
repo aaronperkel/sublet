@@ -475,3 +475,6 @@ composer.lock
 *.css.map
 *.sass.map
 *.scss.map
+
+# Ignore environment configuration files (contains sensitive data)
+.env
