@@ -1,53 +1,34 @@
-<?php
-include 'top.php';
-?>
-<main>
+<?php include 'top.php'; ?>
+
+<main class="max-w-6xl mx-auto px-4 py-8">
     <?php include 'filters.php'; ?>
-    <div class="grid-container">
-        <?php foreach ($sublets as $sublet): ?>
-            <div class="grid-item" data-id="<?= $sublet['id'] ?>" data-price="<?= $sublet['price'] ?>"
-                data-desc="<?= htmlspecialchars($sublet['description']) ?>" data-semester="<?= $sublet['semester'] ?>"
-                data-address="<?= htmlspecialchars($sublet['address']) ?>"
-                data-username="<?= htmlspecialchars($sublet['username']) ?>">
-                <img src="<?= $sublet['image_url'] ?>" alt="Sublet image">
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+        <?php foreach ($sublets as $s): ?>
+            <div class="bg-white rounded-lg shadow hover:shadow-lg transition overflow-hidden flex flex-col">
+                <img src="<?= $s['image_url'] ?>" alt="" class="h-48 w-full object-cover">
+                <div class="p-4 flex-1 flex flex-col">
+                    <div class="flex justify-between items-center">
+                        <span class="text-lg font-semibold text-gray-800">$<?= $s['price'] ?></span>
+                        <span class="text-sm text-gray-500">
+                            <?= [
+                                'summer25' => 'Summer 2025',
+                                'fall25' => 'Fall 2025',
+                                'spring26' => 'Spring 2026'
+                            ][$s['semester']] ?>
+                        </span>
+                    </div>
+                    <p class="text-gray-600 mt-2 flex-1 line-clamp-2">
+                        <?= htmlspecialchars($s['address']) ?>
+                    </p>
+                    <button onclick="openModal(<?= $s['id'] ?>)"
+                        class="mt-4 w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition">
+                        View Details
+                    </button>
+                </div>
             </div>
         <?php endforeach; ?>
     </div>
-    <!-- Modal Structure -->
-    <div id="subletModal" class="modal">
-        <div class="modal-content">
-            <!-- Container for slider images -->
-            <div class="modal-image-slider"></div>
-            <button class="prev"
-                style="padding: 0.5em 1em; background-color: var(--accent-color); color: var(--secondary-bg); border: none; border-radius: 4px; cursor: pointer; display: none;">Prev</button>
-            <button class="next"
-                style="padding: 0.5em 1em; background-color: var(--accent-color); color: var(--secondary-bg); border: none; border-radius: 4px; cursor: pointer; display: none;">Next</button>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 15px;">
-                <div style="display: flex; align-items: center;">
-                    <h2 id="modalUsername" style="padding: 0; margin-right: 10px;"></h2>
-                </div>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <?php if (isset($_SERVER['REMOTE_USER']) && $_SERVER['REMOTE_USER'] === 'aperkel'): ?>
-                        <a id="modalDelete"
-                            style="padding: 0.5em 1em; background-color: red; color: var(--secondary-bg); text-decoration: none; border-radius: 4px; cursor: pointer;">Delete</a>
-                    <?php endif; ?>
-                    <a id="modalContact" href="#"
-                        style="padding: 0.5em 1em; background-color: var(--accent-color); color: var(--secondary-bg); text-decoration: none; border-radius: 4px;">Contact</a>
-                    <a id="modalEdit" href="edit_post.php"
-                        style="padding: 0.5em 1em; background-color: lightgreen; color: var(--secondary-bg); text-decoration: none; border-radius: 4px;">Edit</a>
-                </div>
-            </div>
-            <hr>
-            <p id="modalPrice"></p>
-            <p id="modalAddress"></p>
-            <p id="modalSemester"></p>
-            <p id="modalDesc"></p>
-            <span class="close" style="cursor:pointer;">&times;</span>
-        </div>
-    </div>
 </main>
 
-<script>
-    var currentUser = document.body.getAttribute('data-user') || "Guest";
-</script>
 <?php include 'footer.php'; ?>

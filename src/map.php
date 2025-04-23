@@ -1,36 +1,12 @@
-<?php
-include 'top.php';
-?>
+<?php include 'top.php'; ?>
 
-<!-- map.php -->
-<main>
+<main class="max-w-6xl mx-auto px-4 py-8">
     <?php include 'filters.php'; ?>
-    <div class="map-wrapper" style="width:100%; height:500px; position:relative;">
-        <div id="map" style="width:100%; height:100%;"></div>
-    </div>
 
-    <!-- Modal Structure -->
-    <div id="subletModal" class="modal">
-        <div class="modal-content">
-            <img id="modalImage" src="" alt="Sublet image">
-            <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 15px;">
-                <h2 id="modalUsername" style="padding: 0"></h2>
-                <a id="modalContact" href="#"
-                    style="padding: 0.5em 1em; background-color: var(--accent-color); color: var(--secondary-bg); text-decoration: none; border-radius: 4px;">Contact</a>
-            </div>
-            <hr>
-            <p id="modalPrice"></p>
-            <p id="modalAddress"></p>
-            <p id="modalSemester"></p>
-            <p id="modalDesc"></p>
-            <span class="close" style="cursor:pointer;">&times;</span>
-        </div>
-    </div>
-
-    <!-- Load Leaflet CSS and JS -->
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <script>
-        window.sublets = <?php echo json_encode($sublets); ?>;
-    </script>
+    <div id="map" class="w-full h-[500px] rounded-lg shadow-lg"></div>
 </main>
+
+<!-- Modal markup can stay if you like; or reuse your JS slider/modal -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>window.sublets = <?= json_encode($sublets) ?>;</script>
 <?php include 'footer.php'; ?>

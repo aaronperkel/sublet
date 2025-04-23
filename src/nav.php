@@ -1,62 +1,32 @@
 <?php
-// Assuming $pdo is already defined (from connect-db.php) and REMOTE_USER is set
 $buttonText = "New Post";
 $buttonLink = "new_post.php";
-
-if (isset($_SERVER['REMOTE_USER'])) {
+if ($_SERVER['REMOTE_USER'] !== 'Guest') {
   $stmt = $pdo->prepare("SELECT id FROM sublets WHERE username = ?");
   $stmt->execute([$_SERVER['REMOTE_USER']]);
-  if ($stmt->rowCount() > 0) {
+  if ($stmt->rowCount()) {
     $buttonText = "My Post";
     $buttonLink = "edit_post.php";
   }
 }
 ?>
-<!-- nav.php -->
-<nav class="main-nav">
-  <div class="nav-left">
-    <a href='index.php' style="padding: 0; margin: 0">
-      <div class="title-box" style="display: flex; align-items: center;">
-        <span class="fa-stack" style="font-size: 23px;">
-          <i class="fa-solid fa-circle fa-stack-2x" style="color: rgb(10, 67, 114);"></i>
-          <i class="fa-solid fa-house fa-stack-1x" style="color: white;"></i>
-        </span>
-        <h1 style="margin-left: 10px;">UVM Sublets</h1>
-      </div>
+<nav class="bg-white shadow">
+  <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+    <a href="index.php" class="flex items-center space-x-2">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24"
+        stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M3 12l2-2m0 0l7-7 7 7m-9 2v8m4-8v8m5-10l2 2" />
+      </svg>
+      <span class="text-2xl font-bold text-gray-800">UVM Sublets</span>
     </a>
-  </div>
-  <div class="nav-right">
-    <div class="nav-links">
-      <a class="<?php if ($pathParts['filename'] == 'index') {
-        echo 'activePage';
-      } ?>" href="index.php">Home</a>
-      <a class="<?php if ($pathParts['filename'] == 'map') {
-        echo 'activePage';
-      } ?>" href="map.php">Map</a>
-      <a class="<?php if ($pathParts['filename'] == 'new_post' || $pathParts['filename'] == 'edit_post') {
-        echo 'activePage';
-      } ?>" href="<?= $buttonLink; ?>"><?= $buttonText; ?></a>
-
-      <?php
-      if ($_SERVER['REMOTE_USER'] == 'aperkel') {
-        echo "<a ";
-        if ($pathParts['filename'] == 'send_mail') {
-          echo 'class=activePage';
-        }
-        echo " href='send_mail.php'>Send Mail</a>";
-      }
-      ?>
-
+    <div class="space-x-6 flex items-center">
+      <a href="index.php" class="text-gray-600 hover:text-blue-600">Home</a>
+      <a href="map.php" class="text-gray-600 hover:text-blue-600">Map</a>
+      <a href="<?= $buttonLink ?>" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
+        <?= $buttonText ?>
+      </a>
     </div>
-    <p class="nav-user">Hello, <?= $_SERVER['REMOTE_USER'] ?? 'Guest'; ?></p>
+    <span class="text-gray-800 font-medium">Hello, <?= $_SERVER['REMOTE_USER'] ?></span>
   </div>
 </nav>
-
-
-<!-- <div style="background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; padding: 10px; margin-bottom: 15px;">
-  WARNING
-</div> -->
-
-<!-- <div style="background-color: #dbe9f9; color: #4a90e2; border: 1px solid #b7d3f3; border-radius: 4px; padding: 10px; margin-bottom: 15px;">
-  INFO
-</div> -->
