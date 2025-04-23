@@ -9,6 +9,7 @@ if ($_SERVER['REMOTE_USER'] !== 'Guest') {
     $buttonLink = "edit_post.php";
   }
 }
+$isAdmin = ($_SERVER['REMOTE_USER'] === 'aperkel');
 ?>
 <nav class="bg-white dark:bg-gray-800 shadow">
   <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -23,6 +24,11 @@ if ($_SERVER['REMOTE_USER'] !== 'Guest') {
     <div class="space-x-6 flex items-center">
       <a href="index.php" class="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400">Home</a>
       <a href="map.php" class="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400">Map</a>
+      <?php if ($isAdmin): ?>
+        <a href="send_mail.php" class="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400">
+          Send Mail
+        </a>
+      <?php endif; ?>
       <a href="<?= $buttonLink ?>"
         class="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded hover:bg-blue-700 dark:hover:bg-blue-600 transition">
         <?= $buttonText ?>

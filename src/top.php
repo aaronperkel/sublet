@@ -5,7 +5,7 @@ $pathParts = pathinfo($phpSelf);
 
 include 'connect-db.php';
 
-$_SERVER['REMOTE_USER'] = 'rpantale';
+$_SERVER['REMOTE_USER'] = 'aperkel';
 
 $_SERVER['REMOTE_USER'] = $_SERVER['REMOTE_USER'] ?? 'Guest';
 
@@ -37,13 +37,13 @@ $semesters = $stmt->fetchAll(PDO::FETCH_COLUMN);
     <script>
         tailwind.config = { darkMode: 'class' }
     </script>
-    <script src="https://cdn.tailwindcss.com" defer></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.js" defer></script>
     <?php if ($pathParts['filename'] === 'map'): ?>
         <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <?php endif; ?>
-    <script src="./js/main.js" defer></script>
+    <script src="./js/main.js?<?php echo time() ?>"></script>
 </head>
 
 <body class="<?= $pathParts['filename'] ?> bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200"

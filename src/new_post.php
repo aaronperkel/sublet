@@ -4,7 +4,86 @@ $google_api_key = $_ENV['GOOGLE_API'];
 $username = $_SERVER['REMOTE_USER'] ?? 'Guest';
 $error_message = "";
 
-// (your POST-handling remains here…)
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $price = $_POST['price'] ?? '';
+    $address = $_POST['address'] ?? '';
+    $semester = $_POST['semester'] ?? '';
+    $lat = $_POST['lat'] ?? '';
+    $lon = $_POST['lon'] ?? '';
+    $description = $_POST['description'] ?? '';
+
+    function haversineGreatCircleDistance($latitudeFrom, $longitudeFrom, $latitudeTo, $longitudeTo, $earthRadius = 3959)
+    {
+        $latFrom = deg2rad($latitudeFrom);
+        $lonFrom = deg2rad($longitudeFrom);
+        $latTo = deg2rad($latitudeTo);
+        $lonTo = deg2rad($longitudeTo);
+        $latDelta = $latTo - $latFrom;
+        $lonDelta = $lonTo - $lonFrom;
+        $angle = 2 * asin(sqrt(pow(sin($latDelta / 2), 2) +
+            cos($latFrom) * cos($latTo) * pow(sin($lonDelta / 2), 2)));
+        return $angle * $earthRadius;
+    }
+
+    $campusLat = 44.477435;
+    $campusLon = -73.195323;
+    $lat = (float) $lat;
+    $lon = (float) $lon;
+    $distance = haversineGreatCircleDistance($campusLat, $campusLon, $lat, $lon);
+    if ($distance > 50) {
+        $error_message .= "<p>Error: The location is more than 50 miles from campus (calculated distance: " . round($distance, 2) . " miles).</p>";
+    }
+
+    if (empty($_FILES['image_url']['name'][0])) {
+        $error_message .= "<p>Please upload at least one image.</p>";
+    }
+
+    if (empty($error_message)) {
+        $target_dir = "./public/images/";
+        // Process the first image as the thumbnail.
+        $firstImage = $_FILES['image_url']['name'][0];
+        $fileType = pathinfo($firstImage, PATHINFO_EXTENSION);
+        $target_file = $target_dir . $username . '_0.' . $fileType;
+        if (!move_uploaded_file($_FILES['image_url']['tmp_name'][0], $target_file)) {
+            $error_message .= "<p>Error uploading first image. Error code: " . $_FILES['image_url']['error'][0] . "</p>";
+        } else {
+            $thumbnail = $target_file;
+        }
+    }
+
+    if (empty($error_message)) {
+        // Insert into sublets table (store the thumbnail image URL).
+        $sql = "INSERT INTO sublets (image_url, price, address, semester, lat, lon, description, username)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        $stmt = $pdo->prepare($sql);
+        if ($stmt->execute([$thumbnail, $price, $address, $semester, $lat, $lon, $description, $username])) {
+            $subletId = $pdo->lastInsertId();
+
+            // Insert the thumbnail into sublet_images with sort_order 0.
+            $stmtImage = $pdo->prepare("INSERT INTO sublet_images (sublet_id, image_url, sort_order) VALUES (?, ?, ?)");
+            $stmtImage->execute([$subletId, $thumbnail, 0]);
+
+            // Process additional images (if any)
+            for ($i = 1; $i < count($_FILES['image_url']['name']); $i++) {
+                $imageName = $_FILES['image_url']['name'][$i];
+                $fileType = pathinfo($imageName, PATHINFO_EXTENSION);
+                $target_file = $target_dir . $username . '_' . $i . '.' . $fileType;
+                if (move_uploaded_file($_FILES['image_url']['tmp_name'][$i], $target_file)) {
+                    $stmtImage->execute([$subletId, $target_file, $i]);
+                }
+            }
+
+            $to = 'aperkel@uvm.edu';
+            $subject = 'New Sublet Post Created';
+            $message = "A new sublet post has been created by $username.\nPrice: $price\nAddress: $address";
+            mail($to, $subject, $message);
+            header("Location: edit_post.php");
+            exit;
+        } else {
+            $error_message .= "<p>Error adding sublet post.</p>";
+        }
+    }
+}
 
 ?>
 <main class="max-w-md mx-auto px-4 py-8">
