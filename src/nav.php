@@ -1,11 +1,16 @@
 <?php
-// Assuming $pdo is already defined (from connect-db.php) and REMOTE_USER is set
+// auth.php (which defines get_current_user()) is included in top.php before nav.php
+$nav_current_user = get_current_user();
+$nav_display_name = $nav_current_user ? htmlspecialchars($nav_current_user) : 'Guest';
+
+// Logic for "New Post" vs "My Post" button
 $buttonText = "New Post";
 $buttonLink = "new_post.php";
 
-if (isset($_SERVER['REMOTE_USER'])) {
+if ($nav_current_user) { // Check if user is logged in
+  // $pdo is available from connect-db.php (via top.php)
   $stmt = $pdo->prepare("SELECT id FROM sublets WHERE username = ?");
-  $stmt->execute([$_SERVER['REMOTE_USER']]);
+  $stmt->execute([$nav_current_user]);
   if ($stmt->rowCount() > 0) {
     $buttonText = "My Post";
     $buttonLink = "edit_post.php";
@@ -38,7 +43,7 @@ if (isset($_SERVER['REMOTE_USER'])) {
       } ?>" href="<?= $buttonLink; ?>"><?= $buttonText; ?></a>
 
       <?php
-      if ($_SERVER['REMOTE_USER'] == 'aperkel') {
+      if ($nav_current_user === 'aperkel') { // Use the variable from get_current_user()
         echo "<a ";
         if ($pathParts['filename'] == 'send_mail') {
           echo 'class=activePage';
@@ -48,7 +53,7 @@ if (isset($_SERVER['REMOTE_USER'])) {
       ?>
 
     </div>
-    <p class="nav-user">Hello, <?= $_SERVER['REMOTE_USER'] ?? 'Guest'; ?></p>
+    <p class="nav-user">Hello, <?= $nav_display_name ?></p>
   </div>
 </nav>
 
