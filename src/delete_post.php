@@ -1,34 +1,43 @@
-<!-- delete_post.php -->
 <?php
-include 'connect-db.php';
-
-// Only allow admin (aperkel) to delete posts
-if (!isset($_SERVER['REMOTE_USER']) || $_SERVER['REMOTE_USER'] !== 'aperkel') {
-    die("Access denied.");
-}
+require_once 'auth.php';
+start_session();
+require_login();
+require_once 'connect-db.php';
+require_once 'db_operations.php'; // Ensure this is included
 
 if (!isset($_GET['id'])) {
-    die("Post ID not specified.");
+    header("Location: index.php?error=delete_id_missing");
+    exit;
 }
-;
+$post_id = intval($_GET['id']);
+$current_user = get_current_user();
 
-$id = intval($_GET['id']);
+$result = deleteSublet($pdo, $post_id, $current_user);
 
-$stmt = $pdo->prepare("SELECT username FROM sublets WHERE id = ?");
-$stmt->execute([$id]);
-$username = $stmt->fetchColumn();
+if ($result['success']) {
+    if (!empty($result['images_to_delete'])) {
+        foreach ($result['images_to_delete'] as $image_path) {
+            // Check if directory is writable before attempting to delete file
+            if (file_exists($image_path) && is_writable(dirname($image_path))) {
+                @unlink($image_path); // Suppress error if file already gone or other minor issues
+            } else {
+                // Log error: "Failed to delete image file or directory not writable: $image_path"
+                // error_log("Failed to delete image file or directory not writable: " . $image_path . " for post ID " . $post_id);
+            }
+        }
+    }
+    // Email notification (can be re-enabled if necessary, using $current_user and $post_id)
+    // $to = 'aperkel@uvm.edu';
+    // $subject = 'Sublet Post Deleted';
+    // $message_body = "The sublet post (ID: $post_id) formerly owned by $current_user has been deleted by the owner.";
+    // mail($to, $subject, $message_body);
 
-$stmt = $pdo->prepare("DELETE FROM sublets WHERE id = ?");
-if ($stmt->execute([$id])) {
-
-    $to = 'aperkel@uvm.edu';
-    $subject = 'Sublet Post Deleted';
-    $message = "The sublet post for user $username has been deleted.";
-    mail($to, $subject, $message);
-
-    header("Location: index.php");
+    header("Location: index.php?status=deleted_successfully");
     exit;
 } else {
-    echo "Error deleting post.";
+    $error_message = urlencode($result['message'] ?? 'delete_failed_unknown_reason');
+    // error_log("Delete failed for post ID $post_id by user $current_user: " . ($result['message'] ?? 'Unknown reason'));
+    header("Location: index.php?error=" . $error_message);
+    exit;
 }
 ?>

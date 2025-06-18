@@ -23,18 +23,11 @@ if (isset($_GET['max_distance']) && $_GET['max_distance'] !== '') {
     $params[] = $_GET['max_distance'];
 }
 
-// Build SQL query
-$sql = "SELECT * FROM sublets";
-if ($filters) {
-    $sql .= " WHERE " . implode(" AND ", $filters);
-}
-$sql .= " ORDER BY RAND()";
-
-// Execute query
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
-$sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
+// The $filters array and $params array construction based on $_GET
+// is still useful for other potential uses or if we decide to pass this to getAllSublets directly.
+// However, the actual fetching of $sublets is removed from this file.
+// $sublets will be fetched in index.php using getAllSublets($pdo, $_GET).
+// Variables like $maxPriceRounded, $semesters, $maxDistanceRounded are available from top.php.
 ?>
 
 <form id="filterForm" method="get" class="filters">

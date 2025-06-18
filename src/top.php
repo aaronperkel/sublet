@@ -1,26 +1,21 @@
 <!-- top.php -->
 <?php
-ob_start();
+require_once 'auth.php'; // Added for authentication
+start_session(); // Added for session management
+
 $phpSelf = htmlspecialchars($_SERVER['PHP_SELF']);
 $pathParts = pathinfo($phpSelf);
 
-include 'connect-db.php';
+include 'connect-db.php'; // connect-db after auth
+require_once 'db_operations.php'; // Include the new DB operations file
+require_once 'config.php'; // Include the new config file
 
-// Query maximum price and round up to nearest 50
-$stmt = $pdo->query("SELECT MAX(price) as max_price FROM sublets");
-$maxPriceResult = $stmt->fetch(PDO::FETCH_ASSOC);
-$maxPrice = $maxPriceResult['max_price'] ?? 3000;
-$maxPriceRounded = ceil($maxPrice / 50) * 50;
-
-// Query maximum distance from campus using the Haversine formula
-$stmtDistance = $pdo->query("SELECT MAX(3959 * acos(cos(radians(44.477435)) * cos(radians(lat)) * cos(radians(lon) - radians(-73.195323)) + sin(radians(44.477435)) * sin(radians(lat)))) as max_distance FROM sublets");
-$distanceResult = $stmtDistance->fetch(PDO::FETCH_ASSOC);
-$maxDistance = $distanceResult['max_distance'] ?? 20;
-$maxDistanceRounded = ceil($maxDistance * 2) / 2;
-
-// Query distinct semesters available
-$stmtSem = $pdo->query("SELECT DISTINCT semester FROM sublets");
-$semesters = $stmtSem->fetchAll(PDO::FETCH_COLUMN);
+// Fetch filter data using the new function
+// $pdo is available from connect-db.php which is included before this
+$filterData = getFilterData($pdo);
+$maxPriceRounded = $filterData['maxPriceRounded'];
+$maxDistanceRounded = $filterData['maxDistanceRounded'];
+$semesters = $filterData['semesters'];
 ?>
 
 <!DOCTYPE HTML>
@@ -35,11 +30,11 @@ $semesters = $stmtSem->fetchAll(PDO::FETCH_COLUMN);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <!-- New CSS files -->
-    <link rel="stylesheet" type="text/css" href="./css/base.css?version=<?php print time(); ?>">
-    <link rel="stylesheet" type="text/css" href="./css/components.css?version=<?php print time(); ?>">
-    <link rel="stylesheet" type="text/css" href="./css/form.css?version=<?php print time(); ?>">
-    <link rel="stylesheet" type="text/css" href="./css/grid.css?version=<?php print time(); ?>">
-    <link rel="stylesheet" type="text/css" href="./css/responsive.css?version=<?php print time(); ?>">
+    <link rel="stylesheet" type="text/css" href="./css/base.css?version=<?= CSS_VERSION ?>">
+    <link rel="stylesheet" type="text/css" href="./css/components.css?version=<?= CSS_VERSION ?>">
+    <link rel="stylesheet" type="text/css" href="./css/form.css?version=<?= CSS_VERSION ?>">
+    <link rel="stylesheet" type="text/css" href="./css/grid.css?version=<?= CSS_VERSION ?>">
+    <link rel="stylesheet" type="text/css" href="./css/responsive.css?version=<?= CSS_VERSION ?>">
 
     <!-- Other external CSS/JS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.css" />
@@ -108,7 +103,7 @@ $semesters = $stmtSem->fetchAll(PDO::FETCH_COLUMN);
     </script>
 </head>
 <?php
-print '<body class="' . $pathParts['filename'] . '" data-user="' . ($_SERVER['REMOTE_USER'] ?? 'Guest') . '">';
+print '<body class="' . $pathParts['filename'] . '" data-user="' . htmlspecialchars(get_current_user() ?? 'Guest') . '">';
 print '<!-- #################   Body element    ################# -->';
 include 'nav.php';
 ?>

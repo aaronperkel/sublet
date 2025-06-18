@@ -1,5 +1,10 @@
 <?php
 include 'top.php';
+// $pdo is available from connect-db.php (via top.php)
+// $_GET will contain filter parameters from the form in filters.php
+// filters.php is included below but it only sets up the form,
+// it does not fetch data anymore.
+$sublets = getAllSublets($pdo, $_GET);
 ?>
 <main>
     <?php include 'filters.php'; ?>
@@ -9,7 +14,7 @@ include 'top.php';
                 data-desc="<?= htmlspecialchars($sublet['description']) ?>" data-semester="<?= $sublet['semester'] ?>"
                 data-address="<?= htmlspecialchars($sublet['address']) ?>"
                 data-username="<?= htmlspecialchars($sublet['username']) ?>">
-                <img src="<?= $sublet['image_url'] ?>" alt="Sublet image">
+                <img src="<?= htmlspecialchars(!empty($sublet['first_image_url']) ? $sublet['first_image_url'] : './public/images/default_sublet_image.png') ?>" alt="Sublet image">
             </div>
         <?php endforeach; ?>
     </div>
@@ -27,14 +32,11 @@ include 'top.php';
                     <h2 id="modalUsername" style="padding: 0; margin-right: 10px;"></h2>
                 </div>
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <?php if (isset($_SERVER['REMOTE_USER']) && $_SERVER['REMOTE_USER'] === 'aperkel'): ?>
-                        <a id="modalDelete"
-                            style="padding: 0.5em 1em; background-color: red; color: var(--secondary-bg); text-decoration: none; border-radius: 4px; cursor: pointer;">Delete</a>
-                    <?php endif; ?>
+                    <a id="modalDelete" style="padding: 0.5em 1em; background-color: red; color: var(--secondary-bg); text-decoration: none; border-radius: 4px; cursor: pointer; display: none;">Delete</a>
                     <a id="modalContact" href="#"
                         style="padding: 0.5em 1em; background-color: var(--accent-color); color: var(--secondary-bg); text-decoration: none; border-radius: 4px;">Contact</a>
-                    <a id="modalEdit" href="edit_post.php"
-                        style="padding: 0.5em 1em; background-color: lightgreen; color: var(--secondary-bg); text-decoration: none; border-radius: 4px;">Edit</a>
+                    <a id="modalEdit" href="#"
+                        style="padding: 0.5em 1em; background-color: lightgreen; color: var(--secondary-bg); text-decoration: none; border-radius: 4px; display: none;">Edit</a>
                 </div>
             </div>
             <hr>
