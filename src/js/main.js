@@ -107,6 +107,31 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    // Sets up the contact button logic
+    function setupContactButton(postId, posterUsername, address) {
+        const modalContact = document.getElementById('modalContact');
+        if (!modalContact) return;
+
+        if (currentUser === posterUsername) {
+            modalContact.style.display = "none";
+        } else {
+            modalContact.style.display = "inline-block";
+            const toEmail = posterUsername + "@uvm.edu";
+            const subject = "Interested in Your Sublet Posting";
+            const body = `Hello!\n\nI'm interested in your sublet posting at ${address}. Could you send me more details?\n\nThanks,\n${currentUser}`;
+            const mailtoLink = `mailto:${encodeURIComponent(toEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+            // To avoid duplicate listeners, we clone and replace the button
+            const newContact = modalContact.cloneNode(true);
+            modalContact.parentNode.replaceChild(newContact, modalContact);
+
+            newContact.setAttribute('href', mailtoLink);
+            newContact.addEventListener('click', () => {
+                fetch(`notify_contact.php?post_id=${postId}&owner=${encodeURIComponent(posterUsername)}`).catch(console.error);
+            });
+        }
+    }
+
     // Event listeners for grid items (for index page)
     document.querySelectorAll('.grid-item').forEach(item => {
         item.addEventListener('click', () => {
@@ -118,50 +143,25 @@ document.addEventListener("DOMContentLoaded", function () {
             const semesterCode = item.getAttribute('data-semester');
             const desc = item.getAttribute('data-desc');
 
-            // Set modal content
             document.getElementById('modalPrice').textContent = "Price: $" + price;
             document.getElementById('modalAddress').textContent = "Address: " + address;
-            document.getElementById('modalSemester').textContent = "Semester: " +
-                (semesterCode === 'summer25' ? 'Summer 2025' :
-                    semesterCode === 'fall25' ? 'Fall 2025' :
-                        semesterCode === 'spring26' ? 'Spring 2026' : semesterCode);
+            document.getElementById('modalSemester').textContent = "Semester: " + (semesterCode === 'summer25' ? 'Summer 2025' : semesterCode === 'fall25' ? 'Fall 2025' : semesterCode === 'spring26' ? 'Spring 2026' : semesterCode);
             document.getElementById('modalUsername').textContent = "Posted by: " + posterUsername;
             document.getElementById('modalDesc').innerHTML = "<br>Description: <br>" + desc;
 
-            // Set images (using the grid image as default)
             images = [item.querySelector('img').src];
             currentIndex = 0;
             renderImage();
 
-            // Toggle buttons based on user identity
-            const modalContact = document.getElementById('modalContact');
             const modalEdit = document.getElementById('modalEdit');
             if (currentUser === posterUsername) {
-                if (modalContact) modalContact.style.display = "none";
                 if (modalEdit) modalEdit.style.display = "inline-block";
             } else {
                 if (modalEdit) modalEdit.style.display = "none";
-                if (modalContact) {
-                    modalContact.style.display = "inline-block";
-                    const toEmail = posterUsername + "@uvm.edu";
-                    const subject = "Interested in Your Sublet Posting";
-                    const body = "Hello!\n\nI'm interested in your sublet posting at " + address +
-                        ". Could you send me more details?\n\nThanks,\n" + currentUser;
-                    const mailtoLink = "mailto:" + encodeURIComponent(toEmail) +
-                        "?subject=" + encodeURIComponent(subject) +
-                        "&body=" + encodeURIComponent(body);
-                    modalContact.setAttribute('href', mailtoLink);
-
-                    modalContact.addEventListener('click', () => {
-                        // fire & forget: let the server know which post and who clicked
-                        fetch(`notify_contact.php?post_id=${postId}&owner=${encodeURIComponent(posterUsername)}`)
-                            .catch(console.error);
-                        // (the mailto will still open immediately)
-                    });
-                }
             }
 
-            // Fetch additional images via AJAX.
+            setupContactButton(postId, posterUsername, address);
+
             fetch('get_sublet_images.php?id=' + window.currentPostId)
                 .then(response => response.text())
                 .then(text => {
@@ -190,18 +190,20 @@ document.addEventListener("DOMContentLoaded", function () {
     window.openSubletModal = function (sublet) {
         document.getElementById('modalPrice').textContent = "Price: $" + sublet.price;
         document.getElementById('modalAddress').textContent = "Address: " + sublet.address;
-        document.getElementById('modalSemester').textContent = "Semester: " +
-            (sublet.semester === 'summer25' ? 'Summer 2025' :
-                sublet.semester === 'fall25' ? 'Fall 2025' :
-                    sublet.semester === 'spring26' ? 'Spring 2026' : sublet.semester);
+        document.getElementById('modalSemester').textContent = "Semester: " + (sublet.semester === 'summer25' ? 'Summer 2025' : sublet.semester === 'fall25' ? 'Fall 2025' : sublet.semester === 'spring26' ? 'Spring 2026' : sublet.semester);
         document.getElementById('modalUsername').textContent = "Posted by: " + sublet.username;
         document.getElementById('modalDesc').innerHTML = "<br>Description: <br>" + sublet.description;
 
-        // Set images from marker (if applicable)
-        images = [sublet.image_url];
-        currentIndex = 0;
-        renderImage();
+        const modalImg = document.getElementById('modalImage');
+        if (modalImg) {
+            modalImg.src = sublet.image_url;
+        } else if (document.querySelector('.modal-image-slider')) {
+            images = [sublet.image_url];
+            currentIndex = 0;
+            renderImage();
+        }
 
+        setupContactButton(sublet.id, sublet.username, sublet.address);
         openModal();
     };
 
@@ -355,6 +357,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 window.currentIndex = 0;
                 renderImage();
             }
+            setupContactButton(sublet.id, sublet.username, sublet.address);
             openModal();
         }
     };
