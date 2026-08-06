@@ -26,8 +26,12 @@ $allPosts = $pdo->query("SELECT s.*, COALESCE(sem.name, s.semester) as semester_
 
 $hiddenCount = count(array_filter($allPosts, fn($p) => $p['is_hidden']));
 
-// All users
-$allUsers = $pdo->query("SELECT username, COUNT(*) as post_count, MAX(posted_at) as last_post FROM sublets GROUP BY username ORDER BY username")->fetchAll(PDO::FETCH_ASSOC);
+// All users. display_name may not exist yet (see table_columns in db.php), so
+// select it only when it does — MAX() picks the single row per user, since
+// sublets is effectively one row per username anyway.
+$adminColumns = table_columns($pdo, 'sublets');
+$nameSelect = isset($adminColumns['display_name']) ? ', MAX(display_name) as display_name' : '';
+$allUsers = $pdo->query("SELECT username$nameSelect, COUNT(*) as post_count, MAX(posted_at) as last_post FROM sublets GROUP BY username ORDER BY username")->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <div class="admin-container">
@@ -46,6 +50,15 @@ $allUsers = $pdo->query("SELECT username, COUNT(*) as post_count, MAX(posted_at)
                 <div class="stat-number"><?= $totalImages ?></div>
                 <div class="stat-label">Images</div>
             </div>
+            <?php if ($hiddenCount > 0): ?>
+                <?php /* Posts still in the database but not on the public site,
+                         because their semester is deactivated. Easy to forget
+                         about otherwise — the Posts tab flags them individually. */ ?>
+                <div class="stat-card stat-card-muted" title="In a deactivated semester — not visible on Browse or Map, and excluded from an 'all users' email.">
+                    <div class="stat-number"><?= $hiddenCount ?></div>
+                    <div class="stat-label">Hidden</div>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -172,6 +185,10 @@ $allUsers = $pdo->query("SELECT username, COUNT(*) as post_count, MAX(posted_at)
             <?php if (empty($allPosts)): ?>
                 <p class="text-muted">No posts yet.</p>
             <?php else: ?>
+                <?php /* Six columns will not fit a phone. Scrolling the table
+                         inside its own box keeps the page itself from scrolling
+                         sideways. */ ?>
+                <div class="table-scroll">
                 <table class="admin-table">
                     <thead>
                         <tr>
@@ -187,8 +204,9 @@ $allUsers = $pdo->query("SELECT username, COUNT(*) as post_count, MAX(posted_at)
                         <?php foreach ($allPosts as $post): ?>
                             <tr data-post-id="<?= $post['id'] ?>">
                                 <td><?= htmlspecialchars($post['username']) ?></td>
-                                <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                    <?= htmlspecialchars($post['address']) ?>
+                                <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+                                    title="<?= htmlspecialchars($post['address']) ?>">
+                                    <?= htmlspecialchars(format_address($post['address'])) ?>
                                 </td>
                                 <td>$<?= number_format($post['price']) ?></td>
                                 <td>
@@ -213,6 +231,7 @@ $allUsers = $pdo->query("SELECT username, COUNT(*) as post_count, MAX(posted_at)
                         <?php endforeach; ?>
                     </tbody>
                 </table>
+                </div>
             <?php endif; ?>
         </div>
 
@@ -235,6 +254,7 @@ $allUsers = $pdo->query("SELECT username, COUNT(*) as post_count, MAX(posted_at)
             <?php if (empty($allUsers)): ?>
                 <p class="text-muted">No users yet.</p>
             <?php else: ?>
+                <div class="table-scroll">
                 <table class="admin-table">
                     <thead>
                         <tr>
@@ -247,7 +267,16 @@ $allUsers = $pdo->query("SELECT username, COUNT(*) as post_count, MAX(posted_at)
                     <tbody>
                         <?php foreach ($allUsers as $user): ?>
                             <tr>
-                                <td><?= htmlspecialchars($user['username']) ?></td>
+                                <?php /* NetID stays visible — it is the identifier every
+                                         other admin action keys off. */ ?>
+                                <td>
+                                    <?php if (!empty($user['display_name'])): ?>
+                                        <?= htmlspecialchars($user['display_name']) ?>
+                                        <span class="text-muted">(<?= htmlspecialchars($user['username']) ?>)</span>
+                                    <?php else: ?>
+                                        <?= htmlspecialchars($user['username']) ?>
+                                    <?php endif; ?>
+                                </td>
                                 <td><?= $user['post_count'] ?></td>
                                 <td><?= date('M j, Y', strtotime($user['last_post'])) ?></td>
                                 <td>
@@ -259,6 +288,7 @@ $allUsers = $pdo->query("SELECT username, COUNT(*) as post_count, MAX(posted_at)
                         <?php endforeach; ?>
                     </tbody>
                 </table>
+                </div>
             <?php endif; ?>
         </div>
     </div>
@@ -321,7 +351,7 @@ $allUsers = $pdo->query("SELECT username, COUNT(*) as post_count, MAX(posted_at)
                             <?php foreach ($allUsers as $user): ?>
                                 <label class="user-checkbox">
                                     <input type="checkbox" name="recipients[]" value="<?= htmlspecialchars($user['username']) ?>">
-                                    <?= htmlspecialchars($user['username']) ?>
+                                    <?= htmlspecialchars(poster_name($user)) ?><?php if (!empty($user['display_name'])): ?> <span class="text-muted">(<?= htmlspecialchars($user['username']) ?>)</span><?php endif; ?>
                                 </label>
                             <?php endforeach; ?>
                         </div>
@@ -336,6 +366,12 @@ $allUsers = $pdo->query("SELECT username, COUNT(*) as post_count, MAX(posted_at)
                 <div class="form-group">
                     <label for="emailBody">Message</label>
                     <textarea id="emailBody" rows="8" placeholder="Write your message here..."></textarea>
+                    <p class="field-hint">
+                        <i class="fa-solid fa-circle-info"></i>
+                        Each email opens with &ldquo;Hi &lt;name&gt;,&rdquo; automatically. Write
+                        <code>{name}</code> anywhere in the message to place it yourself instead.
+                        People who haven&rsquo;t set a name still get their NetID.
+                    </p>
                 </div>
 
                 <button class="btn btn-primary" id="sendEmailBtn">

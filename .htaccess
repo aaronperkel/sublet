@@ -6,3 +6,25 @@ DirectoryIndex landing.php
 <FilesMatch "^\.">
     Require all denied
 </FilesMatch>
+
+# Baseline response headers.
+#
+# No Content-Security-Policy here on purpose: every page inlines a <script> for
+# its window.*_CONFIG globals and inline style attributes throughout, and pulls
+# Leaflet, noUiSlider and Font Awesome from three separate CDNs. A policy loose
+# enough to allow all of that ('unsafe-inline' plus four hosts) would buy very
+# little, and a tight one would take nonces on every inline block. Worth doing
+# as its own change, not as a side effect of one.
+<IfModule mod_headers.c>
+    # public/images/ is user-uploaded and served directly, so a file that
+    # sniffs as HTML must not be treated as HTML.
+    Header always set X-Content-Type-Options "nosniff"
+
+    # Listing pages carry addresses and contact details; don't leak the full
+    # path of one in the Referer when a user follows an outbound link.
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # Authentication is ambient (CAS via browser credentials), so framing this
+    # site elsewhere is a clickjacking path against signed-in users.
+    Header always set X-Frame-Options "SAMEORIGIN"
+</IfModule>

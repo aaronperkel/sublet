@@ -73,3 +73,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     exit;
 }
+
+// Anything other than GET/POST fell through returning an empty body, which the
+// client parsed as a JSON error rather than a method problem.
+http_response_code(405);
+echo json_encode(['error' => 'Method not allowed']);

@@ -54,6 +54,20 @@ if ($method === 'POST' && isset($_POST['_method']) && $_POST['_method'] === 'DEL
         exit;
     }
 
+    // Refuse to remove the only remaining photo. Deleting it left the listing
+    // live with sublets.image_url and thumbnail_url still pointing at files
+    // that no longer exist — the card rendered the broken-image placeholder and
+    // there was nothing to promote in its place. post.php already requires a
+    // photo to create a listing, so an imageless listing should not be
+    // reachable by editing one either.
+    $stmtCount = $pdo->prepare("SELECT COUNT(*) FROM sublet_images WHERE sublet_id = ?");
+    $stmtCount->execute([$image['sublet_id']]);
+    if ((int)$stmtCount->fetchColumn() <= 1) {
+        http_response_code(409);
+        echo json_encode(['error' => 'That is the only photo on this listing. Add another one first, or delete the whole listing.']);
+        exit;
+    }
+
     // Delete the file and its generated thumbnail
     delete_image_files($image['image_url']);
 

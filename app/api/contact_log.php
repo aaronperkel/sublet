@@ -51,6 +51,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $stmt->execute();
     $logs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // Shorten for the admin table, which renders this in a 200px ellipsised
+    // cell. Null stays null so the client keeps showing "(deleted)".
+    foreach ($logs as &$log) {
+        if (isset($log['address'])) {
+            $log['address'] = format_address($log['address']);
+        }
+    }
+    unset($log);
+
     echo json_encode([
         'logs' => $logs,
         'total' => (int)$total,

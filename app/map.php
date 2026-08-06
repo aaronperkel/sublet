@@ -2,34 +2,32 @@
 $basePath = '../';
 require_once '../includes/header.php';
 
-// Build filtered query (same as index.php)
-$filters = [VISIBLE_SEMESTER_WHERE];
-$params = [];
-
-if (isset($_GET['min_price'], $_GET['max_price']) && $_GET['min_price'] !== '' && $_GET['max_price'] !== '') {
-    $filters[] = "price BETWEEN ? AND ?";
-    $params[] = $_GET['min_price'];
-    $params[] = $_GET['max_price'];
-}
-
-if (!empty($_GET['semester'])) {
-    $filters[] = "semester = ?";
-    $params[] = $_GET['semester'];
-}
-
-if (isset($_GET['max_distance']) && $_GET['max_distance'] !== '') {
-    $filters[] = "3959 * acos(LEAST(1, cos(radians(44.477435)) * cos(radians(lat)) * cos(radians(lon) - radians(-73.195323)) + sin(radians(44.477435)) * sin(radians(lat)))) <= ?";
-    $params[] = $_GET['max_distance'];
-}
+// Same filters as index.php, from the same builder — see includes/listing_query.php.
+$columns = table_columns($pdo, 'sublets');
+$filters = build_listing_filters($_GET, $columns);
+$activeAmenities = $filters['amenities'];
+$hasActiveFilters = $filters['active'];
 
 $sql = "SELECT s.*, COALESCE(sem.name, s.semester) as semester_name FROM sublets s LEFT JOIN semesters sem ON s.semester = sem.code";
-if ($filters) {
-    $sql .= " WHERE " . implode(" AND ", $filters);
-}
+$sql .= " WHERE " . implode(" AND ", $filters['where']);
 
 $stmt = $pdo->prepare($sql);
-$stmt->execute($params);
+$stmt->execute($filters['params']);
 $sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// The popup and modal only ever display the address, so hand JS the shortened
+// form. The raw geocoder string stays in the database; post.php still edits it.
+// Roommate codes become labels here for the same reason — app.js should not
+// need its own copy of the vocabulary.
+foreach ($sublets as &$s) {
+    $s['address'] = format_address($s['address']);
+    $s['size_summary'] = listing_size_summary($s);
+    $s['roommate_gender_label'] = option_label(ROOMMATE_GENDER_OPTIONS, $s['roommate_gender'] ?? null);
+    $s['roommate_preference_label'] = option_label(ROOMMATE_PREFERENCE_OPTIONS, $s['roommate_preference'] ?? null);
+    // username stays as-is: app.js compares it to the signed-in user.
+    $s['poster_name'] = poster_name($s);
+}
+unset($s);
 
 $semesterMap = [];
 foreach ($availableSemesters as $sem) {
@@ -68,12 +66,27 @@ foreach ($availableSemesters as $sem) {
             <div id="distanceSlider"></div>
             <input type="hidden" name="max_distance" id="maxDistance">
         </div>
-        <div class="filter-actions">
-            <button type="submit" class="btn btn-primary">
-                <i class="fa-solid fa-filter"></i> Apply
-            </button>
-            <a href="map.php" class="btn btn-secondary">Clear</a>
-        </div>
+    </div>
+
+    <?php /* Must match the set on index.php — both render from the same constant. */ ?>
+    <div class="filter-chips">
+        <span class="filter-chips-label">Must have</span>
+        <?php foreach (LISTING_AMENITY_FILTERS as $key => $amenity): ?>
+            <label class="filter-chip">
+                <input type="checkbox" name="amenities[]" value="<?= htmlspecialchars($key) ?>"
+                       <?= in_array($key, $activeAmenities, true) ? 'checked' : '' ?>>
+                <span><i class="fa-solid <?= htmlspecialchars($amenity['icon']) ?>"></i> <?= htmlspecialchars($amenity['label']) ?></span>
+            </label>
+        <?php endforeach; ?>
+        <?php if (isset($columns['price_negotiable'])): ?>
+            <label class="filter-chip">
+                <input type="checkbox" name="negotiable" value="1" <?= !empty($_GET['negotiable']) ? 'checked' : '' ?>>
+                <span><i class="fa-solid fa-tag"></i> Price negotiable</span>
+            </label>
+        <?php endif; ?>
+        <?php if ($hasActiveFilters): ?>
+            <a href="map.php" class="filter-clear"><i class="fa-solid fa-xmark"></i> Clear filters</a>
+        <?php endif; ?>
     </div>
 </form>
 
@@ -82,13 +95,13 @@ foreach ($availableSemesters as $sem) {
 </div>
 
 <!-- Modal -->
-<div class="modal-overlay" id="modal">
+<div class="modal-overlay" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalPrice" aria-hidden="true">
     <div class="modal-container">
-        <button class="modal-close" id="modalClose">&times;</button>
+        <button class="modal-close" id="modalClose" aria-label="Close listing">&times;</button>
         <div class="modal-gallery" id="modalGallery">
             <img id="modalImage" src="" alt="Sublet image">
-            <button class="gallery-nav prev" id="galleryPrev"><i class="fa-solid fa-chevron-left"></i></button>
-            <button class="gallery-nav next" id="galleryNext"><i class="fa-solid fa-chevron-right"></i></button>
+            <button class="gallery-nav prev" id="galleryPrev" aria-label="Previous photo"><i class="fa-solid fa-chevron-left"></i></button>
+            <button class="gallery-nav next" id="galleryNext" aria-label="Next photo"><i class="fa-solid fa-chevron-right"></i></button>
             <div class="gallery-dots" id="galleryDots"></div>
         </div>
         <div class="modal-details" id="modalDetails">

@@ -1,3 +1,73 @@
+<?php
+/**
+ * Public landing page. No authentication, and the only page most visitors ever
+ * see, so nothing below is allowed to take it down: the whole database section
+ * is best-effort. If webdb is unreachable the page still renders, just without
+ * the photo strip and the live counts.
+ *
+ * Only listings the signed-in site would show are used (visibility.php), and
+ * only their photos — no address, price, or username leaves the app.
+ */
+$showcaseImages = [];
+$liveCount = null;
+$liveSemesters = [];
+
+try {
+    require_once __DIR__ . '/includes/db.php';
+
+    $stmt = $pdo->query(
+        "SELECT COALESCE(NULLIF(s.thumbnail_url, ''), s.image_url) AS img
+         FROM sublets s " . VISIBLE_SEMESTER_JOIN . "
+         WHERE " . VISIBLE_SEMESTER_WHERE . "
+         ORDER BY s.id DESC
+         LIMIT 12"
+    );
+
+    // A tile is 240x160 and purely decorative, so it is never worth a large
+    // file. Listings whose thumbnail_url still points at a full-size upload
+    // (images added during an edit never get a _thumb.webp generated) would
+    // otherwise put several megabytes on the front page.
+    $maxTileBytes = 400 * 1024;
+
+    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $img) {
+        if (!$img) {
+            continue;
+        }
+        // A row can outlive its file (see the image API notes); a missing file
+        // would render as a broken tile in the middle of the strip.
+        $fsPath = resolve_path($img);
+        if (is_file($fsPath) && filesize($fsPath) <= $maxTileBytes) {
+            $showcaseImages[] = $img;
+        }
+    }
+
+    $stmtCount = $pdo->query(
+        "SELECT COUNT(*) FROM sublets s " . VISIBLE_SEMESTER_JOIN . " WHERE " . VISIBLE_SEMESTER_WHERE
+    );
+    $liveCount = (int)$stmtCount->fetchColumn();
+
+    $stmtSem = $pdo->query(
+        "SELECT DISTINCT COALESCE(sem.name, s.semester) AS name
+         FROM sublets s " . VISIBLE_SEMESTER_JOIN . "
+         WHERE " . VISIBLE_SEMESTER_WHERE . "
+         ORDER BY name"
+    );
+    $liveSemesters = $stmtSem->fetchAll(PDO::FETCH_COLUMN);
+} catch (Throwable $e) {
+    $showcaseImages = [];
+    $liveCount = null;
+    $liveSemesters = [];
+}
+
+// A marquee needs enough tiles to fill the viewport twice over before the loop
+// reads as a loop. Repeat what we have until there are at least eight.
+if ($showcaseImages && count($showcaseImages) < 8) {
+    $source = $showcaseImages;
+    while (count($showcaseImages) < 8) {
+        $showcaseImages = array_merge($showcaseImages, $source);
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,6 +76,23 @@
     <title>UVM Sublets — Find Your Next Sublet</title>
     <meta name="description" content="Find and post sublet listings exclusively for UVM students. Browse available sublets near campus, post your own, and connect with fellow Catamounts.">
     <meta name="author" content="Aaron Perkel">
+
+    <?php /* Link preview for GroupMe, Discord, iMessage and Instagram bios.
+             og:image has to be an absolute URL, and the canonical host is
+             hardcoded so a link shared from any hostname still unfurls. */ ?>
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="UVM Sublets">
+    <meta property="og:title" content="UVM Sublets — Find Your Next Sublet">
+    <meta property="og:description" content="Browse and post sublets near campus. UVM students only.">
+    <meta property="og:url" content="https://sublet.aperkel.w3.uvm.edu/">
+    <meta property="og:image" content="https://sublet.aperkel.w3.uvm.edu/assets/social/link-preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="UVM Sublets — Find Your Next Sublet">
+    <meta name="twitter:description" content="Browse and post sublets near campus. UVM students only.">
+    <meta name="twitter:image" content="https://sublet.aperkel.w3.uvm.edu/assets/social/link-preview.png">
+    <meta name="theme-color" content="#154734">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23154734'/%3E%3Cpath d='M32 12 L52 28 L52 52 L38 52 L38 38 L26 38 L26 52 L12 52 L12 28 Z' fill='%23FFD100'/%3E%3C/svg%3E">
     <script src="https://kit.fontawesome.com/c428e5511d.js" crossorigin="anonymous"></script>
     <style>
@@ -151,6 +238,84 @@
 
         .hero-cta:hover i {
             transform: translateX(3px);
+        }
+
+        /* Live counts under the hero button. Block-level flex, not inline-flex:
+           the CTA above is an inline-level box, so an inline-flex sibling would
+           sit on the same line as the button instead of below it. */
+        .hero-stats {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 1.75rem;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .hero-stats .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--gold);
+            box-shadow: 0 0 0 3px rgba(255, 209, 0, 0.2);
+        }
+
+        .hero-stats strong {
+            color: var(--white);
+            font-weight: 600;
+        }
+
+        /* Photo strip — real listing photos, no identifying detail with them. */
+        .showcase {
+            overflow: hidden;
+            background: var(--white);
+            border-top: 1px solid #eef1f2;
+            border-bottom: 1px solid #eef1f2;
+            padding: 1.25rem 0;
+            -webkit-mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+            mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+        }
+
+        /* The track holds the tiles twice. Each tile carries its own
+           margin-right rather than the flex container using `gap`, so the
+           duplicated half is exactly 50% of the total width and the -50%
+           keyframe loops without a seam. */
+        .showcase-track {
+            display: flex;
+            width: max-content;
+            animation: showcase-scroll 45s linear infinite;
+        }
+
+        .showcase-track img {
+            width: 240px;
+            height: 160px;
+            object-fit: cover;
+            border-radius: var(--radius-sm);
+            margin-right: 1rem;
+            background: var(--fog);
+            flex-shrink: 0;
+        }
+
+        @keyframes showcase-scroll {
+            from { transform: translateX(0); }
+            to   { transform: translateX(-50%); }
+        }
+
+        .showcase:hover .showcase-track {
+            animation-play-state: paused;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .showcase-track {
+                animation: none;
+            }
+            /* Without the animation the track would just overflow off-screen;
+               let it scroll by hand instead. */
+            .showcase {
+                overflow-x: auto;
+            }
         }
 
         .demo-link-text {
@@ -367,8 +532,31 @@
                 Sign In with UVM
                 <i class="fa-solid fa-arrow-right"></i>
             </a>
+            <?php if ($liveCount): ?>
+                <p class="hero-stats">
+                    <span class="dot"></span>
+                    <span><strong><?= $liveCount ?></strong> listing<?= $liveCount === 1 ? '' : 's' ?> up right now</span>
+                    <?php if ($liveSemesters): ?>
+                        <span>&middot; <?= implode(' &amp; ', array_map('htmlspecialchars', $liveSemesters)) ?></span>
+                    <?php endif; ?>
+                </p>
+            <?php endif; ?>
         </div>
     </section>
+
+    <?php if ($showcaseImages): ?>
+        <?php /* Decorative: the photos carry no address or poster, and the
+                 strip repeats, so there is nothing here for a screen reader. */ ?>
+        <section class="showcase" aria-hidden="true">
+            <div class="showcase-track">
+                <?php for ($pass = 0; $pass < 2; $pass++): ?>
+                    <?php foreach ($showcaseImages as $img): ?>
+                        <img src="<?= htmlspecialchars($img) ?>" alt="" loading="lazy" width="240" height="160">
+                    <?php endforeach; ?>
+                <?php endfor; ?>
+            </div>
+        </section>
+    <?php endif; ?>
 
     <section class="features">
         <p class="demo-link-text">
@@ -412,16 +600,18 @@
                     <li><i class="fa-solid fa-check"></i> Utilities &amp; amenity flags</li>
                     <li><i class="fa-solid fa-check"></i> New landing page</li>
                     <li><i class="fa-solid fa-check"></i> New demo site</li>
+                    <li><i class="fa-solid fa-check"></i> Bedroom, bathroom &amp; roommate info</li>
+                    <li><i class="fa-solid fa-check"></i> Filter listings by amenities</li>
+                    <li><i class="fa-solid fa-check"></i> Sort by price, date &amp; distance</li>
+                    <li><i class="fa-solid fa-check"></i> Price negotiable flag</li>
                 </ul>
             </div>
             <div class="roadmap-column roadmap-soon">
                 <h3><span class="badge">Coming Soon</span></h3>
                 <ul class="roadmap-list">
-                    <li><i class="fa-solid fa-wrench"></i> Bedroom, bathroom &amp; roommate info</li>
-                    <li><i class="fa-solid fa-wrench"></i> Filter listings by amenities</li>
-                    <li><i class="fa-solid fa-wrench"></i> Improved home page sorting</li>
                     <li><i class="fa-solid fa-wrench"></i> Sublet over multiple semesters</li>
-                    <li><i class="fa-solid fa-wrench"></i> Price negotiable flag</li>
+                    <li><i class="fa-solid fa-wrench"></i> Filter by bedrooms &amp; bathrooms</li>
+                    <li><i class="fa-solid fa-wrench"></i> Roommate preference filters</li>
                 </ul>
             </div>
             <div class="roadmap-column roadmap-future">

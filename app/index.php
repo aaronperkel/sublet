@@ -3,54 +3,27 @@ $basePath = '../';
 require_once '../includes/header.php';
 
 // Build filtered query. Listings in a deactivated semester are always excluded
-// (see includes/visibility.php) regardless of the user's filter selections.
-$filters = [VISIBLE_SEMESTER_WHERE];
-$params = [];
+// (see includes/visibility.php) regardless of the user's filter selections —
+// build_listing_filters() applies that itself so map.php cannot diverge.
+$columns = table_columns($pdo, 'sublets');
+$filters = build_listing_filters($_GET, $columns);
+$activeAmenities = $filters['amenities'];
 
-if (isset($_GET['min_price'], $_GET['max_price']) && $_GET['min_price'] !== '' && $_GET['max_price'] !== '') {
-    $filters[] = "price BETWEEN ? AND ?";
-    $params[] = $_GET['min_price'];
-    $params[] = $_GET['max_price'];
-}
+// distance_mi is selected rather than only compared so "closest to campus" can
+// sort on it and each card can carry it for the client-side re-sort.
+$sql = "SELECT s.*, COALESCE(sem.name, s.semester) as semester_name, "
+    . campus_distance_expr() . " as distance_mi "
+    . "FROM sublets s LEFT JOIN semesters sem ON s.semester = sem.code";
+$sql .= " WHERE " . implode(" AND ", $filters['where']);
 
-if (!empty($_GET['semester'])) {
-    $filters[] = "semester = ?";
-    $params[] = $_GET['semester'];
-}
-
-if (isset($_GET['max_distance']) && $_GET['max_distance'] !== '') {
-    $filters[] = "3959 * acos(LEAST(1, cos(radians(44.477435)) * cos(radians(lat)) * cos(radians(lon) - radians(-73.195323)) + sin(radians(44.477435)) * sin(radians(lat)))) <= ?";
-    $params[] = $_GET['max_distance'];
-}
-
-$sql = "SELECT s.*, COALESCE(sem.name, s.semester) as semester_name FROM sublets s LEFT JOIN semesters sem ON s.semester = sem.code";
-if ($filters) {
-    $sql .= " WHERE " . implode(" AND ", $filters);
-}
-// Sort
-$sort = $_GET['sort'] ?? '';
-switch ($sort) {
-    case 'price_asc':
-        $sql .= " ORDER BY s.price ASC";
-        break;
-    case 'price_desc':
-        $sql .= " ORDER BY s.price DESC";
-        break;
-    case 'newest':
-        $sql .= " ORDER BY s.id DESC";
-        break;
-    case 'oldest':
-        $sql .= " ORDER BY s.id ASC";
-        break;
-    default:
-        $sql .= " ORDER BY s.id DESC";
-        $sort = 'newest';
-        break;
-}
+[$orderBy, $sort] = listing_sort_sql($_GET['sort'] ?? null);
+$sql .= $orderBy;
 
 $stmt = $pdo->prepare($sql);
-$stmt->execute($params);
+$stmt->execute($filters['params']);
 $sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$hasActiveFilters = $filters['active'];
 
 // Get semester mapping for JS
 $semesterMap = [];
@@ -90,25 +63,45 @@ foreach ($availableSemesters as $sem) {
             <div id="distanceSlider"></div>
             <input type="hidden" name="max_distance" id="maxDistance">
         </div>
-        <div class="filter-actions">
-            <button type="submit" class="btn btn-primary">
-                <i class="fa-solid fa-filter"></i> Apply
-            </button>
-            <a href="index.php" class="btn btn-secondary">Clear</a>
-        </div>
     </div>
+
+    <?php /* Amenity toggles submit with the rest of the form. Rendered from
+             LISTING_AMENITY_FILTERS so Browse and Map cannot offer different
+             sets. Sort travels along as a hidden field so applying a filter
+             does not silently reset it. */ ?>
+    <div class="filter-chips">
+        <span class="filter-chips-label">Must have</span>
+        <?php foreach (LISTING_AMENITY_FILTERS as $key => $amenity): ?>
+            <label class="filter-chip">
+                <input type="checkbox" name="amenities[]" value="<?= htmlspecialchars($key) ?>"
+                       <?= in_array($key, $activeAmenities, true) ? 'checked' : '' ?>>
+                <span><i class="fa-solid <?= htmlspecialchars($amenity['icon']) ?>"></i> <?= htmlspecialchars($amenity['label']) ?></span>
+            </label>
+        <?php endforeach; ?>
+        <?php if (isset($columns['price_negotiable'])): ?>
+            <label class="filter-chip">
+                <input type="checkbox" name="negotiable" value="1" <?= !empty($_GET['negotiable']) ? 'checked' : '' ?>>
+                <span><i class="fa-solid fa-tag"></i> Price negotiable</span>
+            </label>
+        <?php endif; ?>
+        <?php if ($hasActiveFilters): ?>
+            <a href="index.php" class="filter-clear"><i class="fa-solid fa-xmark"></i> Clear filters</a>
+        <?php endif; ?>
+    </div>
+    <input type="hidden" name="sort" id="sortInput" value="<?= htmlspecialchars($sort) ?>">
 </form>
 
 <!-- Sort Bar -->
 <div class="sort-bar">
-    <span class="sort-bar-count"><?= count($sublets) ?> listing<?= count($sublets) !== 1 ? 's' : '' ?></span>
+    <span class="sort-bar-count">
+        <?= count($sublets) ?> listing<?= count($sublets) !== 1 ? 's' : '' ?><?= $hasActiveFilters ? ' match these filters' : '' ?>
+    </span>
     <div class="sort-bar-controls">
         <label for="sortFilter">Sort by</label>
         <select id="sortFilter">
-            <option value="newest" <?= $sort === 'newest' ? 'selected' : '' ?>>Newest First</option>
-            <option value="oldest" <?= $sort === 'oldest' ? 'selected' : '' ?>>Oldest First</option>
-            <option value="price_asc" <?= $sort === 'price_asc' ? 'selected' : '' ?>>Price: Low to High</option>
-            <option value="price_desc" <?= $sort === 'price_desc' ? 'selected' : '' ?>>Price: High to Low</option>
+            <?php foreach (LISTING_SORTS as $key => $label): ?>
+                <option value="<?= htmlspecialchars($key) ?>" <?= $sort === $key ? 'selected' : '' ?>><?= htmlspecialchars($label) ?></option>
+            <?php endforeach; ?>
         </select>
     </div>
 </div>
@@ -116,10 +109,25 @@ foreach ($availableSemesters as $sem) {
 <!-- Listings Grid -->
 <div class="listings-grid">
     <?php if (empty($sublets)): ?>
-        <div class="listings-empty">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <p>No sublets found matching your filters.</p>
-        </div>
+        <?php /* $availableSemesters is derived from visible listings only, so an
+                 empty one means the site has nothing to show at all — a different
+                 situation from filters that happen to match nothing, and the one
+                 worth answering with a call to post rather than a dead end. */ ?>
+        <?php if (empty($availableSemesters) && !$hasActiveFilters): ?>
+            <div class="listings-empty">
+                <i class="fa-solid fa-house-chimney"></i>
+                <p>No listings are up yet for this semester.</p>
+                <p class="listings-empty-sub">Subletting your place? Yours will be the first one people see.</p>
+                <a href="post.php" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Post your sublet</a>
+            </div>
+        <?php else: ?>
+            <div class="listings-empty">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <p>No sublets match these filters.</p>
+                <p class="listings-empty-sub">Try widening the price or distance range.</p>
+                <a href="index.php" class="btn btn-secondary">Clear filters</a>
+            </div>
+        <?php endif; ?>
     <?php else: ?>
         <?php foreach ($sublets as $sublet): ?>
             <?php
@@ -134,15 +142,34 @@ foreach ($availableSemesters as $sem) {
                 if (!empty($sublet['amenity_air_conditioning'])) $cardTags[] = '<span class="utility-tag tag-included"><i class="fa-solid fa-snowflake"></i> A/C</span>';
                 if (!empty($sublet['amenity_dishwasher'])) $cardTags[] = '<span class="utility-tag tag-included"><i class="fa-solid fa-sink"></i> Dishwasher</span>';
                 if (!empty($sublet['utility_cost']) && $sublet['utility_cost'] > 0) $cardTags[] = '<span class="utility-tag"><i class="fa-solid fa-receipt"></i> ~$' . number_format($sublet['utility_cost']) . '/mo utils</span>';
+
+                $displayAddress = format_address($sublet['address']);
+                $sizeSummary = listing_size_summary($sublet);
+                $prefLabel = option_label(ROOMMATE_PREFERENCE_OPTIONS, $sublet['roommate_preference'] ?? null);
+
+                // '' is "open to anyone", which is the default and not worth a tag.
+                if (!empty($sublet['roommate_preference']) && $prefLabel !== '') {
+                    $cardTags[] = '<span class="utility-tag tag-preference"><i class="fa-solid fa-user-group"></i> Looking for: '
+                        . htmlspecialchars($prefLabel) . '</span>';
+                }
             ?>
+            <?php /* Opened by a click handler in app.js, so it needs the role and
+                     tab stop a <button> would have given it for free. */ ?>
             <div class="listing-card"
+                 role="button"
+                 tabindex="0"
+                 aria-label="View listing at <?= htmlspecialchars($displayAddress) ?>, $<?= number_format($sublet['price']) ?> per month"
                  data-id="<?= $sublet['id'] ?>"
                  data-price="<?= $sublet['price'] ?>"
-                 data-address="<?= htmlspecialchars($sublet['address']) ?>"
+                 data-address="<?= htmlspecialchars($displayAddress) ?>"
                  data-semester="<?= htmlspecialchars($sublet['semester']) ?>"
                  data-semester-name="<?= htmlspecialchars($sublet['semester_name']) ?>"
                  data-description="<?= htmlspecialchars($sublet['description']) ?>"
+                 <?php /* data-username stays the NetID — app.js compares it against
+                          the signed-in user to decide who sees Edit. The display
+                          name is a separate attribute, used only for labels. */ ?>
                  data-username="<?= htmlspecialchars($sublet['username']) ?>"
+                 data-poster-name="<?= htmlspecialchars(poster_name($sublet)) ?>"
                  data-contact-email="<?= htmlspecialchars($sublet['contact_email'] ?? '') ?>"
                  data-contact-phone="<?= htmlspecialchars($sublet['contact_phone'] ?? '') ?>"
                  data-lat="<?= $sublet['lat'] ?>"
@@ -159,15 +186,30 @@ foreach ($availableSemesters as $sem) {
                  data-amenity-dishwasher="<?= $sublet['amenity_dishwasher'] ?? 0 ?>"
                  data-amenity-air-conditioning="<?= $sublet['amenity_air_conditioning'] ?? 0 ?>"
                  data-amenity-pets-allowed="<?= $sublet['amenity_pets_allowed'] ?? 0 ?>"
-                 data-amenity-furnished="<?= $sublet['amenity_furnished'] ?? 0 ?>">
+                 data-amenity-furnished="<?= $sublet['amenity_furnished'] ?? 0 ?>"
+                 data-distance="<?= isset($sublet['distance_mi']) ? round((float)$sublet['distance_mi'], 3) : '' ?>"
+                 data-negotiable="<?= !empty($sublet['price_negotiable']) ? 1 : 0 ?>"
+                 data-size-summary="<?= htmlspecialchars($sizeSummary) ?>"
+                 data-roommate-gender="<?= htmlspecialchars(option_label(ROOMMATE_GENDER_OPTIONS, $sublet['roommate_gender'] ?? null)) ?>"
+                 data-roommate-preference="<?= htmlspecialchars($prefLabel) ?>">
                 <div class="card-image">
-                    <img src="<?= htmlspecialchars($sublet['thumbnail_url'] ?: $sublet['image_url']) ?>" alt="Sublet at <?= htmlspecialchars($sublet['address']) ?>" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-broken-placeholder';p.innerHTML='<i class=\'fa-solid fa-image\'></i><span>Image not available</span>';this.parentNode.appendChild(p);">
-                    <span class="card-badge">$<?= number_format($sublet['price']) ?></span>
+                    <img src="<?= htmlspecialchars($sublet['thumbnail_url'] ?: $sublet['image_url']) ?>" alt="Sublet at <?= htmlspecialchars($displayAddress) ?>" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-broken-placeholder';p.innerHTML='<i class=\'fa-solid fa-image\'></i><span>Image not available</span>';this.parentNode.appendChild(p);">
+                    <span class="card-badge">
+                        $<?= number_format($sublet['price']) ?><?php if (!empty($sublet['price_negotiable'])): ?><small class="card-badge-neg">or best offer</small><?php endif; ?>
+                    </span>
                     <span class="card-semester"><?= htmlspecialchars($sublet['semester_name']) ?></span>
                 </div>
                 <div class="card-info">
-                    <p class="card-address"><?= htmlspecialchars($sublet['address']) ?></p>
-                    <p class="card-meta">Posted by <?= htmlspecialchars($sublet['username']) ?></p>
+                    <p class="card-address" title="<?= htmlspecialchars($sublet['address']) ?>"><?= htmlspecialchars($displayAddress) ?></p>
+                    <?php if ($sizeSummary !== ''): ?>
+                        <p class="card-size"><?= htmlspecialchars($sizeSummary) ?></p>
+                    <?php endif; ?>
+                    <p class="card-meta">
+                        Posted by <?= htmlspecialchars(poster_name($sublet)) ?>
+                        <?php if (isset($sublet['distance_mi'])): ?>
+                            <span class="card-distance"><i class="fa-solid fa-location-arrow"></i> <?= number_format((float)$sublet['distance_mi'], 1) ?> mi</span>
+                        <?php endif; ?>
+                    </p>
                 </div>
                 <?php if (!empty($cardTags)): ?>
                     <div class="card-utilities"><?= implode('', $cardTags) ?></div>
@@ -178,13 +220,13 @@ foreach ($availableSemesters as $sem) {
 </div>
 
 <!-- Modal -->
-<div class="modal-overlay" id="modal">
+<div class="modal-overlay" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalPrice" aria-hidden="true">
     <div class="modal-container">
-        <button class="modal-close" id="modalClose">&times;</button>
+        <button class="modal-close" id="modalClose" aria-label="Close listing">&times;</button>
         <div class="modal-gallery" id="modalGallery">
             <img id="modalImage" src="" alt="Sublet image">
-            <button class="gallery-nav prev" id="galleryPrev"><i class="fa-solid fa-chevron-left"></i></button>
-            <button class="gallery-nav next" id="galleryNext"><i class="fa-solid fa-chevron-right"></i></button>
+            <button class="gallery-nav prev" id="galleryPrev" aria-label="Previous photo"><i class="fa-solid fa-chevron-left"></i></button>
+            <button class="gallery-nav next" id="galleryNext" aria-label="Next photo"><i class="fa-solid fa-chevron-right"></i></button>
             <div class="gallery-dots" id="galleryDots"></div>
         </div>
         <div class="modal-details" id="modalDetails">

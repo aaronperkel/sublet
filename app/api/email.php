@@ -21,6 +21,13 @@ $type = $_POST['type'] ?? 'all';
 // block, so a newline would let the sender inject arbitrary headers (extra
 // Bcc: recipients, a forged From:, etc).
 $subject = trim(str_replace(["\r", "\n"], '', $_POST['subject'] ?? ''));
+
+// A header may only contain ASCII. mail() writes the subject in verbatim, so a
+// single curly quote, accented letter or em dash used to leave non-ASCII bytes
+// in the header block — Postfix then demanded SMTPUTF8, the UVM relay does not
+// offer it, and every message bounced 5.6.7 *after* mail() had already returned
+// true. RFC 2047 encoding sidesteps that; pure ASCII passes through untouched.
+$subjectHeader = mb_encode_mimeheader($subject, 'UTF-8', 'B', "\r\n");
 $body = trim($_POST['body'] ?? '');
 
 if (empty($subject) || empty($body)) {
@@ -58,20 +65,57 @@ if ($type === 'all') {
     $recipients = array_filter($selected);
 }
 
+// Each recipient becomes "{name}@uvm.edu" and is passed straight to mail(),
+// which writes it into the header block. type=individual takes its list from
+// the request body, so a value containing CR/LF could inject extra headers the
+// same way an unsanitised subject could. Only real netid shapes get through.
+$recipients = array_values(array_filter($recipients, static function ($u) {
+    return is_string($u) && preg_match('/^[A-Za-z0-9._-]{1,64}$/', $u) === 1;
+}));
+
 if (empty($recipients)) {
     http_response_code(400);
     echo json_encode(['error' => 'No recipients found']);
     exit;
 }
 
-// Build HTML email
-$htmlBody = '';
-$paragraphs = explode("\n\n", $body);
-foreach ($paragraphs as $p) {
-    $htmlBody .= '<p>' . nl2br(htmlspecialchars(trim($p))) . '</p>';
+// What to call each recipient. Anyone who has not set a display name keeps
+// their NetID, which is what every one of these emails used before.
+$nameMap = [];
+$emailColumns = table_columns($pdo, 'sublets');
+if (isset($emailColumns['display_name'])) {
+    $placeholders = implode(',', array_fill(0, count($recipients), '?'));
+    $stmtNames = $pdo->prepare("SELECT username, display_name FROM sublets WHERE username IN ($placeholders)");
+    $stmtNames->execute($recipients);
+    foreach ($stmtNames->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $nameMap[$row['username']] = poster_name($row);
+    }
 }
 
-$emailHtml = <<<HTML
+/**
+ * Render the message for one recipient.
+ *
+ * "{name}" anywhere in the typed body is replaced with theirs; if the admin
+ * did not use it, a "Hi <name>," line is added so the mail is addressed either
+ * way. Substitution happens before escaping, so a name is escaped like any
+ * other text rather than being trusted as markup.
+ */
+function render_email_html(string $body, string $name): string {
+    $usesPlaceholder = str_contains($body, '{name}');
+    $body = str_replace('{name}', $name, $body);
+
+    $htmlBody = '';
+    if (!$usesPlaceholder) {
+        $htmlBody .= '<p>Hi ' . htmlspecialchars($name) . ',</p>';
+    }
+    foreach (explode("\n\n", $body) as $p) {
+        $p = trim($p);
+        if ($p !== '') {
+            $htmlBody .= '<p>' . nl2br(htmlspecialchars($p)) . '</p>';
+        }
+    }
+
+    return <<<HTML
 <html>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #00313C; max-width: 600px; margin: 0 auto;">
     <div style="background: #154734; padding: 1.5rem; text-align: center; border-radius: 8px 8px 0 0;">
@@ -86,6 +130,7 @@ $emailHtml = <<<HTML
 </body>
 </html>
 HTML;
+}
 
 $headers = [
     'MIME-Version: 1.0',
@@ -98,14 +143,16 @@ $failed = 0;
 
 foreach ($recipients as $username) {
     $to = $username . '@uvm.edu';
-    if (mail($to, $subject, $emailHtml, implode("\r\n", $headers))) {
+    $html = render_email_html($body, $nameMap[$username] ?? $username);
+    if (mail($to, $subjectHeader, $html, implode("\r\n", $headers))) {
         $sent++;
     } else {
         $failed++;
     }
 }
 
-// Send admin a copy
+// Send admin a copy, rendered the way the first recipient would have seen it.
+$emailHtml = render_email_html($body, $nameMap[$recipients[0]] ?? $recipients[0]);
 $recipientList = implode(', ', $recipients);
 $adminSummary = '<div style="background: #fffbe6; border: 1px solid #ffe082; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; font-size: 0.9rem;">'
     . '<strong>Admin Copy</strong> — This is what was sent to users.<br>'
@@ -113,7 +160,7 @@ $adminSummary = '<div style="background: #fffbe6; border: 1px solid #ffe082; bor
     . 'Failed: ' . $failed
     . '</div>';
 $adminEmailHtml = str_replace('<div style="padding: 1.5rem; background: #ffffff; border: 1px solid #e0e4e5;">', '<div style="padding: 1.5rem; background: #ffffff; border: 1px solid #e0e4e5;">' . $adminSummary, $emailHtml);
-mail('aperkel@uvm.edu', "[Copy] $subject", $adminEmailHtml, implode("\r\n", $headers));
+mail('aperkel@uvm.edu', mb_encode_mimeheader("[Copy] $subject", 'UTF-8', 'B', "\r\n"), $adminEmailHtml, implode("\r\n", $headers));
 
 echo json_encode([
     'success' => true,

@@ -7,6 +7,21 @@ document.addEventListener('DOMContentLoaded', function () {
     const currentUser = document.body.dataset.user || 'Guest';
     const isAdmin = document.body.dataset.admin === '1';
 
+    // Mirrors CAMPUS_LAT / CAMPUS_LON in includes/listing_query.php. Kept in
+    // step by hand — there is no server→client channel for it, and it is the
+    // default view of both maps.
+    const CAMPUS = { lat: 44.477435, lon: -73.195323 };
+
+    // Muted basemap shared by the map page and the post preview, so a listing
+    // looks the same wherever it is shown.
+    const TILE_URL = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+    const TILE_OPTS = {
+        attribution: '© OpenStreetMap © CARTO',
+        subdomains: 'abcd',
+        maxZoom: 20,
+        detectRetina: true
+    };
+
     // ---- Navigation ----
     initNav();
 
@@ -47,8 +62,23 @@ document.addEventListener('DOMContentLoaded', function () {
        ====================================================================== */
     function initFilters() {
         const config = window.SUBLET_CONFIG;
-        if (!config) return;
 
+        // There is no Apply button any more, so auto-apply is the only way to
+        // filter — it must be bound even if the sliders fail to build. They
+        // depend on noUiSlider, which comes from a CDN; without this guard a
+        // blocked CDN would leave the whole filter bar inert.
+        try {
+            if (config && typeof noUiSlider !== 'undefined') {
+                buildSliders(config);
+            }
+        } catch (e) {
+            /* checkboxes and the semester select still work */
+        }
+
+        initAutoApply();
+    }
+
+    function buildSliders(config) {
         // Price slider
         const priceEl = document.getElementById('priceSlider');
         if (priceEl) {
@@ -91,12 +121,61 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    /* Apply filters as they change, instead of making people find the button.
+       The form still submits normally — the server stays the single source of
+       truth for what matches, the URL stays shareable, and the no-JS path is
+       untouched (the Apply button is only hidden once this runs). */
+    function initAutoApply() {
+        var form = document.getElementById('filterForm');
+        if (!form) return;
+
+        var timer = null;
+        var submitted = false;
+
+        function apply() {
+            if (submitted) return;
+            clearTimeout(timer);
+            // Enough of a pause to collect a burst of chip clicks into one
+            // navigation, short enough that a single click still feels direct.
+            timer = setTimeout(function () {
+                submitted = true;
+                document.body.classList.add('filters-applying');
+                try {
+                    sessionStorage.setItem('filterScroll', String(window.scrollY));
+                } catch (e) { /* private mode — losing scroll position is fine */ }
+                form.submit();
+            }, 350);
+        }
+
+        form.querySelectorAll('input[type="checkbox"], select').forEach(function (el) {
+            el.addEventListener('change', apply);
+        });
+
+        // noUiSlider fires 'change' once on release, unlike the continuous
+        // 'update' the readouts above use — one navigation per drag, not one
+        // per pixel.
+        ['priceSlider', 'distanceSlider'].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (el && el.noUiSlider) el.noUiSlider.on('change', apply);
+        });
+
+        // A reload would otherwise drop the user back at the top of the page.
+        try {
+            var y = sessionStorage.getItem('filterScroll');
+            if (y !== null) {
+                sessionStorage.removeItem('filterScroll');
+                window.scrollTo(0, parseInt(y, 10) || 0);
+            }
+        } catch (e) { /* nothing to restore */ }
+    }
+
     /* ======================================================================
        Modal
        ====================================================================== */
     var modalImages = [];
     var modalIndex = 0;
     var currentPostId = null;
+    var lastFocused = null;
 
     function initModal() {
         var overlay = document.getElementById('modal');
@@ -162,13 +241,19 @@ document.addEventListener('DOMContentLoaded', function () {
         fetch('api/contact_log.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'post_id=' + encodeURIComponent(data.id) + '&contact_type=' + encodeURIComponent(type) + '&poster_username=' + encodeURIComponent(data.username)
+            // No poster_username: the endpoint reads it from the post itself so
+            // the log cannot be attributed to someone who never posted.
+            body: 'post_id=' + encodeURIComponent(data.id) + '&contact_type=' + encodeURIComponent(type)
         }).catch(function () {});
 
         if (type === 'email') {
             var email = data.contactEmail || (data.username + '@uvm.edu');
             var subject = 'Interested in Your Sublet Posting';
-            var draftBody = 'Hello!\n\nI\'m interested in your sublet at ' + data.address + '. Could you send me more details?\n\nThanks,\n' + currentUser;
+            // Address the poster by the name they chose, and sign with the
+            // sender's own — both fall back to the NetID.
+            var greetName = data.posterName || data.username;
+            var signName = document.body.dataset.userName || currentUser;
+            var draftBody = 'Hi ' + greetName + ',\n\nI\'m interested in your sublet at ' + data.address + '. Could you send me more details?\n\nThanks,\n' + signName;
             var mailtoUrl = 'mailto:' + encodeURIComponent(email) + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(draftBody);
 
             title.textContent = 'Send Email';
@@ -232,10 +317,33 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function openModal(data) {
         currentPostId = data.id;
-        document.getElementById('modalPrice').textContent = '$' + Number(data.price).toLocaleString();
+
+        var priceEl = document.getElementById('modalPrice');
+        priceEl.textContent = '$' + Number(data.price).toLocaleString();
+        if (isFlagSet(data.negotiable)) {
+            var neg = document.createElement('small');
+            neg.className = 'modal-price-neg';
+            neg.textContent = 'or best offer';
+            priceEl.appendChild(neg);
+        }
+
         document.getElementById('modalAddress').textContent = data.address;
         document.getElementById('modalSemester').textContent = data.semesterName || data.semester;
         document.getElementById('modalDescription').textContent = data.description || 'No description provided.';
+
+        // Bedrooms / bathrooms / roommates. Absent on listings that predate
+        // those fields, and on the demo site, so the block is only built when
+        // there is something to put in it.
+        var existingPlace = document.getElementById('modalPlace');
+        if (existingPlace) existingPlace.remove();
+        var placeHtml = buildPlaceHtml(data);
+        if (placeHtml) {
+            var placeDiv = document.createElement('div');
+            placeDiv.id = 'modalPlace';
+            placeDiv.innerHTML = placeHtml;
+            var semesterField = document.getElementById('modalSemester').closest('.modal-field');
+            semesterField.parentNode.insertBefore(placeDiv, semesterField.nextSibling);
+        }
 
         // Utilities section
         var existingUtils = document.getElementById('modalUtilities');
@@ -249,7 +357,7 @@ document.addEventListener('DOMContentLoaded', function () {
             modalDesc.parentNode.insertBefore(utilsDiv, modalDesc.nextSibling);
         }
 
-        document.getElementById('modalPoster').textContent = 'Posted by ' + data.username;
+        document.getElementById('modalPoster').textContent = 'Posted by ' + (data.posterName || data.username);
 
         // Email button
         var emailBtn = document.getElementById('modalEmailBtn');
@@ -298,14 +406,26 @@ document.addEventListener('DOMContentLoaded', function () {
 
         var overlay = document.getElementById('modal');
         overlay.classList.add('open');
+        overlay.setAttribute('aria-hidden', 'false');
         document.body.style.overflow = 'hidden';
+
+        // Remember where focus came from so Escape returns the user to the card
+        // they opened, rather than dumping them at the top of the document.
+        lastFocused = document.activeElement;
+        var closeBtn = document.getElementById('modalClose');
+        if (closeBtn) closeBtn.focus();
     }
 
     function closeModal() {
         var overlay = document.getElementById('modal');
         if (overlay) {
             overlay.classList.remove('open');
+            overlay.setAttribute('aria-hidden', 'true');
             document.body.style.overflow = '';
+        }
+        if (lastFocused && typeof lastFocused.focus === 'function') {
+            lastFocused.focus();
+            lastFocused = null;
         }
         var details = document.getElementById('modalDetails');
         if (details) {
@@ -369,6 +489,15 @@ document.addEventListener('DOMContentLoaded', function () {
        ====================================================================== */
     function initIndex() {
         document.querySelectorAll('.listing-card').forEach(function (card) {
+            // The card carries role="button", so it has to answer Enter and
+            // Space the way a real button would.
+            card.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+                    e.preventDefault();
+                    card.click();
+                }
+            });
+
             card.addEventListener('click', function () {
                 var imgEl = card.querySelector('.card-image img');
                 openModal({
@@ -394,19 +523,29 @@ document.addEventListener('DOMContentLoaded', function () {
                     amenity_dishwasher: card.dataset.amenityDishwasher || '0',
                     amenity_air_conditioning: card.dataset.amenityAirConditioning || '0',
                     amenity_pets_allowed: card.dataset.amenityPetsAllowed || '0',
-                    amenity_furnished: card.dataset.amenityFurnished || '0'
+                    amenity_furnished: card.dataset.amenityFurnished || '0',
+                    posterName: card.dataset.posterName || '',
+                    negotiable: card.dataset.negotiable || '0',
+                    sizeSummary: card.dataset.sizeSummary || '',
+                    roommateGender: card.dataset.roommateGender || '',
+                    roommatePreference: card.dataset.roommatePreference || ''
                 });
             });
         });
 
-        // Instant client-side sorting
+        // Instant client-side sorting. The hidden `sort` field on the filter
+        // form is kept in step so that applying a filter — which reloads the
+        // page — comes back sorted the same way rather than snapping to Newest.
         var sortSelect = document.getElementById('sortFilter');
+        var sortInput = document.getElementById('sortInput');
         if (sortSelect) {
             sortSelect.addEventListener('change', function () {
+                var sortVal = sortSelect.value;
+                if (sortInput) sortInput.value = sortVal;
+
                 var grid = document.querySelector('.listings-grid');
                 if (!grid) return;
                 var cards = Array.from(grid.querySelectorAll('.listing-card'));
-                var sortVal = sortSelect.value;
 
                 cards.sort(function (a, b) {
                     switch (sortVal) {
@@ -414,6 +553,10 @@ document.addEventListener('DOMContentLoaded', function () {
                             return parseFloat(a.dataset.price) - parseFloat(b.dataset.price);
                         case 'price_desc':
                             return parseFloat(b.dataset.price) - parseFloat(a.dataset.price);
+                        case 'closest':
+                            // Cards with no distance sort last instead of
+                            // becoming NaN and freezing the comparator.
+                            return distanceOf(a) - distanceOf(b);
                         case 'oldest':
                             return parseInt(a.dataset.id) - parseInt(b.dataset.id);
                         case 'newest':
@@ -424,6 +567,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 cards.forEach(function (card) { grid.appendChild(card); });
             });
+        }
+
+        function distanceOf(card) {
+            var d = parseFloat(card.dataset.distance);
+            return isNaN(d) ? Infinity : d;
         }
     }
 
@@ -454,13 +602,43 @@ document.addEventListener('DOMContentLoaded', function () {
 
         var uvmIcon = createUvmIcon();
 
-        var map = L.map('mainMap').setView([44.477435, -73.195323], 14);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '\u00a9 OpenStreetMap contributors'
+        var map = L.map('mainMap', {
+            zoomControl: false,
+            // Standard OSM tiles are dense and colourful, which is exactly what
+            // the green-and-gold pins have to compete with. A muted basemap
+            // leaves the listings as the only saturated thing on screen.
+            scrollWheelZoom: true
+        }).setView([CAMPUS.lat, CAMPUS.lon], 14);
+
+        L.tileLayer(TILE_URL, TILE_OPTS).addTo(map);
+
+        L.control.zoom({ position: 'topright' }).addTo(map);
+        L.control.scale({ imperial: true, metric: false, position: 'bottomleft' }).addTo(map);
+
+        // Campus is the thing every distance on this site is measured from, so
+        // it should be visible rather than implied.
+        var campusMarker = L.circleMarker([CAMPUS.lat, CAMPUS.lon], {
+            radius: 9,
+            color: '#ffffff',
+            weight: 3,
+            fillColor: '#00313C',
+            fillOpacity: 1,
+            interactive: true
         }).addTo(map);
+        campusMarker.bindTooltip('UVM campus', { direction: 'top', offset: [0, -8] });
+
+        // Leaflet measures its container once at construction, so invalidateSize
+        // has to run whatever happens below. Returning early on an empty result
+        // set skipped it and left the map rendered at the wrong size — which is
+        // exactly the state a filter matching nothing puts the page in.
+        setTimeout(function () { map.invalidateSize(); }, 200);
+        window.addEventListener('resize', function () { map.invalidateSize(); });
 
         var sublets = window.MAP_SUBLETS || [];
-        if (sublets.length === 0) return;
+        if (sublets.length === 0) {
+            showMapEmptyState(mapEl);
+            return;
+        }
 
         var bounds = L.latLngBounds();
 
@@ -469,18 +647,28 @@ document.addEventListener('DOMContentLoaded', function () {
             bounds.extend(marker.getLatLng());
 
             var popupThumb = sublet.thumbnail_url || sublet.image_url;
+            var popupPrice = '$' + Number(sublet.price).toLocaleString() +
+                (isFlagSet(sublet.price_negotiable) ? '<small class="popup-neg">or best offer</small>' : '');
+            // The photo used to be the only way into the listing, which nothing
+            // signalled. An explicit button says so; the image still works.
             var popupHtml = '<div class="map-popup">' +
                 '<img src="' + escapeHtml(popupThumb) + '" alt="Sublet" data-sublet-id="' + sublet.id + '" onerror="this.style.display=\'none\'">' +
-                '<div class="popup-price">$' + Number(sublet.price).toLocaleString() + '</div>' +
+                '<div class="popup-price">' + popupPrice + '</div>' +
                 '<div class="popup-address">' + escapeHtml(sublet.address) + '</div>' +
+                (sublet.size_summary ? '<div class="popup-size">' + escapeHtml(sublet.size_summary) + '</div>' : '') +
+                '<div class="popup-semester">' + escapeHtml(sublet.semester_name || sublet.semester) + '</div>' +
+                '<button type="button" class="popup-btn" data-sublet-id="' + sublet.id + '">View listing</button>' +
                 '</div>';
 
-            marker.bindPopup(popupHtml);
+            marker.bindPopup(popupHtml, { minWidth: 210, closeButton: true });
 
             marker.on('popupopen', function () {
-                var popupImg = document.querySelector('.map-popup img[data-sublet-id="' + sublet.id + '"]');
-                if (popupImg) {
-                    popupImg.addEventListener('click', function () {
+                var targets = document.querySelectorAll(
+                    '.map-popup img[data-sublet-id="' + sublet.id + '"], ' +
+                    '.map-popup .popup-btn[data-sublet-id="' + sublet.id + '"]'
+                );
+                targets.forEach(function (el) {
+                    el.addEventListener('click', function () {
                         openModal({
                             id: sublet.id,
                             price: sublet.price,
@@ -504,20 +692,38 @@ document.addEventListener('DOMContentLoaded', function () {
                             amenity_dishwasher: String(sublet.amenity_dishwasher || 0),
                             amenity_air_conditioning: String(sublet.amenity_air_conditioning || 0),
                             amenity_pets_allowed: String(sublet.amenity_pets_allowed || 0),
-                            amenity_furnished: String(sublet.amenity_furnished || 0)
+                            amenity_furnished: String(sublet.amenity_furnished || 0),
+                            posterName: sublet.poster_name || '',
+                            negotiable: String(sublet.price_negotiable || 0),
+                            // Labelled server-side in map.php — the vocabulary
+                            // lives in includes/listing_fields.php, not here.
+                            sizeSummary: sublet.size_summary || '',
+                            roommateGender: sublet.roommate_gender_label || '',
+                            roommatePreference: sublet.roommate_preference_label || ''
                         });
                     });
-                }
+                });
             });
         });
 
-        if (bounds.isValid()) {
-            map.fitBounds(bounds, { padding: [50, 50] });
-        }
+        // Campus is part of the frame: fitting to listings alone could push it
+        // off-screen and lose the reference point the distances are relative to.
+        bounds.extend([CAMPUS.lat, CAMPUS.lon]);
 
-        // Fix map sizing
-        setTimeout(function () { map.invalidateSize(); }, 200);
-        window.addEventListener('resize', function () { map.invalidateSize(); });
+        if (bounds.isValid()) {
+            map.fitBounds(bounds, { padding: [60, 60], maxZoom: 16 });
+        }
+    }
+
+    // An empty map is indistinguishable from a broken one, so say which it is.
+    function showMapEmptyState(mapEl) {
+        if (mapEl.parentNode.querySelector('.map-empty')) return;
+        var note = document.createElement('div');
+        note.className = 'map-empty';
+        note.innerHTML = '<i class="fa-solid fa-map-location-dot"></i>' +
+            '<p>No sublets to show here.</p>' +
+            '<p class="map-empty-sub">Widen the filters above, or switch to Browse.</p>';
+        mapEl.parentNode.appendChild(note);
     }
 
     /* ======================================================================
@@ -528,6 +734,24 @@ document.addEventListener('DOMContentLoaded', function () {
         initPostMap();
         initImageUpload();
         initExistingImageDelete();
+        initRoommateFields();
+    }
+
+    // "Who lives here" and "hoping to sublet to" only mean something when
+    // somebody is staying, so hide them at zero roommates. post.php blanks both
+    // columns in that case regardless, so this is presentation only.
+    function initRoommateFields() {
+        var roommates = document.getElementById('roommates');
+        var details = document.getElementById('roommateDetails');
+        if (!roommates || !details) return;
+
+        function sync() {
+            var v = roommates.value.trim();
+            details.hidden = (v !== '' && parseInt(v, 10) === 0);
+        }
+
+        roommates.addEventListener('input', sync);
+        sync();
     }
 
     // ---- Nominatim Address Autocomplete ----
@@ -539,7 +763,24 @@ document.addEventListener('DOMContentLoaded', function () {
         var debounceTimer = null;
         var highlightedIndex = -1;
 
+        // lat/lon are only ever set by picking a suggestion. Typing over the
+        // address without picking again used to leave the old coordinates
+        // attached to the new text, so the listing mapped to the previous
+        // place. Track the last address the coordinates actually belong to and
+        // block submission while the two disagree.
+        var acceptedAddress = input.value.trim();
+
+        function syncAddressValidity() {
+            if (input.value.trim() === acceptedAddress) {
+                input.setCustomValidity('');
+            } else {
+                input.setCustomValidity('Choose an address from the dropdown suggestions so your listing lands in the right place on the map.');
+            }
+        }
+        syncAddressValidity();
+
         input.addEventListener('input', function () {
+            syncAddressValidity();
             clearTimeout(debounceTimer);
             var query = input.value.trim();
             if (query.length < 3) {
@@ -592,11 +833,16 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             data.forEach(function (item) {
+                // short_name is the same shortening the cards and map popups
+                // apply, so what gets picked here is what everyone else sees.
+                var label = item.short_name || item.display_name;
                 var div = document.createElement('div');
                 div.className = 'autocomplete-item';
-                div.innerHTML = '<i class="fa-solid fa-location-dot"></i> ' + escapeHtml(item.display_name);
+                div.innerHTML = '<i class="fa-solid fa-location-dot"></i> ' + escapeHtml(label);
                 div.addEventListener('click', function () {
-                    input.value = item.display_name;
+                    input.value = label;
+                    acceptedAddress = label.trim();
+                    syncAddressValidity();
                     document.getElementById('lat').value = item.lat;
                     document.getElementById('lon').value = item.lon;
                     results.classList.remove('open');
@@ -623,13 +869,22 @@ document.addEventListener('DOMContentLoaded', function () {
 
         var uvmIcon = createUvmIcon();
         var config = window.POST_CONFIG || {};
-        var lat = config.lat || 44.477435;
-        var lon = config.lon || -73.195323;
+        var lat = config.lat || CAMPUS.lat;
+        var lon = config.lon || CAMPUS.lon;
 
-        window._postMap = L.map('postMap').setView([lat, lon], 15);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '\u00a9 OpenStreetMap'
-        }).addTo(window._postMap);
+        window._postMap = L.map('postMap', { zoomControl: false }).setView([lat, lon], 15);
+        L.tileLayer(TILE_URL, TILE_OPTS).addTo(window._postMap);
+        L.control.zoom({ position: 'topright' }).addTo(window._postMap);
+
+        // Same campus reference as the main map \u2014 useful here because the form
+        // rejects anything more than 50 miles from it.
+        L.circleMarker([CAMPUS.lat, CAMPUS.lon], {
+            radius: 7,
+            color: '#ffffff',
+            weight: 2,
+            fillColor: '#00313C',
+            fillOpacity: 1
+        }).addTo(window._postMap).bindTooltip('UVM campus', { direction: 'top', offset: [0, -6] });
 
         window._postMarker = L.marker([lat, lon], { icon: uvmIcon }).addTo(window._postMap);
 
@@ -969,7 +1224,11 @@ document.addEventListener('DOMContentLoaded', function () {
                                 })
                                 .then(function (r) { return r.json(); })
                                 .then(function (data) {
+                                    // Surface the reason: the endpoint refuses
+                                    // to remove a listing's last photo, and
+                                    // silently doing nothing looked like a bug.
                                     if (data.success) div.remove();
+                                    else alert(data.error || 'Failed to delete image');
                                 });
                             });
                             grid.appendChild(div);
@@ -1121,10 +1380,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     html += '</tbody></table>';
                     container.innerHTML = html;
 
-                    // Pagination
+                    // Pagination. Cleared unconditionally: leaving the old
+                    // buttons up when a reload drops to a single page left
+                    // controls pointing at pages that no longer exist.
                     var pagDiv = document.getElementById('contactLogPagination');
+                    if (pagDiv) pagDiv.innerHTML = '';
                     if (pagDiv && data.pages > 1) {
-                        pagDiv.innerHTML = '';
                         for (var i = 1; i <= data.pages; i++) {
                             var btn = document.createElement('button');
                             btn.className = 'btn btn-sm ' + (i === data.page ? 'btn-primary' : 'btn-secondary');
@@ -1176,6 +1437,31 @@ document.addEventListener('DOMContentLoaded', function () {
     var modalImg = document.getElementById('modalImage');
     if (modalImg) {
         modalImg.addEventListener('error', function () { handleBrokenImage(modalImg); });
+    }
+
+    /* ======================================================================
+       Place / Roommate Helpers
+       ====================================================================== */
+    // Flags arrive as "1" from data-* attributes and as 1 from JSON.
+    function isFlagSet(v) {
+        return v === '1' || v === 1 || v === true;
+    }
+
+    function buildPlaceHtml(data) {
+        var items = [];
+
+        if (data.sizeSummary) {
+            items.push('<span class="modal-place-item"><i class="fa-solid fa-bed"></i> ' + escapeHtml(data.sizeSummary) + '</span>');
+        }
+        if (data.roommateGender) {
+            items.push('<span class="modal-place-item"><i class="fa-solid fa-users"></i> Currently: ' + escapeHtml(data.roommateGender) + '</span>');
+        }
+        if (data.roommatePreference) {
+            items.push('<span class="modal-place-item modal-place-pref"><i class="fa-solid fa-user-group"></i> Hoping to sublet to: ' + escapeHtml(data.roommatePreference) + '</span>');
+        }
+
+        if (!items.length) return '';
+        return '<div class="modal-place">' + items.join('') + '</div>';
     }
 
     /* ======================================================================
@@ -1245,27 +1531,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         html += '</div>';
         return html;
-    }
-
-    function buildCardTags(data) {
-        var tags = [];
-
-        // Show a few key amenities as small tags
-        if (data.amenity_free_parking === '1') tags.push('<span class="utility-tag tag-included"><i class="fa-solid fa-square-parking"></i> Free Parking</span>');
-        if (data.amenity_paid_parking === '1') tags.push('<span class="utility-tag tag-tenant"><i class="fa-solid fa-square-parking"></i> Paid Parking</span>');
-        if (data.amenity_laundry_free === '1') tags.push('<span class="utility-tag tag-included"><i class="fa-solid fa-shirt"></i> Laundry</span>');
-        if (data.amenity_laundry_paid === '1') tags.push('<span class="utility-tag tag-tenant"><i class="fa-solid fa-shirt"></i> Laundry (Paid)</span>');
-        if (data.amenity_pets_allowed === '1') tags.push('<span class="utility-tag tag-included"><i class="fa-solid fa-paw"></i> Pets OK</span>');
-        if (data.amenity_furnished === '1') tags.push('<span class="utility-tag tag-included"><i class="fa-solid fa-couch"></i> Furnished</span>');
-        if (data.amenity_air_conditioning === '1') tags.push('<span class="utility-tag tag-included"><i class="fa-solid fa-snowflake"></i> A/C</span>');
-        if (data.amenity_dishwasher === '1') tags.push('<span class="utility-tag tag-included"><i class="fa-solid fa-sink"></i> Dishwasher</span>');
-
-        // Utility cost
-        if (data.utility_cost && parseFloat(data.utility_cost) > 0) {
-            tags.push('<span class="utility-tag"><i class="fa-solid fa-receipt"></i> ~$' + Number(data.utility_cost).toLocaleString() + '/mo utils</span>');
-        }
-
-        return tags.join('');
     }
 
     /* ======================================================================

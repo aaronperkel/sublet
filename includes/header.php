@@ -11,14 +11,19 @@ if (!isset($basePath)) {
     $basePath = './';
 }
 
-// Determine post button state
+// Determine post button state, and the name to greet this user by. A display
+// name only exists once they have posted a listing, so this is the same lookup.
 $postButtonText = 'New Post';
-$postButtonLink = 'post.php';
+$currentUserName = $currentUser;
 if (is_logged_in()) {
-    $stmtNav = $pdo->prepare("SELECT id FROM sublets WHERE username = ?");
+    $navCols = table_columns($pdo, 'sublets');
+    $navSelect = isset($navCols['display_name']) ? 'id, display_name' : 'id';
+    $stmtNav = $pdo->prepare("SELECT $navSelect FROM sublets WHERE username = ?");
     $stmtNav->execute([$currentUser]);
-    if ($stmtNav->rowCount() > 0) {
+    $navRow = $stmtNav->fetch(PDO::FETCH_ASSOC);
+    if ($navRow) {
         $postButtonText = 'My Post';
+        $currentUserName = poster_name($navRow, $currentUser);
     }
 }
 
@@ -28,7 +33,7 @@ $stmtMaxPrice = $pdo->query("SELECT MAX(s.price) as max_price FROM sublets s " .
 $maxPrice = $stmtMaxPrice->fetch(PDO::FETCH_ASSOC)['max_price'] ?? 3000;
 $maxPriceRounded = max(ceil($maxPrice / 50) * 50, 100);
 
-$stmtMaxDist = $pdo->query("SELECT MAX(3959 * acos(LEAST(1, cos(radians(44.477435)) * cos(radians(s.lat)) * cos(radians(s.lon) - radians(-73.195323)) + sin(radians(44.477435)) * sin(radians(s.lat))))) as max_distance FROM sublets s " . VISIBLE_SEMESTER_JOIN . " WHERE " . VISIBLE_SEMESTER_WHERE);
+$stmtMaxDist = $pdo->query("SELECT MAX(" . campus_distance_expr() . ") as max_distance FROM sublets s " . VISIBLE_SEMESTER_JOIN . " WHERE " . VISIBLE_SEMESTER_WHERE);
 $maxDistance = $stmtMaxDist->fetch(PDO::FETCH_ASSOC)['max_distance'] ?? 20;
 $maxDistanceRounded = max(ceil($maxDistance * 2) / 2, 1);
 
@@ -59,7 +64,7 @@ $availableSemesters = $stmtSemesters->fetchAll(PDO::FETCH_ASSOC);
         <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.js"></script>
     <?php endif; ?>
 </head>
-<body data-page="<?= $currentPage ?>" data-user="<?= htmlspecialchars($currentUser ?: 'Guest') ?>" data-admin="<?= is_admin() ? '1' : '0' ?>">
+<body data-page="<?= $currentPage ?>" data-user="<?= htmlspecialchars($currentUser ?: 'Guest') ?>" data-user-name="<?= htmlspecialchars($currentUserName ?: 'Guest') ?>" data-admin="<?= is_admin() ? '1' : '0' ?>">
     <nav class="nav">
         <div class="nav-inner">
             <a href="index.php" class="nav-brand">
@@ -78,9 +83,9 @@ $availableSemesters = $stmtSemesters->fetchAll(PDO::FETCH_ASSOC);
                 <?php if (is_admin()): ?>
                     <a href="admin.php" class="nav-link <?= $currentPage === 'admin' ? 'active' : '' ?>">Admin</a>
                 <?php endif; ?>
-                <span class="nav-user">
+                <span class="nav-user" title="<?= htmlspecialchars($currentUser ?: 'Guest') ?>">
                     <i class="fa-solid fa-user"></i>
-                    <?= htmlspecialchars($currentUser ?: 'Guest') ?>
+                    <?= htmlspecialchars($currentUserName ?: 'Guest') ?>
                 </span>
             </div>
         </div>
