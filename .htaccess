@@ -1,0 +1,8 @@
+DirectoryIndex landing.php
+
+# Block dotfiles. This said "and other dotfiles" but only ever named .env,
+# leaving .DS_Store (which lists directory contents), .user.ini and .mise.toml
+# downloadable. Matches filenames only, so .well-known/ contents still resolve.
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>

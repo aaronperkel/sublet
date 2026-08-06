@@ -1,0 +1,7 @@
+# Project-owned static assets (favicon, demo sample imagery) that ship with the
+# repository. Unlike public/images/, nothing user-uploaded is ever written here.
+# The same execution guard applies anyway, so a mistake upstream can never turn
+# this directory into a code path.
+<FilesMatch "\.(?i:php[0-9]?|phtml|phps|phar|inc|cgi|pl|py|rb|sh|lua)$">
+    Require all denied
+</FilesMatch>

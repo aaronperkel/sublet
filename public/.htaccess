@@ -1,0 +1,7 @@
+# This directory holds user-uploaded files and is served directly by Apache.
+# Uploads are validated by safe_image_extension() in includes/thumbnail.php,
+# which only ever writes image extensions — this is the second line of defence
+# so that anything that does land here can never be executed as code.
+<FilesMatch "\.(?i:php[0-9]?|phtml|phps|phar|inc|cgi|pl|py|rb|sh|lua)$">
+    Require all denied
+</FilesMatch>

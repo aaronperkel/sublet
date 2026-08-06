@@ -1,0 +1,15 @@
+DirectoryIndex index.php
+AuthType CAS
+
+# All Students, in addition to aperkel and epaglier
+Require ldap-filter |(eduPersonAffiliation=Student)(|(uid=aperkel)(uid=ocongdon)(uid=rcollin3)(uid=chelfert))
+
+# All Students, ban bkamont and rpantale
+# Require ldap-filter &(eduPersonAffiliation=Student)(!(uid=bkamont))(!(uid=rpantale))
+
+# Rewrite static asset requests to the parent (public) directory
+RewriteEngine On
+RewriteRule ^(public/.*)$ /$1 [L]
+RewriteRule ^(css/.*)$ /$1 [L]
+RewriteRule ^(js/.*)$ /$1 [L]
+RewriteRule ^(assets/.*)$ /$1 [L]

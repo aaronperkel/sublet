@@ -1,3 +1,0 @@
-AuthType CAS
-# Require ldap-filter &(eduPersonAffiliation=Student)(!(uid=bkamont))(!(uid=rpantale))
-Require ldap-filter |(eduPersonAffiliation=Student)(|(uid=cbcafier)(uid=ldion2)(uid=jlhorton))

@@ -1,70 +1,87 @@
 # UVM Sublets
 
-UVM Sublets is a web application built exclusively for UVM students to post and find sublet listings near campus. It lets users create, view, and manage sublet posts with features like filtering by price, semester, and distance from campus. Students can view listings in both grid and map views, and the application includes administrative features for managing posts.
+A server-rendered PHP app where UVM students post and browse sublet listings near
+campus. Students create a listing with photos, price, address, semester and
+description; everyone else browses them in a grid or on an interactive map,
+filtered by price, semester and distance from campus.
 
-## Features
+Live at **https://sublet.aperkel.w3.uvm.edu** · public demo at
+**[/demo/](https://sublet.aperkel.w3.uvm.edu/demo/)** (no login required).
 
-- **Create & Manage Posts:** Users can add new sublet posts with images, price, address, semester, and a description.
-- **Filtering Options:** Easily filter listings by price range, semester, and distance from campus.
-- **Dual Views:** View listings in a grid layout or on an interactive map.
-- **User-Specific Actions:** Edit or delete posts (with restrictions, e.g., admin-only deletion).
+## Repository layout
 
-## Installation
+| Path | What it is |
+|---|---|
+| `landing.php` | Public marketing / roadmap page. `DirectoryIndex` at the root, fully self-contained. |
+| `app/` | The real application. Behind CAS authentication. |
+| `demo/` | Read-only mirror of `app/` running on sample data, open to anyone. |
+| `includes/` | Shared PHP: DB connection, auth, header, thumbnailing, visibility rules. |
+| `assets/` | Project-owned static imagery — favicon and the demo sample listings. |
+| `public/images/` | Runtime upload target for listing photos. Not tracked (see below). |
+| `css/`, `js/` | One stylesheet and one page-dispatched JS file. |
 
-1. Clone the Repository:
-   ```bash
-   git clone https://github.com/aaronperkel/sublet.git
-   cd sublet
-   ```
+`demo/` deliberately duplicates `index.php`, `map.php`, `post.php` and its own
+`includes/` rather than sharing them, so a markup change in `app/` usually needs
+the parallel edit in `demo/`. It shares only `css/`, `js/` and `assets/`.
 
-2.	Install Dependencies:
-Use Composer to install the required PHP packages.
-    ```bash
-    composer install
-    ```
+## Running it
 
-3.	Setup Environment Variables:
-Create a `.env` file in the root directory with the following keys:
-    ```bash
-    DBNAME=your_database_name
-    DBUSER=your_database_user
-    DBPASS=your_database_password
-    GOOGLE_API=your_google_api_key
-    ```
+There is no build step, no bundler and no test suite. It is plain PHP 8.2 served
+by Apache — drop the tree in a document root and point it at a database.
 
-4.	Configure Your Web Server:
-Set up your Apache or Nginx server to serve the project. Make sure PHP and MySQL are installed and configured.
-
-## Usage
-- Post Listings: Log in (via your university credentials) and navigate to the “New Post” page to create a sublet listing.
-- Filter Listings: Use the filtering options on the home page or map page to narrow down sublets by price, semester, or distance.
-- Edit or Delete: If you have an existing post, you can edit it via the “My Post” page. (Note: Only the admin user can delete posts directly.)
-
-## Repository Structure
 ```bash
-src/
-  ├─ css/          # Stylesheets for layout, components, forms, grid, and responsive design
-  ├─ js/           # JavaScript files for map initialization, UI interactions, etc.
-  ├─ connect-db.php
-  ├─ delete_post.php
-  ├─ edit_post.php
-  ├─ footer.php
-  ├─ index.php
-  ├─ map.php
-  ├─ nav.php
-  ├─ new_post.php
-  ├─ sql.php
-  ├─ top.php       # Contains common header elements, environment setup, and navigation
-.gitignore
-composer.json
-LICENSE
-README.md
+git clone https://github.com/aaronperkel/sublet.git
+composer install          # vlucas/phpdotenv
 ```
 
+Create a `.env` **one directory above the web root** (not inside it):
+
+```ini
+DBNAME=your_database
+DBUSER=your_user
+DBPASS=your_password
+GOOGLE_API=your_places_key
+```
+
+The database host is currently hardcoded to `webdb.uvm.edu` in
+`includes/db.php`. Syntax-check any change before it goes live, since the
+deployed copy *is* the document root:
+
+```bash
+php -l includes/db.php
+```
+
+## Authentication
+
+Authentication is handled by **Apache, not PHP**. `app/.htaccess` declares
+`AuthType CAS` plus a `Require ldap-filter` line limiting access to UVM students
+and a named allowlist. PHP never sees a password — `includes/auth.php` just
+reads `$_SERVER['REMOTE_USER']`. There are no sessions and no login form.
+
+Because credentials are ambient, every state-changing request is guarded by
+`require_same_origin()`, and uploads are typed by their bytes rather than their
+filename. Both live in `includes/`; new POST endpoints need the former.
+
+## Data model
+
+- **`sublets`** — effectively one row per user; holds price, address, lat/lon,
+  semester, contact fields, and utility/amenity flags.
+- **`sublet_images`** — additional photos per listing; `sort_order = 0` is the
+  thumbnail.
+- **`semesters`** — deactivating one hides all of its listings from the public
+  site without deleting anything. The rule lives in `includes/visibility.php`
+  and any new public listing query needs it.
+- **`contact_logs`** — records when a browser contacts a poster.
+- **`sublets_demo`** / **`sublet_images_demo`** — sample data behind `/demo/`.
+
+## A note on `public/images/`
+
+Listing photos are uploaded by real students and are named after their UVM
+netid, so `public/images/` is **git-ignored** and this repository contains none
+of them. A fresh clone will render listings without imagery until uploads
+accumulate; the demo's sample SVGs live in `assets/` and are tracked, so `/demo/`
+looks correct immediately.
+
 ## License
-This project is licensed under the [MIT License](LICENSE).
 
-## Contributing
-Feel free to fork the repository and submit pull requests. Please ensure any changes adhere to the coding style and include appropriate tests and documentation.
-
-*Created by [Aaron Perkel](http://aaronperkel.com)*
+MIT — see [LICENSE](LICENSE).
