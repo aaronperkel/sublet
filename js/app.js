@@ -1418,6 +1418,10 @@ document.addEventListener('DOMContentLoaded', function () {
         if (img.dataset.broken) return;
         img.dataset.broken = '1';
         img.style.display = 'none';
+        // The card markup carries its own inline onerror=, which fires before
+        // this file has loaded and appends a placeholder of its own. Don't
+        // stack a second one underneath it.
+        if (img.parentNode.querySelector('.img-broken-placeholder')) return;
         var placeholder = document.createElement('div');
         placeholder.className = 'img-broken-placeholder';
         placeholder.innerHTML = '<i class="fa-solid fa-image"></i><span>Image not available</span>';
@@ -1427,8 +1431,17 @@ document.addEventListener('DOMContentLoaded', function () {
     // Attach to all images on page load
     document.querySelectorAll('.card-image img, .modal-gallery img, .map-popup img').forEach(function (img) {
         img.addEventListener('error', function () { handleBrokenImage(img); });
-        // If already broken (cached)
-        if (img.complete && img.naturalWidth === 0 && img.src) {
+        // A load that already failed before this script ran fires no event we
+        // can still catch, so test for that state directly. `complete` alone
+        // does not mean "finished": a loading="lazy" image whose request has
+        // not been issued yet also reports complete with naturalWidth 0.
+        // currentSrc is what separates the two -- it stays empty until the
+        // browser actually picks a URL and requests it. Without that guard the
+        // newest cards (the only ones not already in the HTTP cache) get
+        // declared broken here, and hiding an image stops it ever intersecting
+        // the viewport, so its lazy load never fires and it stays broken until
+        // a reload warms the cache.
+        if (img.complete && img.naturalWidth === 0 && img.src && img.currentSrc) {
             handleBrokenImage(img);
         }
     });
