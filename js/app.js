@@ -438,9 +438,13 @@ document.addEventListener('DOMContentLoaded', function () {
     function renderGallery() {
         var img = document.getElementById('modalImage');
         if (img && modalImages.length > 0) {
-            // Reset broken state
+            // Reset broken state. imgRetried has to go too: this one element is
+            // reused for every image in the gallery, so leaving it set would
+            // deny the next image its retry.
             img.style.display = '';
             delete img.dataset.broken;
+            delete img.dataset.imgRetried;
+            delete img.dataset.imgError;
             var oldPlaceholder = img.parentNode.querySelector('.img-broken-placeholder');
             if (oldPlaceholder) oldPlaceholder.remove();
             img.src = modalImages[modalIndex];
@@ -1418,9 +1422,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (img.dataset.broken) return;
         img.dataset.broken = '1';
         img.style.display = 'none';
-        // The card markup carries its own inline onerror=, which fires before
-        // this file has loaded and appends a placeholder of its own. Don't
-        // stack a second one underneath it.
         if (img.parentNode.querySelector('.img-broken-placeholder')) return;
         var placeholder = document.createElement('div');
         placeholder.className = 'img-broken-placeholder';
@@ -1428,28 +1429,52 @@ document.addEventListener('DOMContentLoaded', function () {
         img.parentNode.appendChild(placeholder);
     }
 
+    // Replacing an image with the placeholder is a one-way door: handleBrokenImage()
+    // hides the element, and a hidden image never intersects the viewport, so a
+    // loading="lazy" image that had not fetched yet now never will. That makes it
+    // the wrong first response to a failure, because a failure here is often
+    // transient -- a dropped connection, or a request that came back as something
+    // other than image bytes. Retry once, then give up.
+    function imageFailed(img) {
+        if (img.dataset.imgRetried) {
+            handleBrokenImage(img);
+            return;
+        }
+        img.dataset.imgRetried = '1';
+        delete img.dataset.imgError;
+
+        var src = img.getAttribute('src');
+        if (!src) {
+            handleBrokenImage(img);
+            return;
+        }
+        // Re-assigning the identical string is a no-op, and the failed response
+        // may itself be sitting in the HTTP cache, so the retry needs a URL the
+        // browser treats as new.
+        var retried = src.split('#')[0];
+        retried += (retried.indexOf('?') === -1 ? '?' : '&') + '_retry=' + Date.now();
+        setTimeout(function () { img.src = retried; }, 150);
+    }
+
     // Attach to all images on page load
     document.querySelectorAll('.card-image img, .modal-gallery img, .map-popup img').forEach(function (img) {
-        img.addEventListener('error', function () { handleBrokenImage(img); });
-        // A load that already failed before this script ran fires no event we
-        // can still catch, so test for that state directly. `complete` alone
-        // does not mean "finished": a loading="lazy" image whose request has
-        // not been issued yet also reports complete with naturalWidth 0.
-        // currentSrc is what separates the two -- it stays empty until the
-        // browser actually picks a URL and requests it. Without that guard the
-        // newest cards (the only ones not already in the HTTP cache) get
-        // declared broken here, and hiding an image stops it ever intersecting
-        // the viewport, so its lazy load never fires and it stays broken until
-        // a reload warms the cache.
-        if (img.complete && img.naturalWidth === 0 && img.src && img.currentSrc) {
-            handleBrokenImage(img);
+        img.addEventListener('error', function () { imageFailed(img); });
+        // A load that failed before this file ran fires no event left to catch.
+        // The markup records those with onerror="this.dataset.imgError='1'" -- an
+        // inline attribute is in place from parse time, so it cannot miss one.
+        // Deliberately not inferred from `complete && naturalWidth === 0`: a lazy
+        // image whose request has not been issued reports exactly that state too,
+        // and treating it as a failure is what blanked cards that were merely
+        // still waiting to load.
+        if (img.dataset.imgError) {
+            imageFailed(img);
         }
     });
 
     // Also handle modal image errors
     var modalImg = document.getElementById('modalImage');
     if (modalImg) {
-        modalImg.addEventListener('error', function () { handleBrokenImage(modalImg); });
+        modalImg.addEventListener('error', function () { imageFailed(modalImg); });
     }
 
     /* ======================================================================

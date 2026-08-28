@@ -165,7 +165,7 @@ foreach ($availableSemesters as $sem) {
                  data-amenity-pets-allowed="<?= $sublet['amenity_pets_allowed'] ?? 0 ?>"
                  data-amenity-furnished="<?= $sublet['amenity_furnished'] ?? 0 ?>">
                 <div class="card-image">
-                    <img src="<?= htmlspecialchars($imgSrc) ?>" alt="Sublet at <?= htmlspecialchars($sublet['address']) ?>" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-broken-placeholder';p.innerHTML='<i class=\'fa-solid fa-image\'></i><span>Image not available</span>';this.parentNode.appendChild(p);">
+                    <img src="<?= htmlspecialchars($imgSrc) ?>" alt="Sublet at <?= htmlspecialchars($sublet['address']) ?>" loading="lazy" onerror="this.dataset.imgError='1'">
                     <span class="card-badge">$<?= number_format($sublet['price']) ?></span>
                     <span class="card-semester"><?= htmlspecialchars($sublet['semester_name']) ?></span>
                 </div>

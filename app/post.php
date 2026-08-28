@@ -350,7 +350,7 @@ if ($isEdit) {
                 <div class="image-previews" id="imagePreviews">
                     <?php foreach ($existingImages as $img): ?>
                         <div class="image-preview <?= $img['sort_order'] === 0 ? 'is-thumbnail' : '' ?>" data-image-id="<?= $img['id'] ?>">
-                            <img src="<?= htmlspecialchars($img['image_url']) ?>" alt="Listing image">
+                            <img src="<?= htmlspecialchars(image_src($img['image_url'])) ?>" alt="Listing image">
                             <button type="button" class="remove-image" data-image-id="<?= $img['id'] ?>">
                                 <i class="fa-solid fa-xmark"></i>
                             </button>

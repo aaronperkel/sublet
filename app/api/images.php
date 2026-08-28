@@ -21,7 +21,16 @@ if ($method === 'GET') {
 
     $stmt = $pdo->prepare("SELECT id, image_url, sort_order FROM sublet_images WHERE sublet_id = ? ORDER BY sort_order");
     $stmt->execute([$subletId]);
-    echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+    $images = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // app.js assigns these straight to img.src, so send URLs rather than the
+    // page-relative stored paths — see image_src() in includes/db.php.
+    foreach ($images as &$image) {
+        $image['image_url'] = image_src($image['image_url']);
+    }
+    unset($image);
+
+    echo json_encode($images);
     exit;
 }
 

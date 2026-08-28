@@ -193,7 +193,7 @@ foreach ($availableSemesters as $sem) {
                  data-roommate-gender="<?= htmlspecialchars(option_label(ROOMMATE_GENDER_OPTIONS, $sublet['roommate_gender'] ?? null)) ?>"
                  data-roommate-preference="<?= htmlspecialchars($prefLabel) ?>">
                 <div class="card-image">
-                    <img src="<?= htmlspecialchars($sublet['thumbnail_url'] ?: $sublet['image_url']) ?>" alt="Sublet at <?= htmlspecialchars($displayAddress) ?>" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-broken-placeholder';p.innerHTML='<i class=\'fa-solid fa-image\'></i><span>Image not available</span>';this.parentNode.appendChild(p);">
+                    <img src="<?= htmlspecialchars(image_src($sublet['thumbnail_url'] ?: $sublet['image_url'])) ?>" alt="Sublet at <?= htmlspecialchars($displayAddress) ?>" loading="lazy" onerror="this.dataset.imgError='1'">
                     <span class="card-badge">
                         $<?= number_format($sublet['price']) ?><?php if (!empty($sublet['price_negotiable'])): ?><small class="card-badge-neg">or best offer</small><?php endif; ?>
                     </span>

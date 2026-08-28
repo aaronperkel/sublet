@@ -15,6 +15,15 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute($filters['params']);
 $sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// app.js builds popup and modal <img> tags straight out of these values, and a
+// page-relative path would resolve against /app/ and get gated on CAS. Hand it
+// root-relative URLs instead — see image_src() in includes/db.php.
+foreach ($sublets as &$sublet) {
+    $sublet['image_url'] = image_src($sublet['image_url'] ?? null);
+    $sublet['thumbnail_url'] = image_src($sublet['thumbnail_url'] ?? null);
+}
+unset($sublet);
+
 // The popup and modal only ever display the address, so hand JS the shortened
 // form. The raw geocoder string stays in the database; post.php still edits it.
 // Roommate codes become labels here for the same reason — app.js should not
