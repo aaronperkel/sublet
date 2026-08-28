@@ -1,0 +1,20 @@
+# Break-glass restore for app/.htaccess.
+#
+# This lives outside app/ on purpose. The Access tab in app/admin.php rewrites
+# app/.htaccess, and a bad rule there 500s the whole /app/ directory — including
+# the admin portal that would undo it. This directory is the way back without
+# reaching for SSH.
+#
+# It also carries its own .htaccess rather than adding a <Files> block to the
+# document root's: a mistake in this file breaks only /recover/, whereas a
+# mistake in the root one would take down the public landing page with it.
+#
+# `Require user` rather than the `Require ldap-filter` app/ uses, deliberately.
+# It is a plain string comparison against REMOTE_USER handled by mod_authz_user,
+# with no LDAP query and no filter syntax to get subtly wrong — and note that
+# mod_authnz_ldap wraps a ldap-filter value in its own parentheses, so the
+# natural-looking `(uid=aperkel)` would become a doubled ((uid=aperkel)) and
+# fail. A recovery path should have the fewest moving parts of anything here.
+DirectoryIndex index.php
+AuthType CAS
+Require user aperkel

@@ -1,6 +1,16 @@
 <?php
 
 /**
+ * The single admin account.
+ *
+ * A constant rather than a literal because includes/htaccess_allowlist.php has
+ * to know it too: it force-adds this uid to the generated Require line and
+ * refuses to block it, so that editing access from the portal can never lock
+ * the admin out of the portal.
+ */
+define('ADMIN_UID', 'aperkel');
+
+/**
  * Get current authenticated username from CAS/Apache.
  */
 function get_current_user_id(): string {
@@ -18,7 +28,7 @@ function is_logged_in(): bool {
  * Check if current user is admin.
  */
 function is_admin(): bool {
-    return get_current_user_id() === 'aperkel';
+    return get_current_user_id() === ADMIN_UID;
 }
 
 /**

@@ -58,6 +58,15 @@ Authentication is handled by **Apache, not PHP**. `app/.htaccess` declares
 and a named allowlist. PHP never sees a password — `includes/auth.php` just
 reads `$_SERVER['REMOTE_USER']`. There are no sessions and no login form.
 
+That allowlist is managed from the **Access** tab of the admin portal, which is
+how people who no longer carry a student affiliation — alumni, someone on a gap
+year — keep access. The `allowed_users` table is the source of truth and the
+`Require` line is generated from it, so editing the line by hand is overwritten
+by the next change made in the portal. Because that file also governs the portal
+itself, each write is backed up, swapped atomically, and verified over HTTP,
+rolling back if the site stops responding correctly; `/recover/` restores a
+backup if it ever comes to that.
+
 Because credentials are ambient, every state-changing request is guarded by
 `require_same_origin()`, and uploads are typed by their bytes rather than their
 filename. Both live in `includes/`; new POST endpoints need the former.

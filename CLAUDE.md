@@ -28,8 +28,8 @@ Since this directory is the live docroot, a fatal parse error takes the site dow
 
 `app/.htaccess` does the authentication with `AuthType CAS` plus a `Require ldap-filter` line (all students, plus a named uid allowlist). PHP never sees a password; `includes/auth.php` just reads `$_SERVER['REMOTE_USER']`. There are no sessions and no login form.
 
-- **To change who can reach the app**: edit the `Require ldap-filter` line in `app/.htaccess`.
-- **To change who is admin**: `is_admin()` in `includes/auth.php` is a hardcoded `=== 'aperkel'` comparison.
+- **To change who can reach the app**: use the **Access** tab in `app/admin.php`. It is the supported path — see "Access allowlist" below. The `Require ldap-filter` line is generated, so hand-editing it is overwritten by the next change made there.
+- **To change who is admin**: `ADMIN_UID` in `includes/auth.php`, which `is_admin()` compares `REMOTE_USER` against.
 
 ## Three front-ends, one document root
 
@@ -38,6 +38,7 @@ Since this directory is the live docroot, a fatal parse error takes the site dow
 | `landing.php` | Public marketing/roadmap page; `DirectoryIndex` at the root. Fully self-contained — inline `<style>`, does not use `includes/header.php`. | none |
 | `app/` | The real application. | CAS |
 | `demo/` | Read-only mirror of `app/` with sample data. | `AuthType None` |
+| `recover/` | Break-glass restore of `app/.htaccess`. Self-contained like `landing.php`; requires only `auth.php` + `htaccess_allowlist.php`, never `db.php`. | CAS, `Require user aperkel` |
 
 `demo/` **duplicates** `index.php`, `map.php`, `post.php`, and the `includes/` files rather than sharing them. It shares only `css/style.css`, `js/app.js`, and `public/images/`. So:
 
@@ -45,6 +46,72 @@ Since this directory is the live docroot, a fatal parse error takes the site dow
 - `demo/includes/db.php` defines `DEMO_MODE` and `$SUBLET_TABLE = 'sublets_demo'` / `$IMAGES_TABLE = 'sublet_images_demo'`; demo queries interpolate those variables into SQL.
 - `demo/includes/auth.php` returns `'DemoUser'`, `is_admin()` is always false, `require_admin()` always 403s.
 - `demo/api/*.php` are no-op stubs returning `{"success":true,"demo":true}`; only `geocode.php` proxies to the real endpoint. `demo/post.php` shows a success message without writing anything.
+
+## Access allowlist (who can reach `/app/`)
+
+The **Access** tab in `app/admin.php` edits who gets in, so that granting an
+alum or a gap-year student access no longer means SSHing in to edit Apache
+config. `allowed_users` is the source of truth; the `Require ldap-filter` line in
+`app/.htaccess` is regenerated from it after every change. All of the generation
+and file-swapping lives in `includes/htaccess_allowlist.php`.
+
+The rule cannot be factored out of `app/.htaccess`. The vhost grants
+`AllowOverride Options AuthConfig FileInfo Indexes Limit`, which is what makes
+`Require ldap-filter` legal there, but Apache never permits `Include` in an
+`.htaccess` context — so the whole line has to be written into the file.
+
+Only the text between `# BEGIN MANAGED ACCESS` and `# END MANAGED ACCESS` is
+ever rewritten; `DirectoryIndex`, `AuthType CAS` and the four `RewriteRule`s
+survive by not being touched. **If those markers go missing, the write refuses**
+rather than guessing which line is the managed one.
+
+Four filter shapes come out of `build_require_line()`, all deliberately
+*un*parenthesised at the top level because `mod_authnz_ldap` wraps the value in
+its own parens — an already-parenthesised filter becomes a doubled `((...))` and
+fails:
+
+```
+neither   eduPersonAffiliation=Student
+allow     |(eduPersonAffiliation=Student)(uid=a)(uid=b)
+block     &(eduPersonAffiliation=Student)(!(uid=x))
+both      &(|(eduPersonAffiliation=Student)(uid=a))(!(uid=x))
+```
+
+Blocking beats allowing, since the negations are ANDed across the whole
+expression. `ADMIN_UID` is forced into allow and out of block **inside the
+generator**, not as a UI check, so locking the admin out is impossible whatever
+the table says.
+
+`valid_uid()` (`/^[a-z][a-z0-9]{0,15}\z/`) is the security boundary. It ends in
+`\z`, not `$`, on purpose: `$` also matches before a trailing newline, so a `$`
+version would accept `"aperkel\nRequire all granted"` and inject directives into
+a file Apache executes. Invalid input is rejected, never repaired.
+
+### Why the write path is defensive
+
+`app/.htaccess` governs `app/admin.php`. A bad rule 500s all of `/app/`,
+including the portal that would fix it. So `write_htaccess_block()` does:
+validate → back up to `/users/a/p/aperkel/sublet-htaccess-backups/` (outside the
+docroot, keeps 10) → write `.htaccess.tmp-<pid>` and `rename()` → fetch
+`/app/` over HTTP and require a **302 to `idp.uvm.edu`** → restore the backup on
+anything else, including a curl error. Requiring exactly that redirect rather
+than merely "not a 500" also catches a filter that parses but matches nobody,
+which denies everyone with a 403.
+
+`/recover/` is the last resort, and it is why the module must never `require`
+`db.php` — recovery has to work when the database does not.
+
+**`app/.htaccess` must stay tracked in git.** Gitignoring it would leave a fresh
+clone with no `AuthType CAS` at all. The consequence is that every access change
+shows as a working-tree modification, and a `git checkout` can revert the file —
+the tab detects that drift and **Rebuild from database** resyncs it.
+
+`allowed_users` is created by hand: the app's DB user (`aperkel_writer`) has
+SELECT/INSERT/UPDATE/DELETE but **no CREATE grant** on any database. The tab
+detects the missing table via `table_exists()` (in `db.php`, added because
+`table_columns()` throws on a missing table) and renders the DDL plus seed
+`INSERT`s built from the live file — seeding matters, since an empty table would
+regenerate the file down to `ADMIN_UID` alone and silently revoke everyone else.
 
 ## Security invariants
 
@@ -81,6 +148,7 @@ Form-encoded POST in, JSON out — not REST. Endpoints dispatch on `$_POST['acti
 | `email.php` | admin-only bulk `mail()` to `{username}@uvm.edu` |
 | `contact_log.php` | POST logs a contact click (any user); GET is admin-only and paginated |
 | `geocode.php` | proxy to Nominatim (no key needed) |
+| `allowlist.php` | admin-only `add`/`remove`/`rebuild` of approved & blocked netids; rewrites `app/.htaccess` and **undoes its own DB change if that write fails**, so the table and the file never disagree |
 
 ## Data model
 
@@ -90,6 +158,7 @@ There is no schema/migration file in the tree; the shape below is what the queri
 - **`sublet_images`** — `sublet_id`, `image_url`, `sort_order`; `sort_order = 0` is the thumbnail.
 - **`semesters`** — `code`, `name`, `active`, `sort_order`. `code` joins to `sublets.semester`; queries `COALESCE(sem.name, s.semester)` so unmapped codes still render.
 - **`contact_logs`** — `post_id`, `poster_username`, `contacted_by`, `contact_type`, `created_at`.
+- **`allowed_users`** — `uid`, `kind` (`allow`/`block`), `note`, `added_by`, `added_at`. `UNIQUE` on `uid` alone, not `(uid, kind)`: a netid is on one list or the other, never both. Source of truth for the generated `Require` line — see "Access allowlist". The `note` column is the reason someone has access ("gap year, back Fall 2026") and stays in the database; it never reaches `app/.htaccess`, which is committed to a public repo.
 - **`sublets_demo`** / **`sublet_images_demo`** — demo copies.
 
 ## Listing visibility (semester deactivation)

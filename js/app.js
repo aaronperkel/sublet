@@ -995,6 +995,112 @@ document.addEventListener('DOMContentLoaded', function () {
         initUserManagement();
         initEmailComposer();
         initContactLog();
+        initAllowlistManagement();
+    }
+
+    // Access tab: the individually-approved and blocked netid lists.
+    //
+    // Every action here rewrites app/.htaccess on the server, which is what
+    // Apache enforces for the whole /app/ directory. The endpoint verifies the
+    // result and rolls itself back on failure, so a non-success response means
+    // nothing changed — the message is worth showing in full rather than
+    // flattening to a generic "failed", because it says which check failed.
+    function initAllowlistManagement() {
+        var status = document.getElementById('allowlistStatus');
+        if (!status) return; // table missing, or not on this tab's markup
+
+        function setStatus(kind, icon, message) {
+            status.innerHTML = '<div class="alert alert-' + kind + '" style="margin-bottom: 1rem;">' +
+                '<i class="fa-solid ' + icon + '"></i> ' + escapeHtml(message) + '</div>';
+        }
+
+        function post(body, btn, pending, done) {
+            if (btn) btn.disabled = true;
+            setStatus('info', 'fa-spinner fa-spin', pending);
+
+            fetch('api/allowlist.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: body
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (btn) btn.disabled = false;
+                if (data.success) {
+                    done(data);
+                } else {
+                    setStatus('error', 'fa-exclamation-triangle', data.error || 'The change was not applied.');
+                }
+            })
+            .catch(function () {
+                if (btn) btn.disabled = false;
+                setStatus('error', 'fa-exclamation-triangle', 'Network error — nothing was changed.');
+            });
+        }
+
+        function wireAdd(kind, uidId, noteId, btnId) {
+            var btn = document.getElementById(btnId);
+            if (!btn) return;
+
+            btn.addEventListener('click', function () {
+                var uidInput = document.getElementById(uidId);
+                var noteInput = document.getElementById(noteId);
+                var uid = uidInput.value.trim().toLowerCase();
+
+                if (!uid) {
+                    setStatus('error', 'fa-exclamation-triangle', 'Enter a netid first.');
+                    uidInput.focus();
+                    return;
+                }
+
+                if (kind === 'block' && !confirm('Block ' + uid + '?\n\nThey will lose access immediately, even if they are a current student.')) {
+                    return;
+                }
+
+                post(
+                    'action=add&kind=' + encodeURIComponent(kind) +
+                        '&uid=' + encodeURIComponent(uid) +
+                        '&note=' + encodeURIComponent(noteInput.value.trim()),
+                    btn,
+                    'Updating app/.htaccess and checking the site still loads…',
+                    function () { location.reload(); }
+                );
+            });
+        }
+
+        wireAdd('allow', 'allowUid', 'allowNote', 'addAllowBtn');
+        wireAdd('block', 'blockUid', 'blockNote', 'addBlockBtn');
+
+        document.querySelectorAll('.remove-allowlist-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                if (!confirm('Remove ' + btn.dataset.uid + ' from this list?')) return;
+
+                post(
+                    'action=remove&id=' + encodeURIComponent(btn.dataset.id),
+                    btn,
+                    'Updating app/.htaccess and checking the site still loads…',
+                    function () { location.reload(); }
+                );
+            });
+        });
+
+        var rebuildBtn = document.getElementById('rebuildAllowlistBtn');
+        if (rebuildBtn) {
+            rebuildBtn.addEventListener('click', function () {
+                post(
+                    'action=rebuild',
+                    rebuildBtn,
+                    'Regenerating app/.htaccess from the database…',
+                    function (data) {
+                        // No rows changed, so the page does not need reloading —
+                        // just show the line that is now in the file.
+                        var pre = document.getElementById('allowlistRule');
+                        if (pre && data.rule) pre.textContent = data.rule;
+                        setStatus('success', 'fa-check', 'app/.htaccess matches the database and the site still loads.');
+                    }
+                );
+            });
+        }
     }
 
     function initAdminTabs() {

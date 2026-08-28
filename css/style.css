@@ -1745,6 +1745,15 @@ h3 { font-size: 1.125rem; font-weight: 600; line-height: 1.4; }
     border: 1px solid #bbdefb;
 }
 
+/* Same amber as .announcement-warning, so a caution reads the same whether it
+   comes from the site banner or an admin panel. Used by the Access tab when
+   app/.htaccess has drifted from the allowed_users table. */
+.alert-warning {
+    background: #fff8e1;
+    color: #7a6100;
+    border: 1px solid #ffecb3;
+}
+
 /* ---------- 12. Footer ---------- */
 .site-footer {
     background: var(--green);

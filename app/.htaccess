@@ -1,11 +1,21 @@
 DirectoryIndex index.php
 AuthType CAS
 
-# All Students, in addition to aperkel and epaglier
-Require ldap-filter |(eduPersonAffiliation=Student)(|(uid=aperkel)(uid=ocongdon)(uid=rcollin3)(uid=chelfert))
-
-# All Students, ban bkamont and rpantale
-# Require ldap-filter &(eduPersonAffiliation=Student)(!(uid=bkamont))(!(uid=rpantale))
+# Who can reach this directory. The block below is generated from the
+# allowed_users table by the Access tab in app/admin.php — edit it there,
+# not here. If a change ever leaves this directory returning 500, restore a
+# backup from https://sublet.aperkel.w3.uvm.edu/recover/ (which lives outside
+# app/ precisely so it survives that).
+#
+# Keep this to a single Require directive. Two of them in the same context
+# form an implicit RequireAny, so adding a second "ban" line would OR with
+# this one and grant access rather than remove it.
+# BEGIN MANAGED ACCESS
+# Generated from the allowed_users table by the Access tab in app/admin.php.
+# Do not edit by hand: the next change made in the portal overwrites it.
+# Last written 2026-08-28 01:17:20.
+Require ldap-filter |(eduPersonAffiliation=Student)(uid=adhinkel)(uid=aperkel)(uid=cedgley)(uid=chelfert)(uid=hhuta)(uid=lhall11)(uid=ocongdon)(uid=rcollin3)(uid=rkmounta)
+# END MANAGED ACCESS
 
 # Rewrite static asset requests to the parent (public) directory
 RewriteEngine On

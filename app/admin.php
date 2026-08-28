@@ -5,6 +5,7 @@ $basePath = '../';
 require_once '../includes/auth.php';
 require_admin();
 require_once '../includes/header.php';
+require_once '../includes/htaccess_allowlist.php';
 
 // Stats — totals across everything, since admin sees hidden listings too.
 $totalPosts = $pdo->query("SELECT COUNT(*) FROM sublets")->fetchColumn();
@@ -32,6 +33,42 @@ $hiddenCount = count(array_filter($allPosts, fn($p) => $p['is_hidden']));
 $adminColumns = table_columns($pdo, 'sublets');
 $nameSelect = isset($adminColumns['display_name']) ? ', MAX(display_name) as display_name' : '';
 $allUsers = $pdo->query("SELECT username$nameSelect, COUNT(*) as post_count, MAX(posted_at) as last_post FROM sublets GROUP BY username ORDER BY username")->fetchAll(PDO::FETCH_ASSOC);
+
+// Individually approved / blocked netids for the Access tab. allowed_users is
+// created by hand (the app's DB user has no CREATE grant), so its absence has to
+// render as instructions rather than a fatal error.
+$allowlistReady = table_exists($pdo, 'allowed_users');
+$allowEntries = [];
+$blockEntries = [];
+if ($allowlistReady) {
+    foreach ($pdo->query("SELECT * FROM allowed_users ORDER BY uid") as $row) {
+        if ($row['kind'] === 'block') {
+            $blockEntries[] = $row;
+        } else {
+            $allowEntries[] = $row;
+        }
+    }
+}
+
+// What app/.htaccess actually says right now. Compared against the table below
+// so the tab can flag drift — which is what a git checkout reverting the file
+// looks like — and used to build the seed INSERTs when the table doesn't exist
+// yet, so that populating it can't silently revoke the people already listed.
+$currentRule = read_managed_require_line();
+$parsedUids = parse_managed_uids();
+$fileUids = $parsedUids ?? ['allow' => [], 'block' => []];
+
+$allowlistDrifted = false;
+if ($allowlistReady && $parsedUids !== null) {
+    $tableAllow = array_column($allowEntries, 'uid');
+    $tableBlock = array_column($blockEntries, 'uid');
+    sort($tableAllow, SORT_STRING);
+    sort($tableBlock, SORT_STRING);
+    // ADMIN_UID is force-added to the file by the generator whether or not it is
+    // a row, so it must not count as a difference on its own.
+    $allowlistDrifted = array_values(array_diff($fileUids['allow'], [ADMIN_UID])) !== array_values(array_diff($tableAllow, [ADMIN_UID]))
+        || $fileUids['block'] !== $tableBlock;
+}
 ?>
 
 <div class="admin-container">
@@ -81,6 +118,9 @@ $allUsers = $pdo->query("SELECT username$nameSelect, COUNT(*) as post_count, MAX
         </button>
         <button class="admin-tab" data-tab="contact-log">
             <i class="fa-solid fa-address-book"></i> Contact Log
+        </button>
+        <button class="admin-tab" data-tab="access">
+            <i class="fa-solid fa-key"></i> Access
         </button>
     </div>
 
@@ -380,6 +420,156 @@ $allUsers = $pdo->query("SELECT username$nameSelect, COUNT(*) as post_count, MAX
                 <div id="emailStatus"></div>
             </div>
         </div>
+    </div>
+
+    <!-- Access Tab -->
+    <div class="tab-panel" id="tab-access">
+        <?php if (!$allowlistReady): ?>
+            <?php /* The database user this app connects as has SELECT/INSERT/
+                     UPDATE/DELETE but no CREATE grant, so the table cannot be
+                     created from here. Show the exact SQL instead — including
+                     seed rows built from whatever app/.htaccess currently says,
+                     because an empty table would regenerate the file down to
+                     the admin alone and quietly revoke everyone else. */ ?>
+            <div class="admin-card">
+                <h3>Manage Access</h3>
+                <div class="alert alert-error" style="margin-bottom: 1rem;">
+                    <i class="fa-solid fa-exclamation-triangle"></i>
+                    The <code>allowed_users</code> table doesn&rsquo;t exist yet, so this tab is read-only.
+                </div>
+                <p class="text-muted" style="margin-bottom: 1rem; font-size: 0.85rem;">
+                    Run this once in phpMyAdmin against <code>APERKEL_sublet</code>, then reload this page.
+                    It creates the table and seeds it with the <?= count($fileUids["allow"]) ?> netid<?= count($fileUids["allow"]) === 1 ? '' : 's' ?>
+                    already in <code>app/.htaccess</code>, so nobody loses access in the process.
+                </p>
+                <pre style="background: #0f1a16; color: #e8f0ec; padding: 1rem; border-radius: 8px; overflow-x: auto; font-size: 0.78rem; line-height: 1.5;"><?php
+                    echo htmlspecialchars(allowlist_bootstrap_sql($fileUids));
+                ?></pre>
+            </div>
+        <?php else: ?>
+            <div id="allowlistStatus"></div>
+
+            <?php if ($allowlistDrifted): ?>
+                <div class="alert alert-warning" style="margin-bottom: 1rem;">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <code>app/.htaccess</code> doesn&rsquo;t match the lists below &mdash; usually because a
+                    <code>git checkout</code> reverted it. Use <strong>Rebuild from database</strong> to resync.
+                </div>
+            <?php endif; ?>
+
+            <div class="admin-card">
+                <h3>Individually approved</h3>
+                <p class="text-muted" style="margin-bottom: 1rem; font-size: 0.85rem;">
+                    Current students get in automatically through their UVM affiliation. These are the
+                    exceptions &mdash; alumni, someone on a gap year, a grad student &mdash; who keep access
+                    without it. Each change rewrites <code>app/.htaccess</code> and verifies the site still
+                    loads before keeping it.
+                </p>
+                <div id="allowList">
+                    <?php if (empty($allowEntries)): ?>
+                        <p class="text-muted" style="padding: 1rem;">Nobody individually approved yet.</p>
+                    <?php endif; ?>
+                    <?php foreach ($allowEntries as $entry): ?>
+                        <div class="semester-item" data-id="<?= $entry['id'] ?>">
+                            <div class="semester-info">
+                                <span class="semester-status"></span>
+                                <div>
+                                    <strong><?= htmlspecialchars($entry['uid']) ?></strong>
+                                    <?php if (!empty($entry['note'])): ?>
+                                        <span class="text-muted" style="font-size: 0.8rem; margin-left: 0.5rem;"><?= htmlspecialchars($entry['note']) ?></span>
+                                    <?php endif; ?>
+                                    <span class="text-muted" style="font-size: 0.8rem; margin-left: 0.5rem;">
+                                        (added <?= htmlspecialchars(date('M j, Y', strtotime($entry['added_at']))) ?>)
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="semester-actions">
+                                <?php if ($entry['uid'] === ADMIN_UID): ?>
+                                    <span class="text-muted" style="font-size: 0.8rem;">always allowed</span>
+                                <?php else: ?>
+                                    <button class="btn btn-sm btn-danger remove-allowlist-btn"
+                                            data-id="<?= $entry['id'] ?>"
+                                            data-uid="<?= htmlspecialchars($entry['uid']) ?>">Remove</button>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+                <div class="add-form" id="addAllowForm">
+                    <div class="form-group">
+                        <label>NetID</label>
+                        <input type="text" id="allowUid" placeholder="e.g. ocongdon" autocapitalize="off" autocomplete="off" spellcheck="false">
+                    </div>
+                    <div class="form-group">
+                        <label>Note (optional)</label>
+                        <input type="text" id="allowNote" placeholder="e.g. gap year, back Fall 2026">
+                    </div>
+                    <button class="btn btn-primary btn-sm" id="addAllowBtn">
+                        <i class="fa-solid fa-plus"></i> Approve
+                    </button>
+                </div>
+            </div>
+
+            <div class="admin-card">
+                <h3>Blocked</h3>
+                <p class="text-muted" style="margin-bottom: 1rem; font-size: 0.85rem;">
+                    Keeps someone out even if they are a current student. Blocking wins over approval,
+                    so a netid here is denied regardless of anything above.
+                </p>
+                <div id="blockList">
+                    <?php if (empty($blockEntries)): ?>
+                        <p class="text-muted" style="padding: 1rem;">Nobody blocked.</p>
+                    <?php endif; ?>
+                    <?php foreach ($blockEntries as $entry): ?>
+                        <div class="semester-item" data-id="<?= $entry['id'] ?>">
+                            <div class="semester-info">
+                                <span class="semester-status inactive"></span>
+                                <div>
+                                    <strong><?= htmlspecialchars($entry['uid']) ?></strong>
+                                    <?php if (!empty($entry['note'])): ?>
+                                        <span class="text-muted" style="font-size: 0.8rem; margin-left: 0.5rem;"><?= htmlspecialchars($entry['note']) ?></span>
+                                    <?php endif; ?>
+                                    <span class="text-muted" style="font-size: 0.8rem; margin-left: 0.5rem;">
+                                        (added <?= htmlspecialchars(date('M j, Y', strtotime($entry['added_at']))) ?>)
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="semester-actions">
+                                <button class="btn btn-sm btn-secondary remove-allowlist-btn"
+                                        data-id="<?= $entry['id'] ?>"
+                                        data-uid="<?= htmlspecialchars($entry['uid']) ?>">Unblock</button>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+                <div class="add-form" id="addBlockForm">
+                    <div class="form-group">
+                        <label>NetID</label>
+                        <input type="text" id="blockUid" placeholder="e.g. bkamont" autocapitalize="off" autocomplete="off" spellcheck="false">
+                    </div>
+                    <div class="form-group">
+                        <label>Note (optional)</label>
+                        <input type="text" id="blockNote" placeholder="e.g. repeated fake listings">
+                    </div>
+                    <button class="btn btn-danger btn-sm" id="addBlockBtn">
+                        <i class="fa-solid fa-ban"></i> Block
+                    </button>
+                </div>
+            </div>
+
+            <div class="admin-card">
+                <h3>Live Apache rule</h3>
+                <p class="text-muted" style="margin-bottom: 1rem; font-size: 0.85rem;">
+                    The line currently in <code>app/.htaccess</code>. If a change ever leaves the app
+                    returning an error, <a href="/recover/">/recover/</a> restores the previous file &mdash;
+                    it lives outside <code>app/</code> so it keeps working when this page doesn&rsquo;t.
+                </p>
+                <pre id="allowlistRule" style="background: #0f1a16; color: #e8f0ec; padding: 1rem; border-radius: 8px; overflow-x: auto; font-size: 0.78rem; line-height: 1.5; margin-bottom: 1rem;"><?= htmlspecialchars($currentRule ?? 'Could not read the managed block from app/.htaccess.') ?></pre>
+                <button class="btn btn-secondary btn-sm" id="rebuildAllowlistBtn">
+                    <i class="fa-solid fa-rotate"></i> Rebuild from database
+                </button>
+            </div>
+        <?php endif; ?>
     </div>
 </div>
 

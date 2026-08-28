@@ -101,3 +101,30 @@ function table_columns(PDO $pdo, string $table): array {
 
     return $cache[$table];
 }
+
+/**
+ * Whether a table exists in the current database.
+ *
+ * table_columns() cannot answer this: SHOW COLUMNS on a missing table raises a
+ * PDOException under ERRMODE_EXCEPTION, which on a live page is a fatal error
+ * rather than a false. The access allowlist needs to degrade into an
+ * explanatory message when its table has not been created yet, so it asks here
+ * first.
+ *
+ * information_schema rather than SHOW TABLES LIKE, because LIKE would treat the
+ * underscore in a name like allowed_users as a single-character wildcard.
+ */
+function table_exists(PDO $pdo, string $table): bool {
+    static $cache = [];
+
+    if (!isset($cache[$table])) {
+        $stmt = $pdo->prepare(
+            "SELECT COUNT(*) FROM information_schema.TABLES
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?"
+        );
+        $stmt->execute([$table]);
+        $cache[$table] = (int)$stmt->fetchColumn() > 0;
+    }
+
+    return $cache[$table];
+}
