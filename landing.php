@@ -79,12 +79,18 @@ if ($showcaseImages && count($showcaseImages) < 8) {
 
     <?php /* Link preview for GroupMe, Discord, iMessage and Instagram bios.
              og:image has to be an absolute URL, and the canonical host is
-             hardcoded so a link shared from any hostname still unfurls. */ ?>
+             hardcoded so a link shared from any hostname still unfurls.
+
+             og:url is go.uvm.edu/sublet — the short link is what we publish,
+             and it is the URL an unfurl prints under the title. It 302s here,
+             which crawlers follow. og:image cannot use it: the short link is a
+             single redirect, not a prefix, so go.uvm.edu/sublet/assets/... goes
+             to go.uvm.edu's home page rather than to the artwork. */ ?>
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="UVM Sublets">
     <meta property="og:title" content="UVM Sublets — Find Your Next Sublet">
     <meta property="og:description" content="Browse and post sublets near campus. UVM students only.">
-    <meta property="og:url" content="https://sublet.aperkel.w3.uvm.edu/">
+    <meta property="og:url" content="https://go.uvm.edu/sublet">
     <meta property="og:image" content="https://sublet.aperkel.w3.uvm.edu/assets/social/link-preview.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">

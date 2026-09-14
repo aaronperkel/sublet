@@ -5,8 +5,13 @@ campus. Students create a listing with photos, price, address, semester and
 description; everyone else browses them in a grid or on an interactive map,
 filtered by price, semester and distance from campus.
 
-Live at **https://sublet.aperkel.w3.uvm.edu** · public demo at
+Live at **[go.uvm.edu/sublet](https://go.uvm.edu/sublet)** · public demo at
 **[/demo/](https://sublet.aperkel.w3.uvm.edu/demo/)** (no login required).
+
+`go.uvm.edu/sublet` is the link to share. It redirects to the app's real host,
+`sublet.aperkel.w3.uvm.edu`, which is still what deep links such as `/demo/` and
+`/s/<id>-<token>` have to be built on — the short link is one redirect to the
+root, not a path prefix.
 
 ## Repository layout
 

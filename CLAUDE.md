@@ -49,6 +49,35 @@ Since this directory is the live docroot, a fatal parse error takes the site dow
 - `demo/includes/auth.php` returns `'DemoUser'`, `is_admin()` is always false, `require_admin()` always 403s.
 - `demo/api/*.php` are no-op stubs returning `{"success":true,"demo":true}`; only `geocode.php` proxies to the real endpoint. `demo/post.php` shows a success message without writing anything.
 
+## The public link is go.uvm.edu/sublet
+
+`go.uvm.edu/sublet` is the link to publish. Anywhere the site is presented to
+people — story graphics, link previews, the email footer, the README — it is the
+URL that should appear, not `sublet.aperkel.w3.uvm.edu`. It is short enough to
+retype off a phone screen, and it survives the app moving off a personal w3
+hostname.
+
+**It is one redirect, not a path prefix.** `go.uvm.edu/sublet` 302s to the real
+origin's root; `go.uvm.edu/sublet/s/<slug>` 302s to `go.uvm.edu`'s own home
+page. So deep links have to keep being built on the real host:
+
+| Constant (`includes/share.php`) | Use |
+|---|---|
+| `SHARE_ORIGIN` | anything with a path — `/s/<slug>`, `/app/`, `/demo/`, `og:image` |
+| `SHARE_SHORT_URL` | a link that only has to reach the front door |
+| `SHARE_DISPLAY_URL` | the bare `go.uvm.edu/sublet` painted into artwork |
+
+Consequently `landing.php` sets `og:url` to the short link (it is what an unfurl
+prints under the title) but keeps `og:image` on the real host, and `s.php` keeps
+the per-listing `og:url` on the real host because the short link cannot express
+it. `ALLOWLIST_SELF_TEST_URL` also stays on the real host — it asserts a 302 to
+`idp.uvm.edu`, which only the real origin produces.
+
+Three of the four graphics in `assets/social/` were drawn with the short link
+already; `story-share-your-listing.png` was repainted to match. There is no
+generator script for them — they come from a design tool, so a text change means
+editing the PNG.
+
 ## Sharing a listing
 
 Students share listings to Instagram stories, Snapchat and group chats. A link

@@ -198,7 +198,7 @@ if ($allowlistReady && $parsedUids !== null) {
 
             <div class="form-group">
                 <label for="announcementMessage">Message</label>
-                <textarea id="announcementMessage" rows="4" placeholder="e.g. Welcome to UVM Sublets!&#10;Check out the roadmap: https://sublet.aperkel.w3.uvm.edu"></textarea>
+                <textarea id="announcementMessage" rows="4" placeholder="e.g. Welcome to UVM Sublets!&#10;Check out the roadmap: https://go.uvm.edu/sublet"></textarea>
                 <p class="text-muted" style="font-size: 0.8rem; margin-top: 0.35rem;">Line breaks are preserved. URLs are automatically linked.</p>
             </div>
 

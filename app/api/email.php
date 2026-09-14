@@ -125,7 +125,7 @@ function render_email_html(string $body, string $name): string {
         {$htmlBody}
     </div>
     <div style="padding: 1rem 1.5rem; background: #F7F7F7; border-radius: 0 0 8px 8px; font-size: 0.85rem; color: #7a8e93; text-align: center;">
-        <p>This email was sent from <a href="https://sublet.aperkel.w3.uvm.edu" style="color: #154734;">UVM Sublets</a></p>
+        <p>This email was sent from <a href="https://go.uvm.edu/sublet" style="color: #154734;">UVM Sublets</a></p>
     </div>
 </body>
 </html>
