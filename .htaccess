@@ -28,3 +28,15 @@ DirectoryIndex landing.php
     # site elsewhere is a clickjacking path against signed-in users.
     Header always set X-Frame-Options "SAMEORIGIN"
 </IfModule>
+
+# Pretty share links: /s/42-a1b2c3d4e5 -> /s.php?i=42-a1b2c3d4e5
+#
+# Short enough to sit under an Instagram story sticker without wrapping, which
+# /s.php?i=... is not. s.php still answers on its own path, so if this rule ever
+# stops matching the feature degrades to an uglier URL rather than a 404.
+#
+# The pattern is as narrow as the slug itself, so this cannot shadow any real
+# file. mod_rewrite does not inherit per-directory rules, so app/.htaccess —
+# which has its own RewriteEngine — is unaffected by turning it on here.
+RewriteEngine On
+RewriteRule ^s/([0-9]+-[a-f0-9]{10})/?$ /s.php?i=$1 [L,QSA]

@@ -31,7 +31,7 @@ Since this directory is the live docroot, a fatal parse error takes the site dow
 - **To change who can reach the app**: use the **Access** tab in `app/admin.php`. It is the supported path — see "Access allowlist" below. The `Require ldap-filter` line is generated, so hand-editing it is overwritten by the next change made there.
 - **To change who is admin**: `ADMIN_UID` in `includes/auth.php`, which `is_admin()` compares `REMOTE_USER` against.
 
-## Three front-ends, one document root
+## Front-ends, one document root
 
 | Path | Purpose | Auth |
 |---|---|---|
@@ -39,6 +39,8 @@ Since this directory is the live docroot, a fatal parse error takes the site dow
 | `app/` | The real application. | CAS |
 | `demo/` | Read-only mirror of `app/` with sample data. | `AuthType None` |
 | `recover/` | Break-glass restore of `app/.htaccess`. Self-contained like `landing.php`; requires only `auth.php` + `htaccess_allowlist.php`, never `db.php`. | CAS, `Require user aperkel` |
+| `s.php` | Public interstitial a share link lands on, reached as `/s/<id>-<token>`. Self-contained like `landing.php`. See "Sharing a listing". | none |
+| `share-card.php` | Generates the preview image the share link unfurls into. | none |
 
 `demo/` **duplicates** `index.php`, `map.php`, `post.php`, and the `includes/` files rather than sharing them. It shares only `css/style.css`, `js/app.js`, and `public/images/`. So:
 
@@ -46,6 +48,90 @@ Since this directory is the live docroot, a fatal parse error takes the site dow
 - `demo/includes/db.php` defines `DEMO_MODE` and `$SUBLET_TABLE = 'sublets_demo'` / `$IMAGES_TABLE = 'sublet_images_demo'`; demo queries interpolate those variables into SQL.
 - `demo/includes/auth.php` returns `'DemoUser'`, `is_admin()` is always false, `require_admin()` always 403s.
 - `demo/api/*.php` are no-op stubs returning `{"success":true,"demo":true}`; only `geocode.php` proxies to the real endpoint. `demo/post.php` shows a success message without writing anything.
+
+## Sharing a listing
+
+Students share listings to Instagram stories, Snapchat and group chats. A link
+into `/app/` cannot do that: the preview crawlers behind iMessage, Instagram and
+Discord arrive with no CAS session, get the 302 to `idp.uvm.edu`, and never see
+any HTML, so the link unfurls into nothing. The shared URL is therefore a public
+one that carries the meta tags and then hands off to `/app/` behind SSO.
+
+```
+/s/187-d2e9710cf1   s.php           interstitial: preview card + "Sign in with your UVM NetID"
+/share-card.php     share-card.php  the 1200x630 preview and the 1080x1920 story graphic
+```
+
+**What is public.** The preview card *is* the public surface — crawlers fetch it
+unauthenticated and Meta and X cache it, which is what a preview is. That is
+price, semester, bed/bath/roommate count and distance from campus, and nothing
+else. Address, description, poster name, NetID, contact email and phone are
+never loaded into `s.php`'s markup. `includes/share.php`'s `share_card_lines()`
+defines that boundary in one place, because `s.php` bakes those strings into
+meta tags and `share-card.php` paints them into the image — a preview whose
+picture and title disagree is worse than either alone.
+
+Distance is deliberately used instead of a neighbourhood: it is the fact a
+reader wants, and unlike an address it does not narrow a listing to a house.
+
+**The token is derived, not stored.** `share_token()` is
+`substr(hash_hmac('sha256', 'sublet:' . $id, share_secret()), 0, 10)`. There is
+no column for it: the app's DB user has no DDL grant, and schema changes are
+pasted into phpMyAdmin by hand. Without a token, `/s/1`, `/s/2`, `/s/3` would be
+a public index of every listing, since `sublets.id` is a plain autoincrement
+already sitting in the page DOM. `parse_share_slug()` is the single gate —
+shape and signature together, anchored with `\z` for the reason `valid_uid()`
+is.
+
+`share_secret()` reads `SHARE_SECRET` from `.env`, falling back to `DBPASS`.
+**Rotating whichever key is in use invalidates every link already sent**, so it
+is set once and left alone.
+
+**Ordering trap.** `share.php` reads the secret out of `$_ENV`, which is only
+populated once `db.php` has run Dotenv. Both `s.php` and `share-card.php`
+therefore require `db.php` *before* verifying the slug — doing it the other way
+round throws for want of a key on every request.
+
+**Neither file may 500.** A crawler that gets an error caches the absence of a
+preview, and the listing then unfurls into nothing for everyone. `share-card.php`
+falls back to `assets/social/link-preview.png` (or `story-find-a-sublet.png`) on
+any failure; `s.php` renders one shared "isn't available" page for a bad token,
+an unknown id, a hidden listing *and* a database outage, so it cannot be used as
+an oracle for which ids exist.
+
+Both formats put the photo in a **near-square panel** — 552x630 on the og card,
+1080x1150 on the story — rather than bleeding it across the frame. Listings are
+photographed on phones, and the uploads on disk span 0.46 to 1.5 in aspect
+ratio; cover-cropping a 1125x2436 screenshot to a full-bleed 1.9:1 scaled it
+four times over and kept a sliver out of the middle. A panel near 0.9:1 sits in
+the middle of that range, so every upload loses only its edges. It also puts the
+type on flat colour, which is why there is no scrim any more.
+
+Cards are drawn with GD and Open Sans, cached to `public/share/` (gitignored)
+under a fingerprint of the photo, its mtime and the text, and swept per listing
+on rewrite. Bump `SHARE_CARD_VERSION` after a layout change. A source photo over
+`SHARE_SOURCE_MAX_PIXELS` is pre-shrunk by ImageMagick rather than loaded — GD
+holds 4 bytes a pixel and the largest upload on disk would exceed `memory_limit`
+by itself. Re-encoding also strips the GPS EXIF that survives in the originals
+under `public/images/`.
+
+**In the app**, `includes/share_sheet.php` is the sheet markup, included by
+`app/index.php`, `app/map.php` and `app/post.php` — a partial, not a fourth
+copy-paste. Tiles are built in `initShare()` rather than in the partial because
+which ones apply is a property of the browser: "Share to…" needs
+`navigator.share`, and the Instagram and Snapchat tiles fetch the story graphic
+and hand it to the OS share sheet as a *file*, which is what makes those apps
+appear as targets at all (neither has a web endpoint that posts to a story).
+Desktop downloads the image instead.
+
+Listings carry their link as `data-share-url` on each card in `index.php` and as
+`share_url` in `MAP_SUBLETS` — built server-side so the HMAC secret never
+reaches the client. `app/index.php` accepts `?id=<n>`, which is how a share link
+returns from CAS; it **drops the other filters** for that request, so a stale
+price or semester in the URL cannot hide the card the link was sent to open.
+Visibility still applies.
+
+`demo/` has no share button — the one part of `app/` it does not mirror.
 
 ## Access allowlist (who can reach `/app/`)
 
@@ -115,10 +201,11 @@ regenerate the file down to `ADMIN_UID` alone and silently revoke everyone else.
 
 ## Security invariants
 
-Auth is ambient (Apache/CAS via browser credentials), which shapes three rules:
+Auth is ambient (Apache/CAS via browser credentials), which shapes four rules:
 
 - **`require_same_origin()`** (`includes/auth.php`) guards every state-changing request. There is no PHP session, so it validates `Sec-Fetch-Site`, falling back to `Origin`/`Referer`. **Any new POST endpoint needs it** — without it, any site on the internet can make a signed-in user's browser perform admin actions. It is a no-op on GET, which is also why destructive actions must never be reachable by GET.
 - **Uploads are typed by their bytes, never their filename.** `safe_image_extension()` (`includes/thumbnail.php`) returns the extension to save under, or `null` to reject. `public/images/` is served by Apache, so trusting a client-supplied extension is a remote-code-execution path. `public/.htaccess` denies script extensions as a second layer.
+- **The public share surface is `share_card_lines()` and nothing else.** `s.php` and `share-card.php` sit outside `/app/` and are read by anyone, crawlers included. Adding a field there publishes it — see "Sharing a listing".
 - **`escapeHtml()` in `app.js` must escape quotes**, because its output is interpolated into `data-copy="..."` and `src="..."` attributes. The `textContent`→`innerHTML` idiom does *not* escape quotes and is unsafe here.
 
 Deleting an image goes through **`delete_image_files()`**, which also removes the `_thumb.webp` sibling. Unlinking the path directly leaks thumbnails.
@@ -134,6 +221,10 @@ Pages inside `app/` set `$basePath = '../'` *before* requiring `../includes/head
 `js/app.js` is a single `DOMContentLoaded` block that branches on `document.body.dataset.page` (set by `header.php` from `basename($_SERVER['PHP_SELF'])`) and reads `dataset.user` / `dataset.admin`. Server→client data is passed through globals emitted inline by each page: `window.SUBLET_CONFIG`, `window.MAP_SUBLETS`, `window.POST_CONFIG`, `window.DEMO_MODE`. Assets are cache-busted with `?v=<?= filemtime(...) ?>`.
 
 Adding a page means adding both an `init<Page>()` branch in `app.js` and the matching `$currentPage` checks in `header.php` (which is what conditionally loads Leaflet and noUiSlider).
+
+Everything lives in one closure, so **module state read during init must be declared above the dispatch block**. Function declarations hoist; `var` assignments do not. `SHARE_TILES` declared next to `initShare()` was still `undefined` when the dispatch called it, and the resulting throw landed after `shareEls` was assigned but before any listener was attached — the sheet opened, showed no tiles, and could not be closed or copied from, and the abort took the `?id=` deep link with it.
+
+`copyToClipboard()` / `flashCopied()` are shared by the contact panel and the share sheet. They exist because `navigator.clipboard` is undefined on insecure origins and rejects when the document is not focused — hence the `execCommand` fallback and the visible failure state.
 
 ## API layer (`app/api/`)
 

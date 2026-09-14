@@ -1,12 +1,21 @@
 <?php
 $basePath = '../';
 require_once '../includes/header.php';
+require_once '../includes/share.php';
+
+// A share link comes back from CAS as ?id=<n>, and the modal for that listing
+// opens on load. Filters are deliberately dropped for such a request: it asks
+// for one listing rather than a filtered browse, and a price or semester left
+// in the querystring could otherwise hide the very card the link was sent to
+// open. Visibility is not dropped — build_listing_filters() applies that
+// unconditionally, so a listing hidden by a deactivated semester stays hidden.
+$openId = isset($_GET['id']) && ctype_digit((string)$_GET['id']) ? (int)$_GET['id'] : 0;
 
 // Build filtered query. Listings in a deactivated semester are always excluded
 // (see includes/visibility.php) regardless of the user's filter selections —
 // build_listing_filters() applies that itself so map.php cannot diverge.
 $columns = table_columns($pdo, 'sublets');
-$filters = build_listing_filters($_GET, $columns);
+$filters = build_listing_filters($openId ? [] : $_GET, $columns);
 $activeAmenities = $filters['amenities'];
 
 // distance_mi is selected rather than only compared so "closest to campus" can
@@ -160,6 +169,10 @@ foreach ($availableSemesters as $sem) {
                  tabindex="0"
                  aria-label="View listing at <?= htmlspecialchars($displayAddress) ?>, $<?= number_format($sublet['price']) ?> per month"
                  data-id="<?= $sublet['id'] ?>"
+                 <?php /* The public /s/ link for this listing. Carried on every
+                          card because the share sheet is opened from the modal,
+                          which is populated from the card's dataset. */ ?>
+                 data-share-url="<?= htmlspecialchars(share_url((int)$sublet['id'])) ?>"
                  data-price="<?= $sublet['price'] ?>"
                  data-address="<?= htmlspecialchars($displayAddress) ?>"
                  data-semester="<?= htmlspecialchars($sublet['semester']) ?>"
@@ -240,6 +253,9 @@ foreach ($availableSemesters as $sem) {
                         <button id="modalPhoneBtn" class="btn btn-primary btn-sm" title="Call" style="display:none;">
                             <i class="fa-solid fa-phone"></i> Call
                         </button>
+                        <button id="modalShareBtn" class="btn btn-secondary btn-sm" title="Share">
+                            <i class="fa-solid fa-arrow-up-from-bracket"></i> Share
+                        </button>
                         <a id="modalEdit" href="post.php" class="btn btn-gold btn-sm" style="display:none;">
                             <i class="fa-solid fa-pen"></i> Edit
                         </a>
@@ -274,6 +290,8 @@ foreach ($availableSemesters as $sem) {
     </div>
 </div>
 
+<?php require_once '../includes/share_sheet.php'; ?>
+
 <script>
     window.SUBLET_CONFIG = {
         maxPrice: <?= $maxPriceRounded ?>,
@@ -281,7 +299,8 @@ foreach ($availableSemesters as $sem) {
         initialMinPrice: <?= isset($_GET['min_price']) ? (int)$_GET['min_price'] : 0 ?>,
         initialMaxPrice: <?= isset($_GET['max_price']) ? (int)$_GET['max_price'] : $maxPriceRounded ?>,
         initialDistance: <?= isset($_GET['max_distance']) && $_GET['max_distance'] !== '' ? (float)$_GET['max_distance'] : $maxDistanceRounded ?>,
-        semesterMap: <?= json_encode($semesterMap) ?>
+        semesterMap: <?= json_encode($semesterMap) ?>,
+        openId: <?= $openId ?>
     };
 </script>
 <script src="./js/app.js?v=<?= filemtime(ROOT_DIR . '/js/app.js') ?>"></script>

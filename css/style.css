@@ -992,11 +992,6 @@ h3 { font-size: 1.125rem; font-weight: 600; line-height: 1.4; }
     justify-content: center;
 }
 
-.contact-copy.copied {
-    color: var(--success) !important;
-    border-color: var(--success) !important;
-}
-
 /* ---------- 8. Post Form ---------- */
 .post-layout {
     display: grid;
@@ -2334,6 +2329,8 @@ h3 { font-size: 1.125rem; font-weight: 600; line-height: 1.4; }
 .gallery-nav:focus-visible,
 .remove-image:focus-visible,
 .announcement-dismiss:focus-visible,
+.share-tile:focus-visible,
+.share-sheet-close:focus-visible,
 .footer-links a:focus-visible {
     outline: 3px solid var(--sky);
     outline-offset: 2px;
@@ -2538,4 +2535,192 @@ h3 { font-size: 1.125rem; font-weight: 600; line-height: 1.4; }
         align-items: flex-start;
         gap: 1rem;
     }
+}
+
+/* ---------- 16. Share Sheet ---------- */
+
+/* Sits above the listing modal (z-index 2000): the sheet is opened from inside
+   it, so it has to land on top rather than behind. */
+.share-sheet-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 49, 60, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 2100;
+    padding: 1rem;
+}
+
+.share-sheet-overlay.open {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.share-sheet {
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    width: 100%;
+    max-width: 420px;
+    padding: 1.25rem;
+    animation: modalIn 0.25s ease;
+}
+
+.share-sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.share-sheet-title {
+    font-size: 1rem;
+    color: var(--green);
+    margin: 0;
+}
+
+.share-sheet-close {
+    background: none;
+    border: none;
+    font-size: 1.6rem;
+    line-height: 1;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0 0.25rem;
+    transition: color var(--transition);
+}
+
+.share-sheet-close:hover {
+    color: var(--text);
+}
+
+/* auto-fit rather than a fixed count: the "Share to…" tile is only rendered
+   where navigator.share exists, so the row length differs by device. */
+.share-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(76px, 1fr));
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.share-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.45rem;
+    background: none;
+    border: none;
+    padding: 0.5rem 0.25rem;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    transition: background var(--transition);
+}
+
+.share-tile:hover {
+    background: var(--fog);
+}
+
+.share-tile-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-full);
+    background: var(--green);
+    color: var(--white);
+    font-size: 1.15rem;
+}
+
+.share-tile-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.2;
+}
+
+/* Building a story image means a fetch and a GD render, which is long enough
+   on a phone that an unchanged button reads as a dead one. */
+.share-tile.busy {
+    pointer-events: none;
+    opacity: 0.55;
+}
+
+.share-link-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.share-link-input {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.8rem;
+    font-family: inherit;
+    color: var(--text-secondary);
+    background: var(--fog);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-xs);
+    padding: 0.55rem 0.7rem;
+}
+
+.share-sheet-note {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+    margin: 0.9rem 0 0 0;
+}
+
+/* Pairs with .contact-copy.copied — the copy helper in app.js drives both. */
+.share-copy.copied,
+.contact-copy.copied {
+    color: var(--success) !important;
+    border-color: var(--success) !important;
+}
+
+.share-copy.copy-failed,
+.contact-copy.copy-failed {
+    color: var(--danger) !important;
+    border-color: var(--danger) !important;
+}
+
+/* The share prompt post.php shows after a successful save. */
+.post-share-row {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+}
+
+.post-share-hint {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+/* On a phone the sheet belongs at the bottom, where a share sheet always is
+   and where a thumb can reach it. */
+@media (max-width: 600px) {
+    .share-sheet-overlay.open {
+        align-items: flex-end;
+    }
+
+    .share-sheet-overlay {
+        padding: 0;
+    }
+
+    .share-sheet {
+        max-width: none;
+        border-radius: var(--radius) var(--radius) 0 0;
+        padding: 1.25rem 1.25rem 2rem;
+        animation: shareSheetIn 0.25s ease;
+    }
+}
+
+@keyframes shareSheetIn {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
 }

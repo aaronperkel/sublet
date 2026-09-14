@@ -2,6 +2,7 @@
 $basePath = '../';
 require_once '../includes/header.php';
 require_once '../includes/thumbnail.php';
+require_once '../includes/share.php';
 
 $username = get_current_user_id();
 if (!$username) {
@@ -304,6 +305,15 @@ if ($skippedUploads > 0) {
     }
 }
 
+// The share message wants the semester's display name, but $existingPost is a
+// plain SELECT * — semester_name is a join that only the Browse and Map queries
+// carry. Resolve it from the options already loaded for the <select>.
+$shareSemesterName = '';
+if (!empty($existingPost['semester'])) {
+    $semesterNames = array_column($semesterOptions, 'name', 'code');
+    $shareSemesterName = $semesterNames[$existingPost['semester']] ?? $existingPost['semester'];
+}
+
 // Get existing images for edit mode
 $existingImages = [];
 if ($isEdit) {
@@ -318,6 +328,17 @@ if ($isEdit) {
          away from reflecting user input. */ ?>
 <?php if ($success_message): ?>
     <div class="alert alert-success" role="status"><i class="fa-solid fa-check"></i> <?= htmlspecialchars($success_message) ?></div>
+    <?php /* Straight after a save is when someone actually wants to post their
+             listing to a story or drop it in a group chat, so the link is
+             offered here rather than only from the modal on Browse. */ ?>
+    <?php if (!empty($existingPost['id'])): ?>
+        <div class="post-share-row">
+            <button type="button" class="btn btn-primary" id="postShareBtn">
+                <i class="fa-solid fa-arrow-up-from-bracket"></i> Share your listing
+            </button>
+            <span class="post-share-hint">Send it to a group chat or put it on your story.</span>
+        </div>
+    <?php endif; ?>
 <?php endif; ?>
 
 <?php if ($error_message): ?>
@@ -660,9 +681,14 @@ if ($isEdit) {
     window.POST_CONFIG = {
         isEdit: <?= $isEdit ? 'true' : 'false' ?>,
         lat: <?= $isEdit ? $existingPost['lat'] : '44.477435' ?>,
-        lon: <?= $isEdit ? $existingPost['lon'] : '-73.195323' ?>
+        lon: <?= $isEdit ? $existingPost['lon'] : '-73.195323' ?>,
+        shareUrl: <?= json_encode(!empty($existingPost['id']) ? share_url((int)$existingPost['id']) : '') ?>,
+        sharePrice: <?= json_encode(!empty($existingPost['price']) ? '$' . number_format((float)$existingPost['price']) : '') ?>,
+        shareSemester: <?= json_encode($shareSemesterName) ?>
     };
 </script>
+<?php require_once '../includes/share_sheet.php'; ?>
+
 <script src="./js/app.js?v=<?= filemtime(ROOT_DIR . '/js/app.js') ?>"></script>
 
 <?php require_once '../includes/footer.php'; ?>

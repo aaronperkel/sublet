@@ -2,6 +2,11 @@
 composer.phar
 vendor/
 
+# Generated share cards. Derived from the photos below, so the same reasoning
+# applies — and they are a cache: share-card.php rebuilds any of them on the
+# next request.
+public/share/
+
 # User-uploaded listing photos. These are real students' images, keyed to their
 # netid by filename, and this repository is public — they must never be
 # committed. Project-owned imagery (favicon, demo samples) lives in assets/

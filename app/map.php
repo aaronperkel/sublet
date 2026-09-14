@@ -1,6 +1,7 @@
 <?php
 $basePath = '../';
 require_once '../includes/header.php';
+require_once '../includes/share.php';
 
 // Same filters as index.php, from the same builder — see includes/listing_query.php.
 $columns = table_columns($pdo, 'sublets');
@@ -35,6 +36,10 @@ foreach ($sublets as &$s) {
     $s['roommate_preference_label'] = option_label(ROOMMATE_PREFERENCE_OPTIONS, $s['roommate_preference'] ?? null);
     // username stays as-is: app.js compares it to the signed-in user.
     $s['poster_name'] = poster_name($s);
+    // The public /s/ link, built here rather than in JS so the HMAC secret
+    // never has to reach the client. index.php carries the same value as
+    // data-share-url on each card.
+    $s['share_url'] = share_url((int)$s['id']);
 }
 unset($s);
 
@@ -124,6 +129,9 @@ foreach ($availableSemesters as $sem) {
                         <button id="modalPhoneBtn" class="btn btn-primary btn-sm" title="Call" style="display:none;">
                             <i class="fa-solid fa-phone"></i> Call
                         </button>
+                        <button id="modalShareBtn" class="btn btn-secondary btn-sm" title="Share">
+                            <i class="fa-solid fa-arrow-up-from-bracket"></i> Share
+                        </button>
                         <a id="modalEdit" href="post.php" class="btn btn-gold btn-sm" style="display:none;">
                             <i class="fa-solid fa-pen"></i> Edit
                         </a>
@@ -157,6 +165,8 @@ foreach ($availableSemesters as $sem) {
         </div>
     </div>
 </div>
+
+<?php require_once '../includes/share_sheet.php'; ?>
 
 <script>
     window.SUBLET_CONFIG = {

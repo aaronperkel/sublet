@@ -1,0 +1,21 @@
+# Nothing here is meant to be found through a search engine — people arrive
+# from a link someone sent them, or from the landing page.
+
+User-agent: *
+
+# Share links are for group chats and stories, not for search results. They
+# still unfurl: link previews are fetched by scrapers, which do not consult
+# this file, and s.php carries its own <meta name="robots" content="noindex">
+# for the crawlers that read the page itself.
+Disallow: /s/
+Disallow: /s.php
+Disallow: /share-card.php
+
+# Behind CAS anyway, so a crawler only ever gets the redirect to idp.uvm.edu.
+Disallow: /app/
+
+# Listing photos are uploaded by real students and are named after their
+# NetID. The directory is served without authentication because the demo site
+# and the link previews both need it, which is exactly why it should not also
+# be indexable.
+Disallow: /public/images/

@@ -1,6 +1,6 @@
 {
-    "active": false,
-    "message": "",
+    "active": true,
+    "message": "You can now share a listing on social media! You can also send them to your friends via text! Hit the share button next to the contact buttons on the listing card!",
     "style": "info",
-    "updated_at": "2026-08-01 03:19:37"
+    "updated_at": "2026-08-31 12:22:16"
 }

@@ -14,13 +14,69 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Muted basemap shared by the map page and the post preview, so a listing
     // looks the same wherever it is shown.
-    const TILE_URL = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+    //
+    // This was CARTO Voyager until CARTO began requiring an API key on
+    // basemaps.cartocdn.com. The keyless request still returns HTTP 200 and a
+    // real-looking tile, but with "API KEY REQUIRED" stamped diagonally across
+    // it, so the map degrades into nonsense instead of failing loudly. Esri's
+    // World Street Map is the nearest keyless equivalent: the same warm,
+    // labelled street style, which keeps the green-and-gold pins the most
+    // saturated thing on screen.
+    //
+    // Two traps here, both unlike every {s}/{z}/{x}/{y} provider: the path is
+    // {z}/{y}/{x} (row before column), and there is no {s} subdomain to rotate,
+    // so `subdomains` has to go or Leaflet builds URLs that 404.
+    const TILE_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}';
     const TILE_OPTS = {
-        attribution: '© OpenStreetMap © CARTO',
-        subdomains: 'abcd',
+        attribution: '&copy; Esri &mdash; Esri, HERE, Garmin, USGS, NGA',
+        // Esri has tiles to z19 around campus and answers z20 with a grey "Map
+        // data not yet available" placeholder, so cap the requests at 19 and
+        // let Leaflet upscale the last step in — maxNativeZoom is what makes a
+        // pinch past 19 blurry rather than blank. detectRetina went with CARTO:
+        // it worked through the {r} -> @2x tiles this service has no equivalent
+        // for, and left on it would only re-request the denser z+1 style.
         maxZoom: 20,
-        detectRetina: true
+        maxNativeZoom: 19
     };
+
+    // Share-sheet state and tile list.
+    //
+    // These live up here, above the dispatch, because initShare() reads
+    // SHARE_TILES as soon as it is called. Function declarations hoist but
+    // `var` assignments do not, so declaring them further down — next to
+    // initShare(), where they read better — left SHARE_TILES undefined at call
+    // time. It threw after shareEls was assigned but before a single listener
+    // was attached, so the sheet opened, rendered no tiles, and could not be
+    // closed or copied from; the throw also aborted the rest of this handler,
+    // which took the ?id= deep link with it.
+    // Set by initShare() once the partial is on the page; null on any page that
+    // does not include includes/share_sheet.php.
+    var shareEls = null;
+    var shareTarget = null;
+
+    // The tiles, in order. `when` decides whether a tile is worth showing on
+    // this device: "Share to…" in a browser with no navigator.share is a dead
+    // button, and dead buttons in a share sheet are how people decide the
+    // whole feature is broken.
+    //
+    // Instagram and Snapchat have no web endpoint that posts to a story — the
+    // official route is a native SDK. What does work is handing the OS share
+    // sheet an image file, which surfaces "Instagram Stories" and Snapchat as
+    // real targets, so both tiles go through the generated story graphic.
+    var SHARE_TILES = [
+        {
+            key: 'native',
+            label: 'Share to…',
+            icon: 'fa-solid fa-arrow-up-from-bracket',
+            when: function () { return typeof navigator.share === 'function'; }
+        },
+        { key: 'instagram', label: 'Insta Story', icon: 'fa-brands fa-instagram' },
+        { key: 'snapchat',  label: 'Snapchat',  icon: 'fa-brands fa-snapchat' },
+        { key: 'text',      label: 'Text',      icon: 'fa-solid fa-comment' },
+        { key: 'email',     label: 'Email',     icon: 'fa-solid fa-envelope' },
+        { key: 'x',         label: 'X',         icon: 'fa-brands fa-x-twitter' }
+    ];
+
 
     // ---- Navigation ----
     initNav();
@@ -36,6 +92,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // ---- Shared: Modal ----
     if (page === 'index' || page === 'map') initModal();
+
+    // ---- Shared: Share sheet ----
+    if (page === 'index' || page === 'map' || page === 'post') initShare();
+
+    // Deep link from a share link, after initModal() so the modal's close and
+    // keyboard handlers are already bound when it opens.
+    if (page === 'index') openSharedListing();
 
     /* ======================================================================
        Navigation
@@ -294,19 +357,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 '</div>';
         }
 
-        // Attach copy handlers
+        // Attach copy handlers. Shared with the share sheet's copy button, which
+        // is also where the execCommand fallback and the failure state came
+        // from — this used to be a bare .then() with no rejection path, so a
+        // clipboard write that failed left the button saying nothing at all.
         body.querySelectorAll('.contact-copy').forEach(function (btn) {
             btn.addEventListener('click', function () {
-                var text = btn.dataset.copy;
-                navigator.clipboard.writeText(text).then(function () {
-                    var original = btn.innerHTML;
-                    btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
-                    btn.classList.add('copied');
-                    setTimeout(function () {
-                        btn.innerHTML = original;
-                        btn.classList.remove('copied');
-                    }, 1500);
-                });
+                copyToClipboard(btn.dataset.copy, btn);
             });
         });
 
@@ -385,6 +442,25 @@ document.addEventListener('DOMContentLoaded', function () {
         var editBtn = document.getElementById('modalEdit');
         if (editBtn) {
             editBtn.style.display = (currentUser === data.username) ? '' : 'none';
+        }
+
+        // Share button. Shown to everyone, not only the poster: sending a
+        // listing to a roommate group chat is as much the point as putting
+        // your own on a story. Hidden if the page could not build a link.
+        var shareBtn = document.getElementById('modalShareBtn');
+        if (shareBtn) {
+            if (data.shareUrl) {
+                shareBtn.style.display = '';
+                shareBtn.onclick = function () {
+                    openShareSheet({
+                        url: data.shareUrl,
+                        price: '$' + Number(data.price).toLocaleString(),
+                        semester: data.semesterName || data.semester
+                    });
+                };
+            } else {
+                shareBtn.style.display = 'none';
+            }
         }
 
         // Load images
@@ -489,6 +565,292 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     /* ======================================================================
+       Share Sheet
+       ====================================================================== */
+
+    function initShare() {
+        var overlay = document.getElementById('shareSheet');
+        if (!overlay) return;
+
+        shareEls = {
+            overlay: overlay,
+            grid: document.getElementById('shareGrid'),
+            input: document.getElementById('shareLinkInput'),
+            copyBtn: document.getElementById('shareCopyBtn'),
+            closeBtn: document.getElementById('shareSheetClose'),
+            note: document.getElementById('shareSheetNote')
+        };
+        shareEls.defaultNote = shareEls.note ? shareEls.note.textContent.trim() : '';
+
+        shareEls.grid.innerHTML = SHARE_TILES.filter(function (tile) {
+            return !tile.when || tile.when();
+        }).map(function (tile) {
+            return '<button type="button" class="share-tile" data-share="' + escapeHtml(tile.key) + '">' +
+                       '<span class="share-tile-icon"><i class="' + escapeHtml(tile.icon) + '"></i></span>' +
+                       '<span class="share-tile-label">' + escapeHtml(tile.label) + '</span>' +
+                   '</button>';
+        }).join('');
+
+        shareEls.grid.addEventListener('click', function (e) {
+            var tile = e.target.closest('.share-tile');
+            if (tile && shareTarget) runShareAction(tile.dataset.share, tile);
+        });
+
+        shareEls.copyBtn.addEventListener('click', function () {
+            if (shareTarget) copyToClipboard(shareTarget.url, shareEls.copyBtn);
+        });
+
+        shareEls.closeBtn.addEventListener('click', closeShareSheet);
+        overlay.addEventListener('click', function (e) {
+            if (e.target === overlay) closeShareSheet();
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && overlay.classList.contains('open')) {
+                e.stopPropagation();
+                closeShareSheet();
+            }
+        }, true);
+    }
+
+    function openShareSheet(target) {
+        if (!shareEls || !target || !target.url) return;
+
+        shareTarget = target;
+        shareEls.input.value = target.url;
+        setShareNote('');
+
+        shareEls.overlay.classList.add('open');
+        shareEls.overlay.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+        shareEls.closeBtn.focus();
+    }
+
+    function closeShareSheet() {
+        if (!shareEls) return;
+
+        shareEls.overlay.classList.remove('open');
+        shareEls.overlay.setAttribute('aria-hidden', 'true');
+        shareTarget = null;
+
+        // The sheet opens over the listing modal, which locked scrolling first.
+        // Clearing it unconditionally would unlock the page behind a modal that
+        // is still open.
+        var modal = document.getElementById('modal');
+        var modalOpen = modal && modal.classList.contains('open');
+        document.body.style.overflow = modalOpen ? 'hidden' : '';
+    }
+
+    /** Replace the sheet's footnote, or restore it when passed nothing. */
+    function setShareNote(message) {
+        if (!shareEls || !shareEls.note) return;
+        shareEls.note.textContent = message || shareEls.defaultNote;
+    }
+
+    /** "Check out this $850/mo sublet for Fall 2026 on UVM Sublets" */
+    function shareMessage(target) {
+        var bits = ['Check out this'];
+        if (target.price) bits.push(target.price);
+        bits.push('sublet');
+        if (target.semester) bits.push('for ' + target.semester);
+        return bits.join(' ') + ' on UVM Sublets';
+    }
+
+    /** The "42-a1b2c3d4e5" out of a /s/ URL, or '' if it is not one. */
+    function shareSlug(url) {
+        var match = /\/s\/(\d+-[a-f0-9]+)\/?$/.exec(String(url || ''));
+        return match ? match[1] : '';
+    }
+
+    function runShareAction(key, tile) {
+        var url = shareTarget.url;
+        var text = shareMessage(shareTarget);
+
+        if (key === 'native') {
+            navigator.share({ title: 'UVM Sublets', text: text, url: url }).catch(function () {});
+            return;
+        }
+
+        if (key === 'instagram' || key === 'snapchat') {
+            shareStoryImage(tile, key === 'snapchat' ? 'Snapchat' : 'Instagram');
+            return;
+        }
+
+        if (key === 'text') {
+            // "sms:?&body=" is the form both iOS and Android accept; the bare
+            // "sms:?body=" is ignored on iOS.
+            window.location.href = 'sms:?&body=' + encodeURIComponent(text + ' ' + url);
+            return;
+        }
+
+        if (key === 'email') {
+            window.location.href = 'mailto:?subject=' + encodeURIComponent(text) +
+                '&body=' + encodeURIComponent(text + '\n\n' + url);
+            return;
+        }
+
+        if (key === 'x') {
+            window.open(
+                'https://twitter.com/intent/tweet?text=' + encodeURIComponent(text) +
+                '&url=' + encodeURIComponent(url),
+                '_blank',
+                'noopener'
+            );
+        }
+    }
+
+    /**
+     * Fetch the 1080x1920 story graphic and hand it to the OS share sheet.
+     *
+     * Sharing a *file* is what makes Instagram Stories and Snapchat appear as
+     * targets; sharing a URL alone gets a link at best. Desktop browsers cannot
+     * share files, so there the image is downloaded instead — which is the same
+     * end state, one manual step later.
+     */
+    function shareStoryImage(tile, label) {
+        var slug = shareSlug(shareTarget.url);
+        if (!slug) {
+            setShareNote('This listing has no share link yet.');
+            return;
+        }
+
+        // Root-relative: share-card.php sits at the document root, outside the
+        // CAS-protected app/ directory, and a page-relative path from /app/
+        // would ask Apache for /app/share-card.php.
+        var imageUrl = '/share-card.php?f=story&i=' + encodeURIComponent(slug);
+
+        tile.classList.add('busy');
+        setShareNote('Building your story image…');
+
+        fetch(imageUrl).then(function (response) {
+            if (!response.ok) throw new Error('card unavailable');
+            return response.blob();
+        }).then(function (blob) {
+            var file = null;
+            try {
+                file = new File([blob], 'uvm-sublet-story.jpg', { type: 'image/jpeg' });
+            } catch (e) {
+                file = null;
+            }
+
+            if (file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                return navigator.share({ files: [file], text: shareTarget.url })
+                    .then(function () { setShareNote('Shared.'); })
+                    .catch(function (err) {
+                        // Dismissing the OS sheet is not a failure worth a
+                        // fallback download the user did not ask for.
+                        if (err && err.name === 'AbortError') {
+                            setShareNote('');
+                            return;
+                        }
+                        downloadStoryImage(blob, label);
+                    });
+            }
+
+            downloadStoryImage(blob, label);
+        }).catch(function () {
+            setShareNote('Could not build the story image — copy the link instead.');
+        }).finally(function () {
+            tile.classList.remove('busy');
+        });
+    }
+
+    function downloadStoryImage(blob, label) {
+        var href = URL.createObjectURL(blob);
+        var link = document.createElement('a');
+
+        link.href = href;
+        link.download = 'uvm-sublet-story.jpg';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+
+        setTimeout(function () { URL.revokeObjectURL(href); }, 1000);
+        setShareNote('Story image saved — open ' + label + ' and add it to your story.');
+    }
+
+    /* ---------------------------------------------------------------------
+       Clipboard
+       --------------------------------------------------------------------- */
+
+    /**
+     * Copy text, and say so on the button either way.
+     *
+     * navigator.clipboard is undefined on insecure origins and rejects outright
+     * when the document is not focused, so the deprecated execCommand path is
+     * still the difference between a copy button that works and one that
+     * silently does nothing.
+     */
+    function copyToClipboard(text, btn) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function () {
+                flashCopied(btn, true);
+            }).catch(function () {
+                flashCopied(btn, legacyCopy(text));
+            });
+            return;
+        }
+
+        flashCopied(btn, legacyCopy(text));
+    }
+
+    function legacyCopy(text) {
+        var field = document.createElement('textarea');
+        field.value = text;
+        field.setAttribute('readonly', '');
+        field.style.position = 'fixed';
+        field.style.top = '-1000px';
+
+        document.body.appendChild(field);
+        field.select();
+
+        var copied = false;
+        try {
+            copied = document.execCommand('copy');
+        } catch (e) {
+            copied = false;
+        }
+
+        field.remove();
+        return copied;
+    }
+
+    function flashCopied(btn, copied) {
+        if (!btn) return;
+
+        var original = btn.innerHTML;
+        btn.innerHTML = copied
+            ? '<i class="fa-solid fa-check"></i> Copied!'
+            : '<i class="fa-solid fa-triangle-exclamation"></i> Copy failed';
+        btn.classList.add(copied ? 'copied' : 'copy-failed');
+
+        setTimeout(function () {
+            btn.innerHTML = original;
+            btn.classList.remove('copied', 'copy-failed');
+        }, 1600);
+    }
+
+    /**
+     * Open the listing a share link points at.
+     *
+     * index.php drops every other filter when ?id= is present, so the card is
+     * guaranteed to be in the grid unless the listing has since been hidden.
+     * Clicking it goes through the same handler a real click does rather than
+     * assembling the modal's data object a third time here — that object has
+     * drifted between the index and map copies before.
+     */
+    function openSharedListing() {
+        var openId = parseInt((window.SUBLET_CONFIG || {}).openId, 10);
+        if (!openId) return;
+
+        var card = document.querySelector('.listing-card[data-id="' + openId + '"]');
+        if (!card) return;
+
+        card.click();
+        card.scrollIntoView({ block: 'center' });
+    }
+
+    /* ======================================================================
        Index Page — Listing Cards
        ====================================================================== */
     function initIndex() {
@@ -506,6 +868,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 var imgEl = card.querySelector('.card-image img');
                 openModal({
                     id: card.dataset.id,
+                    shareUrl: card.dataset.shareUrl || '',
                     price: card.dataset.price,
                     address: card.dataset.address,
                     semester: card.dataset.semester,
@@ -675,6 +1038,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     el.addEventListener('click', function () {
                         openModal({
                             id: sublet.id,
+                            shareUrl: sublet.share_url || '',
                             price: sublet.price,
                             address: sublet.address,
                             semester: sublet.semester,
@@ -739,6 +1103,23 @@ document.addEventListener('DOMContentLoaded', function () {
         initImageUpload();
         initExistingImageDelete();
         initRoommateFields();
+        initPostShare();
+    }
+
+    // Rendered by post.php only after a successful save, so its absence is the
+    // normal case rather than an error.
+    function initPostShare() {
+        var btn = document.getElementById('postShareBtn');
+        if (!btn) return;
+
+        var config = window.POST_CONFIG || {};
+        btn.addEventListener('click', function () {
+            openShareSheet({
+                url: config.shareUrl || '',
+                price: config.sharePrice || '',
+                semester: config.shareSemester || ''
+            });
+        });
     }
 
     // "Who lives here" and "hoping to sublet to" only mean something when
