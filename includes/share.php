@@ -46,6 +46,25 @@ const SHARE_ORIGIN = 'https://sublet.aperkel.w3.uvm.edu';
 const SHARE_SHORT_URL = 'https://go.uvm.edu/sublet';
 const SHARE_DISPLAY_URL = 'go.uvm.edu/sublet';
 
+/**
+ * Where the site tells people to go when something is wrong.
+ *
+ * Support used to be a mailto to a personal address. Students are already on
+ * Instagram, a DM costs them nothing, and the account outlives any one
+ * maintainer's inbox — so @uvmsublets is the only contact route the site
+ * advertises now.
+ *
+ * URL is what a link points at; HANDLE is how it is written for a reader, and
+ * the two are separate for the same reason SHARE_SHORT_URL and
+ * SHARE_DISPLAY_URL are.
+ *
+ * Hardcoded again in demo/includes/footer.php, landing.php and
+ * app/api/email.php, each of which is deliberately dependency-free and already
+ * hardcodes the short link for that reason. Change one, change all five.
+ */
+const SOCIAL_INSTAGRAM_URL    = 'https://www.instagram.com/uvmsublets/';
+const SOCIAL_INSTAGRAM_HANDLE = '@uvmsublets';
+
 /** Characters of HMAC kept in a share token. 40 bits, ~10^12 guesses. */
 const SHARE_TOKEN_LENGTH = 10;
 

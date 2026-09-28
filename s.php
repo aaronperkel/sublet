@@ -242,6 +242,6 @@ if ($listing === null) {
         </div>
     </main>
 
-    <p class="share-foot"><a href="<?= htmlspecialchars(SHARE_SHORT_URL) ?>">UVM Sublets</a></p>
+    <p class="share-foot"><a href="<?= htmlspecialchars(SHARE_SHORT_URL) ?>">UVM Sublets</a> &middot; <a href="<?= htmlspecialchars(SOCIAL_INSTAGRAM_URL) ?>"><?= htmlspecialchars(SOCIAL_INSTAGRAM_HANDLE) ?></a></p>
 </body>
 </html>

@@ -633,7 +633,8 @@ if ($showcaseImages && count($showcaseImages) < 8) {
     </section>
 
     <footer class="landing-footer">
-        Built for UVM students by <a href="https://aaronperkel.com" target="_blank" rel="noopener">Aaron Perkel</a>
+        Built for UVM students by <a href="https://aaronperkel.com" target="_blank" rel="noopener">Aaron Perkel</a><br>
+        Questions or issues? <a href="https://www.instagram.com/uvmsublets/" target="_blank" rel="noopener"><i class="fa-brands fa-instagram"></i> @uvmsublets</a>
     </footer>
 </body>
 </html>

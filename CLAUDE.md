@@ -309,6 +309,7 @@ Orphans accumulate mainly because uploads are keyed `{username}_{n}.{ext}`: re-p
 - **Campus coordinates** `44.477435, -73.195323` are hardcoded in the distance SQL in `includes/header.php`, `app/index.php`, `app/map.php`, and the demo equivalents, and again as PHP haversine in `app/post.php` (which rejects locations >50 miles). Changing them means changing all of them.
 - **The listing filter query** (price / semester / distance) is copy-pasted across `app/index.php`, `app/map.php`, `demo/index.php`, `demo/map.php`.
 - **The listing modal markup** is duplicated in `app/index.php` and `app/map.php` (and both demo copies) and is driven by the shared `openModal()` in `app.js`.
+- **The Instagram handle** lives as `SOCIAL_INSTAGRAM_URL` / `SOCIAL_INSTAGRAM_HANDLE` in `includes/share.php`, used by `includes/footer.php` and `s.php`, and is hardcoded again in `demo/includes/footer.php`, `landing.php` and `app/api/email.php` — each of which is deliberately dependency-free and already hardcodes the short link for the same reason. Five places.
 
 ## Images
 
@@ -321,6 +322,8 @@ The site-wide banner is a flat file, `data/announcement.json` (`active`, `messag
 ## Email
 
 All mail goes through PHP's `mail()`. Post create/update/delete each notify `aperkel@uvm.edu`; bulk admin mail goes to `{username}@uvm.edu` with an HTML template inlined in `app/api/email.php` (UVM green `#154734` / gold `#FFD100`), plus a copy to the admin.
+
+That address is plumbing, not a support channel. **The only contact route the site advertises is a DM to `@uvmsublets` on Instagram** — in both footers, on `landing.php`, on `s.php` and in the broadcast email template. The old `me@aaronperkel.com` mailto is gone from every user-facing surface; do not reintroduce an email address as the way to report a problem.
 
 ## Styling
 
