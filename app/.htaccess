@@ -13,8 +13,8 @@ AuthType CAS
 # BEGIN MANAGED ACCESS
 # Generated from the allowed_users table by the Access tab in app/admin.php.
 # Do not edit by hand: the next change made in the portal overwrites it.
-# Last written 2026-08-28 01:17:20.
-Require ldap-filter |(eduPersonAffiliation=Student)(uid=adhinkel)(uid=aperkel)(uid=cedgley)(uid=chelfert)(uid=hhuta)(uid=lhall11)(uid=ocongdon)(uid=rcollin3)(uid=rkmounta)
+# Last written 2026-09-27 18:11:27.
+Require ldap-filter |(eduPersonAffiliation=Student)(uid=adhinkel)(uid=aperkel)(uid=camend)(uid=cedgley)(uid=chelfert)(uid=hhuta)(uid=lhall11)(uid=ocongdon)(uid=rcollin3)(uid=rkmounta)
 # END MANAGED ACCESS
 
 # Rewrite static asset requests to the parent (public) directory
