@@ -103,7 +103,29 @@ if ($listing === null) {
     <meta name="twitter:image" content="<?= htmlspecialchars($cardImage) ?>">
     <meta name="theme-color" content="#154734">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23154734'/%3E%3Cpath d='M32 12 L52 28 L52 52 L38 52 L38 38 L26 38 L26 52 L12 52 L12 28 Z' fill='%23FFD100'/%3E%3C/svg%3E">
+    <link rel="preload" href="/assets/fonts/bricolage-grotesque-v9-latin.woff2" as="font" type="font/woff2" crossorigin>
     <style>
+        /* Bricolage Grotesque, self-hosted. Same files and fallback as
+           css/style.css (see its section 0), duplicated because this page is
+           deliberately self-contained. Absolute URLs: s.php is served from
+           /s/<slug>, where a relative path would miss. */
+        @font-face {
+            font-family: 'Bricolage Grotesque';
+            font-style: normal;
+            font-weight: 400 700;
+            font-display: swap;
+            src: url('/assets/fonts/bricolage-grotesque-v9-latin.woff2') format('woff2');
+            unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+        }
+        @font-face {
+            font-family: 'Bricolage Fallback';
+            src: local('Arial'), local('ArialMT');
+            size-adjust: 105%;
+            ascent-override: 88.57%;
+            descent-override: 25.71%;
+            line-gap-override: 0%;
+        }
+
         :root {
             --green: #154734;
             --green-light: #1a5a43;
@@ -122,7 +144,7 @@ if ($listing === null) {
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-family: 'Bricolage Grotesque', 'Bricolage Fallback', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             color: var(--text);
             background: var(--fog);
             line-height: 1.6;
@@ -183,14 +205,14 @@ if ($listing === null) {
         .share-btn:hover, .share-btn:focus-visible { background: var(--green-light); }
 
         .share-note {
-            font-size: 0.8rem;
+            font-size: 0.875rem;
             color: var(--text-secondary);
             margin-top: 0.9rem;
         }
 
         .share-foot {
             margin-top: 1.5rem;
-            font-size: 0.8rem;
+            font-size: 0.875rem;
             color: var(--text-secondary);
         }
 
@@ -227,6 +249,6 @@ if ($listing === null) {
         </div>
     </main>
 
-    <p class="share-foot"><a href="<?= htmlspecialchars(SHARE_SHORT_URL) ?>">UVM Sublets</a> &middot; <a href="<?= htmlspecialchars(SOCIAL_INSTAGRAM_URL) ?>"><?= htmlspecialchars(SOCIAL_INSTAGRAM_HANDLE) ?></a></p>
+    <p class="share-foot"><a href="<?= htmlspecialchars(SHARE_SHORT_URL) ?>">UVM Sublets</a> &middot; <a href="<?= htmlspecialchars(SOCIAL_INSTAGRAM_URL) ?>"><?= htmlspecialchars(SOCIAL_INSTAGRAM_HANDLE) ?></a><br>An independent student project, not affiliated with the University of Vermont.</p>
 </body>
 </html>

@@ -133,3 +133,72 @@ function listing_size_summary(array $s): string {
 
     return implode(' · ', $bits);
 }
+
+/**
+ * The amenity tags a listing card can carry, in tie-break order.
+ *
+ * `kind` picks the tint: `included` comes with the place (green), `tenant`
+ * costs the subletter extra (gold).
+ */
+const LISTING_CARD_TAGS = [
+    'amenity_pets_allowed'     => ['label' => 'Pets OK',       'icon' => 'fa-paw',            'kind' => 'included'],
+    'amenity_air_conditioning' => ['label' => 'A/C',           'icon' => 'fa-snowflake',      'kind' => 'included'],
+    'amenity_dishwasher'       => ['label' => 'Dishwasher',    'icon' => 'fa-sink',           'kind' => 'included'],
+    'amenity_free_parking'     => ['label' => 'Free parking',  'icon' => 'fa-square-parking', 'kind' => 'included'],
+    'amenity_paid_parking'     => ['label' => 'Paid parking',  'icon' => 'fa-square-parking', 'kind' => 'tenant'],
+    'amenity_laundry_free'     => ['label' => 'Laundry',       'icon' => 'fa-shirt',          'kind' => 'included'],
+    'amenity_laundry_paid'     => ['label' => 'Paid laundry',  'icon' => 'fa-shirt',          'kind' => 'tenant'],
+    'amenity_furnished'        => ['label' => 'Furnished',     'icon' => 'fa-couch',          'kind' => 'included'],
+];
+
+/** How many of $rows carry each card tag, for listing_card_tags(). */
+function listing_amenity_counts(array $rows): array {
+    $counts = array_fill_keys(array_keys(LISTING_CARD_TAGS), 0);
+    foreach ($rows as $row) {
+        foreach ($counts as $key => $_) {
+            if (!empty($row[$key])) {
+                $counts[$key]++;
+            }
+        }
+    }
+    return $counts;
+}
+
+/**
+ * The few tags worth putting on one card, and how many were left off.
+ *
+ * A tag nearly every listing carries (furnished, laundry) tells a student
+ * nothing while they compare, so a card shows the amenities that are rarest
+ * among the listings on screen, up to $max. A roommate preference always
+ * comes first: it is the one fact about who is wanted, not what is there. The
+ * full list stays in the listing view.
+ *
+ * Returns ['tags' => [['label', 'icon', 'kind'], ...], 'more' => int].
+ */
+function listing_card_tags(array $row, array $counts, int $max = 3): array {
+    $tags = [];
+
+    $pref = option_label(ROOMMATE_PREFERENCE_OPTIONS, $row['roommate_preference'] ?? null);
+    if (!empty($row['roommate_preference']) && $pref !== '') {
+        $tags[] = ['label' => 'Prefers ' . $pref, 'icon' => 'fa-user-group', 'kind' => 'preference'];
+    }
+
+    $present = [];
+    $order = 0;
+    foreach (LISTING_CARD_TAGS as $key => $tag) {
+        if (!empty($row[$key])) {
+            $present[] = [$counts[$key] ?? 0, $order, $tag];
+        }
+        $order++;
+    }
+    usort($present, static fn($a, $b) => [$a[0], $a[1]] <=> [$b[0], $b[1]]);
+
+    foreach ($present as [, , $tag]) {
+        $tags[] = $tag;
+    }
+
+    return [
+        'tags' => array_slice($tags, 0, $max),
+        'more' => max(0, count($tags) - $max),
+    ];
+}

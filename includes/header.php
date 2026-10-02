@@ -59,6 +59,9 @@ $availableSemesters = $stmtSemesters->fetchAll(PDO::FETCH_ASSOC);
     <?php if ($currentPage === 'map' || $currentPage === 'post'): ?>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" integrity="sha512-Zcn6bjR/8RZbLEpLIeOwNtzREBAJnUKESxces60Mpoj+2okopSAcSUIUOseddDm0cxnGQzxIR7vJgsLZbdLE3w==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <?php endif; ?>
+    <?php /* Fetch the font alongside the stylesheet rather than after it has
+             been parsed. Must match the url() in css/style.css exactly. */ ?>
+    <link rel="preload" href="<?= $basePath ?>assets/fonts/bricolage-grotesque-v9-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="<?= $basePath ?>css/style.css?v=<?= filemtime(__DIR__ . '/../css/style.css') ?>">
     <?php /* Deferred: the kit only injects a stylesheet (it is configured for
              the CSS method), so nothing needs it before the page is parsed. */ ?>
@@ -74,8 +77,10 @@ $availableSemesters = $stmtSemesters->fetchAll(PDO::FETCH_ASSOC);
     <nav class="nav">
         <div class="nav-inner">
             <a href="index.php" class="nav-brand">
-                <span class="nav-logo">
-                    <i class="fa-solid fa-house"></i>
+                <?php /* The same house as assets/favicon.svg, drawn inline so the
+                         mark does not wait for the icon font. */ ?>
+                <span class="nav-logo" aria-hidden="true">
+                    <svg viewBox="0 0 64 64" width="20" height="20" focusable="false"><path d="M32 12 L52 28 L52 52 L38 52 L38 38 L26 38 L26 52 L12 52 L12 28 Z" fill="currentColor"/></svg>
                 </span>
                 <span class="nav-title">UVM Sublets</span>
             </a>

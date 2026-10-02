@@ -37,7 +37,7 @@ const SHARE_CARD_SIZES = [
 const SHARE_SOURCE_MAX_PIXELS = 12000000;
 
 /** Bumped when the layout changes, so cached cards regenerate. */
-const SHARE_CARD_VERSION = 5;
+const SHARE_CARD_VERSION = 6;
 
 /* ---------------------------------------------------------------- serving */
 
@@ -76,12 +76,22 @@ function share_serve_fallback(string $format): void {
 
 /* ----------------------------------------------------------------- typing */
 
-/** A bold or regular TTF that exists on this host. */
+/**
+ * A bold or regular TTF that exists on this host.
+ *
+ * Bricolage Grotesque first, so a shared card is set in the site's own face.
+ * GD cannot read woff2 or pick a variable axis, so these are static instances
+ * cut from the same family: 700 at the display optical size for the price and
+ * headline, 400 at a mid size for the supporting lines. Open Sans and DejaVu
+ * remain as fallbacks so a missing file degrades the type, not the card.
+ */
 function share_font(bool $bold = true): string {
     $candidates = $bold
-        ? ['/usr/share/fonts/open-sans/OpenSans-Bold.ttf',
+        ? [__DIR__ . '/assets/fonts/bricolage-grotesque-v9-700-opsz96.ttf',
+           '/usr/share/fonts/open-sans/OpenSans-Bold.ttf',
            '/usr/share/fonts/dejavu-sans-fonts/DejaVuSans-Bold.ttf']
-        : ['/usr/share/fonts/open-sans/OpenSans-Regular.ttf',
+        : [__DIR__ . '/assets/fonts/bricolage-grotesque-v9-400-opsz48.ttf',
+           '/usr/share/fonts/open-sans/OpenSans-Regular.ttf',
            '/usr/share/fonts/dejavu-sans-fonts/DejaVuSans.ttf'];
 
     foreach ($candidates as $font) {

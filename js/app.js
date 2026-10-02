@@ -377,6 +377,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         var priceEl = document.getElementById('modalPrice');
         priceEl.textContent = '$' + Number(data.price).toLocaleString();
+        var unit = document.createElement('span');
+        unit.className = 'price-unit';
+        unit.textContent = '/mo';
+        priceEl.appendChild(unit);
         if (isFlagSet(data.negotiable)) {
             var neg = document.createElement('small');
             neg.className = 'modal-price-neg';
@@ -1018,6 +1022,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             var popupThumb = sublet.thumbnail_url || sublet.image_url;
             var popupPrice = '$' + Number(sublet.price).toLocaleString() +
+                '<span class="price-unit">/mo</span>' +
                 (isFlagSet(sublet.price_negotiable) ? '<small class="popup-neg">or best offer</small>' : '');
             // The photo used to be the only way into the listing, which nothing
             // signalled. An explicit button says so; the image still works.

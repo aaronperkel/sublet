@@ -101,7 +101,29 @@ if ($showcaseImages && count($showcaseImages) < 8) {
     <meta name="theme-color" content="#154734">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23154734'/%3E%3Cpath d='M32 12 L52 28 L52 52 L38 52 L38 38 L26 38 L26 52 L12 52 L12 28 Z' fill='%23FFD100'/%3E%3C/svg%3E">
     <script src="https://kit.fontawesome.com/c428e5511d.js" crossorigin="anonymous" defer></script>
+    <link rel="preload" href="/assets/fonts/bricolage-grotesque-v9-latin.woff2" as="font" type="font/woff2" crossorigin>
     <style>
+        /* Bricolage Grotesque, self-hosted. Same files and fallback as
+           css/style.css (see its section 0), duplicated because this page is
+           deliberately self-contained. Absolute URLs: s.php is served from
+           /s/<slug>, where a relative path would miss. */
+        @font-face {
+            font-family: 'Bricolage Grotesque';
+            font-style: normal;
+            font-weight: 400 700;
+            font-display: swap;
+            src: url('/assets/fonts/bricolage-grotesque-v9-latin.woff2') format('woff2');
+            unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+        }
+        @font-face {
+            font-family: 'Bricolage Fallback';
+            src: local('Arial'), local('ArialMT');
+            size-adjust: 105%;
+            ascent-override: 88.57%;
+            descent-override: 25.71%;
+            line-gap-override: 0%;
+        }
+
         :root {
             --green: #154734;
             --green-light: #1a5a43;
@@ -112,6 +134,9 @@ if ($showcaseImages && count($showcaseImages) < 8) {
             --white: #FFFFFF;
             --text: #00313C;
             --text-secondary: #4a5e63;
+            /* Inks from css/style.css's state tints, for the roadmap columns. */
+            --tenant-ink: #7a6100;
+            --notice-ink: #0b4f7d;
             --shadow-lg: 0 8px 32px rgba(0, 49, 60, 0.14);
             --radius: 12px;
             --radius-sm: 8px;
@@ -130,7 +155,7 @@ if ($showcaseImages && count($showcaseImages) < 8) {
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-family: 'Bricolage Grotesque', 'Bricolage Fallback', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             color: var(--text);
             background: var(--fog);
             line-height: 1.6;
@@ -190,8 +215,8 @@ if ($showcaseImages && count($showcaseImages) < 8) {
             height: 72px;
             background: var(--gold);
             color: var(--green);
-            border-radius: 16px;
-            font-size: 2rem;
+            border-radius: 12px;
+            font-size: 1.75rem;
             margin-bottom: 1.75rem;
             box-shadow: 0 4px 24px rgba(255, 209, 0, 0.25);
         }
@@ -209,7 +234,7 @@ if ($showcaseImages && count($showcaseImages) < 8) {
         }
 
         .hero p {
-            font-size: 1.2rem;
+            font-size: 1.125rem;
             color: rgba(255, 255, 255, 0.8);
             max-width: 520px;
             margin: 0 auto 2.5rem;
@@ -238,7 +263,7 @@ if ($showcaseImages && count($showcaseImages) < 8) {
         }
 
         .hero-cta i {
-            font-size: 0.95rem;
+            font-size: 1rem;
             transition: transform var(--transition);
         }
 
@@ -280,6 +305,7 @@ if ($showcaseImages && count($showcaseImages) < 8) {
             border-top: 1px solid #eef1f2;
             border-bottom: 1px solid #eef1f2;
             padding: 1.25rem 0;
+            /* A mask reads only alpha: #000 here means opaque, not a color. */
             -webkit-mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
             mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
         }
@@ -361,12 +387,12 @@ if ($showcaseImages && count($showcaseImages) < 8) {
             background: var(--fog);
             color: var(--green);
             border-radius: var(--radius-sm);
-            font-size: 1.25rem;
+            font-size: 1.375rem;
             margin-bottom: 1rem;
         }
 
         .feature-card h3 {
-            font-size: 1.05rem;
+            font-size: 1.125rem;
             font-weight: 600;
             margin-bottom: 0.5rem;
         }
@@ -386,7 +412,7 @@ if ($showcaseImages && count($showcaseImages) < 8) {
         }
 
         .roadmap h2 {
-            font-size: 1.6rem;
+            font-size: 1.75rem;
             font-weight: 700;
             text-align: center;
             margin-bottom: 2rem;
@@ -407,7 +433,7 @@ if ($showcaseImages && count($showcaseImages) < 8) {
         }
 
         .roadmap-column h3 {
-            font-size: 0.8rem;
+            font-size: 0.875rem;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.08em;
@@ -421,16 +447,16 @@ if ($showcaseImages && count($showcaseImages) < 8) {
             display: inline-block;
             padding: 0.15rem 0.6rem;
             border-radius: 999px;
-            font-size: 0.7rem;
+            font-size: 0.75rem;
             font-weight: 600;
         }
 
         .roadmap-done h3 { color: #1a6b4a; }
         .roadmap-done .badge { background: #e8f5e9; color: #1a6b4a; }
-        .roadmap-soon h3 { color: #b8860b; }
+        .roadmap-soon h3 { color: var(--tenant-ink); }
         .roadmap-soon .badge { background: #fff8e1; color: #7a6100; }
-        .roadmap-future h3 { color: #1565c0; }
-        .roadmap-future .badge { background: #e3f2fd; color: #1565c0; }
+        .roadmap-future h3 { color: var(--notice-ink); }
+        .roadmap-future .badge { background: #eaf3fb; color: var(--notice-ink); }
 
         .roadmap-list {
             list-style: none;
@@ -455,8 +481,8 @@ if ($showcaseImages && count($showcaseImages) < 8) {
         }
 
         .roadmap-done .roadmap-list li i { color: #1a6b4a; }
-        .roadmap-soon .roadmap-list li i { color: #b8860b; }
-        .roadmap-future .roadmap-list li i { color: #1565c0; }
+        .roadmap-soon .roadmap-list li i { color: var(--tenant-ink); }
+        .roadmap-future .roadmap-list li i { color: var(--notice-ink); }
 
         @media (max-width: 700px) {
             .roadmap-columns {
@@ -490,11 +516,11 @@ if ($showcaseImages && count($showcaseImages) < 8) {
             }
 
             .hero h1 {
-                font-size: 2.2rem;
+                font-size: 2.25rem;
             }
 
             .hero p {
-                font-size: 1.05rem;
+                font-size: 1rem;
             }
 
             .features-grid {
@@ -612,6 +638,7 @@ if ($showcaseImages && count($showcaseImages) < 8) {
 
     <footer class="landing-footer">
         Built for UVM students by <a href="https://aaronperkel.com" target="_blank" rel="noopener">Aaron Perkel</a><br>
+        An independent student project, not affiliated with the University of Vermont.<br>
         Questions or issues? <a href="https://www.instagram.com/uvmsublets/" target="_blank" rel="noopener"><i class="fa-brands fa-instagram"></i> @uvmsublets</a>
     </footer>
 </body>

@@ -134,7 +134,7 @@ four times over and kept a sliver out of the middle. A panel near 0.9:1 sits in
 the middle of that range, so every upload loses only its edges. It also puts the
 type on flat colour, which is why there is no scrim any more.
 
-Cards are drawn with GD and Open Sans, cached to `public/share/` (gitignored)
+Cards are drawn with GD in Bricolage Grotesque (static TTF cuts in `assets/fonts/`, falling back to Open Sans), cached to `public/share/` (gitignored)
 under a fingerprint of the photo, its mtime and the text, and swept per listing
 on rewrite. Bump `SHARE_CARD_VERSION` after a layout change. A source photo over
 `SHARE_SOURCE_MAX_PIXELS` is pre-shrunk by ImageMagick rather than loaded — GD
@@ -335,4 +335,6 @@ That address is plumbing, not a support channel. **The only contact route the si
 
 ## Styling
 
-Single stylesheet `css/style.css`, built on CSS custom properties for the UVM palette (`--green`, `--gold`, `--slate`, `--sky`, `--orange`, `--fog`) plus shadow/radius/spacing tokens. Light mode only — there is no `prefers-color-scheme` handling. Font Awesome is loaded from a CDN kit with `defer` (it is a CSS-method kit, so nothing needs it before parse); Leaflet 1.9.4 and noUiSlider 15.6.1 come from cdnjs at exact versions with SRI `integrity` hashes, only on the pages that need them — bumping a version means updating its hash in `includes/header.php`. `landing.php` does not use this stylesheet — it carries its own inline copy of the design tokens.
+Single stylesheet `css/style.css`, built on custom properties on `:root`: the UVM palette (`--green`, `--gold`, `--slate`, `--sky`, `--orange`, `--fog`), four state-tint sets (`--included-*`, `--tenant-*`, `--error-*`, `--notice-*`, each tint/ink/line), `--danger`, `--focus`, overlay and shadow tokens, and a seven-step type scale (`--text-xs` 0.75rem to `--text-3xl` 2.25rem). No hex value appears below `:root`, every font size is a `--text-*` token, and only weights 400 and 700 are used — `DESIGN.md` is the written system and Impeccable's detector (`impeccable detect`) checks against it. Form fields stay at 1rem, because iOS zooms the page on any field smaller than 16px. Light mode only — there is no `prefers-color-scheme` handling.
+
+Type is **Bricolage Grotesque**, self-hosted: one variable WOFF2 (`assets/fonts/bricolage-grotesque-v9-latin.woff2`, Latin, weights 400–700 plus optical size) with a metric-matched Arial fallback (`'Bricolage Fallback'`, size-adjust 105%) so the swap does not shift layout. The file name carries the upstream version on purpose: woff2 is cached as `immutable` and a CSS `url()` cannot take `?v=`, so a changed font ships under a new name. `includes/header.php`, `landing.php` and `s.php` preload it; `landing.php` and `s.php` carry their own `@font-face` because they are self-contained. Licence: `assets/fonts/OFL.txt`. Font Awesome is loaded from a CDN kit with `defer` (it is a CSS-method kit, so nothing needs it before parse); Leaflet 1.9.4 and noUiSlider 15.6.1 come from cdnjs at exact versions with SRI `integrity` hashes, only on the pages that need them — bumping a version means updating its hash in `includes/header.php`. `landing.php` does not use this stylesheet — it carries its own inline copy of the design tokens.

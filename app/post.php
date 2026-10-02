@@ -398,7 +398,7 @@ if ($isEdit) {
                     <input type="file" name="images[]" id="imageInput" accept="image/*" multiple <?= $isEdit ? '' : 'required' ?>>
                     <i class="fa-solid fa-cloud-arrow-up"></i>
                     <p><strong>Click to upload</strong> or drag and drop</p>
-                    <p class="text-muted" style="font-size: 0.8rem; margin-top: 0.25rem;">First image will be the thumbnail</p>
+                    <p class="form-note">First image will be the thumbnail</p>
                 </div>
                 <div class="image-previews" id="imagePreviews">
                     <?php foreach ($existingImages as $img): ?>
@@ -417,7 +417,7 @@ if ($isEdit) {
 
             <!-- Price -->
             <div class="form-group">
-                <label for="price">Price per month <span class="text-muted" style="font-weight: 400; text-transform: none;">(rent only, not including utilities)</span></label>
+                <label for="price">Price per month <span class="label-aside">(rent only, not including utilities)</span></label>
                 <div class="input-with-prefix">
                     <span class="input-prefix">$</span>
                     <input type="number" id="price" name="price" step="0.01" min="0"
@@ -478,7 +478,7 @@ if ($isEdit) {
                         <span class="badge-optional">Optional</span>
                     </div>
 
-                    <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 0.75rem;">
+                    <p class="form-note form-note-lead">
                         Leave anything blank if it doesn't apply or you'd rather not say.
                     </p>
 
@@ -548,7 +548,7 @@ if ($isEdit) {
                     <span class="badge-optional">Optional</span>
                 </div>
 
-                <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 0.75rem;">
+                <p class="form-note form-note-lead">
                     Who pays for each utility? Leave as "Not specified" if unsure.
                 </p>
 
@@ -587,8 +587,8 @@ if ($isEdit) {
                     </div>
                 </div>
 
-                <div style="margin-top: 1rem;">
-                    <label for="utility_cost">Estimated Monthly Utility Cost <span class="text-muted" style="font-weight: 400; text-transform: none;">(what tenant pays)</span></label>
+                <div class="form-subgroup">
+                    <label for="utility_cost">Estimated Monthly Utility Cost <span class="label-aside">(what tenant pays)</span></label>
                     <div class="input-with-prefix">
                         <span class="input-prefix">$</span>
                         <input type="number" id="utility_cost" name="utility_cost" step="1" min="0"
@@ -597,8 +597,8 @@ if ($isEdit) {
                     </div>
                 </div>
 
-                <div style="margin-top: 1.25rem;">
-                    <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 0.75rem;">
+                <div class="form-subgroup">
+                    <p class="form-note form-note-lead">
                         Check all amenities that apply:
                     </p>
                     <div class="amenity-checkboxes">
@@ -649,7 +649,7 @@ if ($isEdit) {
             <!-- Contact Info -->
             <?php if (isset($subletColumns['display_name'])): ?>
                 <div class="form-group">
-                    <label for="display_name">Your Name <span class="text-muted" style="font-weight: 400; text-transform: none;">(optional)</span></label>
+                    <label for="display_name">Your Name <span class="label-aside">(optional)</span></label>
                     <input type="text" id="display_name" name="display_name" maxlength="60"
                            value="<?= htmlspecialchars((string)($form['display_name'] ?? '')) ?>"
                            placeholder="<?= htmlspecialchars($username) ?>">
@@ -668,21 +668,21 @@ if ($isEdit) {
             </div>
 
             <div class="form-group">
-                <label for="contact_phone">Phone Number <span class="text-muted" style="font-weight: 400; text-transform: none;">(optional)</span></label>
+                <label for="contact_phone">Phone Number <span class="label-aside">(optional)</span></label>
                 <input type="tel" id="contact_phone" name="contact_phone"
                        value="<?= htmlspecialchars((string)($form['contact_phone'] ?? '')) ?>"
                        placeholder="(802) 555-1234">
             </div>
 
             <!-- Info -->
-            <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 1rem;">
+            <p class="form-note form-note-closing">
                 <i class="fa-solid fa-circle-info"></i>
                 Your listing will show contact buttons so interested users can reach you via email and phone (if provided).
             </p>
 
             <!-- Actions -->
-            <div style="display: flex; gap: 0.75rem; align-items: center;">
-                <button type="submit" class="btn btn-primary btn-lg" style="flex: 1;">
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary btn-lg">
                     <i class="fa-solid fa-paper-plane"></i>
                     <?= $isEdit ? 'Update Listing' : 'Post Listing' ?>
                 </button>

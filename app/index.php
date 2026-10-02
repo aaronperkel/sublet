@@ -34,6 +34,21 @@ $sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $hasActiveFilters = $filters['active'];
 
+// The heading names the semester most of these listings are for, and only
+// the cards for any other semester carry a badge. A badge on every card was the
+// loudest thing on each one and, with nearly every listing in the same
+// semester, said the same thing on all of them.
+$semesterCounts = array_count_values(array_map('strval', array_column($sublets, 'semester_name')));
+arsort($semesterCounts);
+$mainSemester = (string)array_key_first($semesterCounts);
+$mixedSemesters = count($semesterCounts) > 1;
+$amenityCounts = listing_amenity_counts($sublets);
+
+$boardTitle = count($sublets) . ' '
+    . (count($semesterCounts) === 1 ? $mainSemester . ' ' : '')
+    . 'sublet' . (count($sublets) !== 1 ? 's' : '')
+    . ($hasActiveFilters ? ' match these filters' : '');
+
 // Get semester mapping for JS
 $semesterMap = [];
 foreach ($availableSemesters as $sem) {
@@ -102,9 +117,14 @@ foreach ($availableSemesters as $sem) {
 
 <!-- Sort Bar -->
 <div class="sort-bar">
-    <span class="sort-bar-count">
-        <?= count($sublets) ?> listing<?= count($sublets) !== 1 ? 's' : '' ?><?= $hasActiveFilters ? ' match these filters' : '' ?>
-    </span>
+    <?php /* The page's heading: what the board is showing, and for which
+             semester when there is only one. */ ?>
+    <div class="sort-bar-heading">
+        <h1 class="sort-bar-count"><?= htmlspecialchars($boardTitle) ?></h1>
+        <?php if ($mixedSemesters): ?>
+            <p class="sort-bar-note">For <?= htmlspecialchars($mainSemester) ?> unless marked</p>
+        <?php endif; ?>
+    </div>
     <div class="sort-bar-controls">
         <label for="sortFilter">Sort by</label>
         <select id="sortFilter">
@@ -140,27 +160,17 @@ foreach ($availableSemesters as $sem) {
     <?php else: ?>
         <?php foreach ($sublets as $cardIndex => $sublet): ?>
             <?php
-                // Build amenity tags for card
-                $cardTags = [];
-                if (!empty($sublet['amenity_free_parking'])) $cardTags[] = '<span class="utility-tag tag-included"><i class="fa-solid fa-square-parking"></i> Free Parking</span>';
-                if (!empty($sublet['amenity_paid_parking'])) $cardTags[] = '<span class="utility-tag tag-tenant"><i class="fa-solid fa-square-parking"></i> Paid Parking</span>';
-                if (!empty($sublet['amenity_laundry_free'])) $cardTags[] = '<span class="utility-tag tag-included"><i class="fa-solid fa-shirt"></i> Laundry</span>';
-                if (!empty($sublet['amenity_laundry_paid'])) $cardTags[] = '<span class="utility-tag tag-tenant"><i class="fa-solid fa-shirt"></i> Laundry (Paid)</span>';
-                if (!empty($sublet['amenity_pets_allowed'])) $cardTags[] = '<span class="utility-tag tag-included"><i class="fa-solid fa-paw"></i> Pets OK</span>';
-                if (!empty($sublet['amenity_furnished'])) $cardTags[] = '<span class="utility-tag tag-included"><i class="fa-solid fa-couch"></i> Furnished</span>';
-                if (!empty($sublet['amenity_air_conditioning'])) $cardTags[] = '<span class="utility-tag tag-included"><i class="fa-solid fa-snowflake"></i> A/C</span>';
-                if (!empty($sublet['amenity_dishwasher'])) $cardTags[] = '<span class="utility-tag tag-included"><i class="fa-solid fa-sink"></i> Dishwasher</span>';
-                if (!empty($sublet['utility_cost']) && $sublet['utility_cost'] > 0) $cardTags[] = '<span class="utility-tag"><i class="fa-solid fa-receipt"></i> ~$' . number_format($sublet['utility_cost']) . '/mo utils</span>';
-
                 $displayAddress = format_address($sublet['address']);
                 $sizeSummary = listing_size_summary($sublet);
                 $prefLabel = option_label(ROOMMATE_PREFERENCE_OPTIONS, $sublet['roommate_preference'] ?? null);
+                $cardTags = listing_card_tags($sublet, $amenityCounts);
 
-                // '' is "open to anyone", which is the default and not worth a tag.
-                if (!empty($sublet['roommate_preference']) && $prefLabel !== '') {
-                    $cardTags[] = '<span class="utility-tag tag-preference"><i class="fa-solid fa-user-group"></i> Looking for: '
-                        . htmlspecialchars($prefLabel) . '</span>';
+                // One line of the facts that differ between listings.
+                $facts = $sizeSummary !== '' ? [$sizeSummary] : [];
+                if (isset($sublet['distance_mi'])) {
+                    $facts[] = number_format((float)$sublet['distance_mi'], 1) . ' mi to campus';
                 }
+                $utilityCost = (float)($sublet['utility_cost'] ?? 0);
             ?>
             <?php /* Opened by a click handler in app.js, so it needs the role and
                      tab stop a <button> would have given it for free. */ ?>
@@ -212,25 +222,37 @@ foreach ($availableSemesters as $sem) {
                              600x400 is the card's 3:2 box; CSS crops the
                              thumbnail to it with object-fit. */ ?>
                     <img src="<?= htmlspecialchars(image_src($sublet['thumbnail_url'] ?: $sublet['image_url'])) ?>" alt="Sublet at <?= htmlspecialchars($displayAddress) ?>" width="600" height="400" decoding="async"<?= $cardIndex >= 4 ? ' loading="lazy"' : '' ?> onerror="this.dataset.imgError='1'">
-                    <span class="card-badge">
-                        $<?= number_format($sublet['price']) ?><?php if (!empty($sublet['price_negotiable'])): ?><small class="card-badge-neg">or best offer</small><?php endif; ?>
-                    </span>
-                    <span class="card-semester"><?= htmlspecialchars($sublet['semester_name']) ?></span>
+                    <?php if ($mixedSemesters && $sublet['semester_name'] !== $mainSemester): ?>
+                        <span class="card-semester"><?= htmlspecialchars($sublet['semester_name']) ?></span>
+                    <?php endif; ?>
                 </div>
                 <div class="card-info">
-                    <p class="card-address" title="<?= htmlspecialchars($sublet['address']) ?>"><?= htmlspecialchars($displayAddress) ?></p>
-                    <?php if ($sizeSummary !== ''): ?>
-                        <p class="card-size"><?= htmlspecialchars($sizeSummary) ?></p>
-                    <?php endif; ?>
-                    <p class="card-meta">
-                        Posted by <?= htmlspecialchars(poster_name($sublet)) ?>
-                        <?php if (isset($sublet['distance_mi'])): ?>
-                            <span class="card-distance"><i class="fa-solid fa-location-arrow"></i> <?= number_format((float)$sublet['distance_mi'], 1) ?> mi</span>
+                    <?php /* The price is a paper tab pinned over the photo's edge:
+                             the one notice-board detail on the card, on the
+                             number students compare first. */ ?>
+                    <p class="card-price">
+                        <span class="card-price-amount">$<?= number_format((float)$sublet['price']) ?></span><span class="card-price-unit">/mo</span>
+                        <?php if (!empty($sublet['price_negotiable'])): ?>
+                            <span class="card-price-note">or best offer</span>
                         <?php endif; ?>
                     </p>
+                    <p class="card-address" title="<?= htmlspecialchars($displayAddress) ?>"><?= htmlspecialchars($displayAddress) ?></p>
+                    <?php if ($facts): ?>
+                        <p class="card-facts"><?= htmlspecialchars(implode(' · ', $facts)) ?></p>
+                    <?php endif; ?>
+                    <?php if ($utilityCost > 0): ?>
+                        <p class="card-facts">+ about $<?= number_format($utilityCost) ?>/mo utilities</p>
+                    <?php endif; ?>
                 </div>
-                <?php if (!empty($cardTags)): ?>
-                    <div class="card-utilities"><?= implode('', $cardTags) ?></div>
+                <?php if ($cardTags['tags']): ?>
+                    <div class="card-utilities">
+                        <?php foreach ($cardTags['tags'] as $tag): ?>
+                            <span class="utility-tag tag-<?= htmlspecialchars($tag['kind']) ?>"><i class="fa-solid <?= htmlspecialchars($tag['icon']) ?>" aria-hidden="true"></i> <?= htmlspecialchars($tag['label']) ?></span>
+                        <?php endforeach; ?>
+                        <?php if ($cardTags['more'] > 0): ?>
+                            <span class="utility-tag tag-more">+<?= $cardTags['more'] ?> more</span>
+                        <?php endif; ?>
+                    </div>
                 <?php endif; ?>
             </div>
         <?php endforeach; ?>
