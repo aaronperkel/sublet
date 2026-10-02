@@ -29,9 +29,13 @@ if (is_logged_in()) {
 
 // Get dynamic data for filters — bounds are derived only from listings the
 // public can actually see, so a deactivated semester can't stretch a slider.
-$stmtMaxPrice = $pdo->query("SELECT MAX(s.price) as max_price FROM sublets s " . VISIBLE_SEMESTER_JOIN . " WHERE " . VISIBLE_SEMESTER_WHERE);
-$maxPrice = $stmtMaxPrice->fetch(PDO::FETCH_ASSOC)['max_price'] ?? 3000;
+$stmtPrice = $pdo->query("SELECT MIN(s.price) as min_price, MAX(s.price) as max_price FROM sublets s " . VISIBLE_SEMESTER_JOIN . " WHERE " . VISIBLE_SEMESTER_WHERE);
+$priceRange = $stmtPrice->fetch(PDO::FETCH_ASSOC) ?: [];
+$maxPrice = $priceRange['max_price'] ?? 3000;
 $maxPriceRounded = max(ceil($maxPrice / 50) * 50, 100);
+// The slider starts at the cheapest listing rather than $0, so its whole
+// length is spent on prices that exist (it used to be 60% empty track).
+$minPriceRounded = (int)min(floor(($priceRange['min_price'] ?? 0) / 50) * 50, $maxPriceRounded - 50);
 
 $stmtMaxDist = $pdo->query("SELECT MAX(" . campus_distance_expr() . ") as max_distance FROM sublets s " . VISIBLE_SEMESTER_JOIN . " WHERE " . VISIBLE_SEMESTER_WHERE);
 $maxDistance = $stmtMaxDist->fetch(PDO::FETCH_ASSOC)['max_distance'] ?? 20;
@@ -88,8 +92,12 @@ $availableSemesters = $stmtSemesters->fetchAll(PDO::FETCH_ASSOC);
                 <i class="fa-solid fa-bars"></i>
             </button>
             <div class="nav-menu" id="navMenu">
-                <a href="index.php" class="nav-link <?= $currentPage === 'index' ? 'active' : '' ?>">Browse</a>
-                <a href="map.php" class="nav-link <?= $currentPage === 'map' ? 'active' : '' ?>">Map</a>
+                <?php /* Browse and Map carry the current filters, so switching
+                         view does not reset them; app.js keeps them current. */
+                      $navFilters = listing_filter_query($_GET);
+                      $navSuffix = $navFilters !== '' ? '?' . $navFilters : ''; ?>
+                <a href="index.php<?= htmlspecialchars($navSuffix) ?>" data-carry-filters="index.php" class="nav-link <?= $currentPage === 'index' ? 'active' : '' ?>">Browse</a>
+                <a href="map.php<?= htmlspecialchars($navSuffix) ?>" data-carry-filters="map.php" class="nav-link <?= $currentPage === 'map' ? 'active' : '' ?>">Map</a>
                 <a href="post.php" class="nav-link <?= $currentPage === 'post' ? 'active' : '' ?>"><?= $postButtonText ?></a>
                 <?php if (is_admin()): ?>
                     <a href="admin.php" class="nav-link <?= $currentPage === 'admin' ? 'active' : '' ?>">Admin</a>

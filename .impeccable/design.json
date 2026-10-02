@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-02T20:54:40+00:00",
+  "generatedAt": "2026-10-02T21:10:34+00:00",
   "title": "Design System: UVM Sublets",
   "extensions": {
     "colorMeta": {
@@ -679,6 +679,7 @@
       "**Do** tint text, scrims and shadows with Slate Ink (#00313C), and use the shadow vocabulary as it stands.",
       "**Do** give every interactive element the 3px `:focus-visible` ring with a 2px offset: Focus (#2f86c9) on light surfaces, Gold on green.",
       "**Do** gate hover lift and photo zoom on `(hover: hover)`, and keep the site-wide `prefers-reduced-motion` override.",
+      "**Do** keep a card's tags to one row and touch targets at least 44px on phones (40px for chips inside the filter sheet).",
       "**Do** pick 12px for containers, 8px for small inset surfaces, 6px for controls, and pills only for filter chips."
     ],
     "donts": [

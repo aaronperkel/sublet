@@ -251,6 +251,10 @@ Pages inside `app/` set `$basePath = '../'` *before* requiring `../includes/head
 
 Adding a page means adding both an `init<Page>()` branch in `app.js` and the matching `$currentPage` checks in `header.php` (which is what conditionally loads Leaflet and noUiSlider).
 
+**Browse filters live.** On `app/index.php` a filter change fetches the same page with the new query, swaps `#listingsGrid`'s contents and the board heading, and `replaceState`s the URL (`liveUpdate()`; stale requests are aborted, and any failure falls back to a normal page load, which also sends a lapsed CAS session through sign-in). Because the grid's contents are replaced, **anything a card responds to must be delegated on `#listingsGrid`** (click, keydown, image `error` in the capture phase); a per-card listener silently stops working after the first filter change. Map still submits its form, since its listings live in `MAP_SUBLETS` and the pins. Untouched sliders leave `min_price`/`max_price`/`max_distance` empty, so they are not filters; `build_listing_filters()` returns `count` for the phone's Filters badge. Links marked `data-carry-filters` (nav Browse/Map, the phone's List/Map switch) are rewritten to carry the current filters.
+
+**The listing view uses history.** `openModal()` pushes a `{listing: id}` state so a phone's Back closes it; `closeModal()` steps back over that entry and the `popstate` handler calls `hideModal()`. Close through `closeModal()`, never by hiding the overlay directly, or the extra entry is left behind.
+
 Everything lives in one closure, so **module state read during init must be declared above the dispatch block**. Function declarations hoist; `var` assignments do not. `SHARE_TILES` declared next to `initShare()` was still `undefined` when the dispatch called it, and the resulting throw landed after `shareEls` was assigned but before any listener was attached — the sheet opened, showed no tiles, and could not be closed or copied from, and the abort took the `?id=` deep link with it.
 
 `copyToClipboard()` / `flashCopied()` are shared by the contact panel and the share sheet. They exist because `navigator.clipboard` is undefined on insecure origins and rejects when the document is not focused — hence the `execCommand` fallback and the visible failure state.
@@ -306,7 +310,7 @@ As of October 2026 there are none. Since names are never reused, orphans can onl
 ## Things that are duplicated and drift easily
 
 - **Campus coordinates** `44.477435, -73.195323` are `CAMPUS_LAT` / `CAMPUS_LON` in `includes/listing_query.php` (used by the distance SQL and `app/post.php`'s haversine, which rejects locations >50 miles), and are written out again as `CAMPUS` in `js/app.js` and as the default map centre in `app/post.php`'s `POST_CONFIG`. Changing them means changing all three.
-- **The listing modal markup** is duplicated in `app/index.php` and `app/map.php` and is driven by the shared `openModal()` in `app.js`.
+- **The listing modal** and **the filter form** used to be pasted into both `app/index.php` and `app/map.php`; they are now partials, `includes/listing_modal.php` and `includes/filter_bar.php`. Change them there.
 - **The Instagram handle** lives as `SOCIAL_INSTAGRAM_URL` / `SOCIAL_INSTAGRAM_HANDLE` in `includes/share.php`, used by `includes/footer.php` and `s.php`, and is hardcoded again in `landing.php` and `app/api/email.php` — each of which is deliberately dependency-free and already hardcodes the short link for the same reason. Three places.
 
 ## Images

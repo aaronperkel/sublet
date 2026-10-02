@@ -252,9 +252,9 @@ Seven sizes, as custom properties (`--text-xs` to `--text-3xl`), plus Display fo
 
 ## Layout
 
-A centered column at most 1280px wide (`--max-width`) with 1.5rem gutters, under a sticky 64px green nav. Browse stacks a white filter panel, then a sort bar whose left side is the page's heading ("34 sublets", with "For Spring 2027 unless marked" when the listings span semesters), then a listing grid of auto-fill columns at least 280px wide with 1.25rem gaps: one column on phones, up to four at full width. The listing opens in a centered dialog up to 720px wide over a slate scrim. The post form is a single white panel with grouped sections.
+A centered column at most 1280px wide (`--max-width`) with 1.5rem gutters, under a sticky 64px green nav. Browse stacks a white filter panel, then a sort bar whose left side is the page's heading ("32 Spring 2027 sublets", or "34 sublets" with "For Spring 2027 unless marked" when the listings span semesters), then a listing grid of auto-fill columns at least 280px wide with 1.25rem gaps: one column on phones, up to four at full width. At 768px and below the columns are at least 290px, so a two-column tablet layout never squeezes the facts line, and the filter panel gives way to a sticky filter bar (see Components) so a phone opens on listings, not on controls. The listing opens in a centered dialog up to 720px wide over a slate scrim. The post form is a single white panel with grouped sections.
 
-Spacing follows a loose 4px rhythm (0.25, 0.5, 0.75, 1, 1.25, 1.5 and 2rem). Breakpoints: 768px (nav collapses to a toggle; panels and the dialog go full-width), 600px (the share sheet becomes a bottom sheet), 480px (the tightest phone adjustments). Hover effects are gated on `(hover: hover)`, and `prefers-reduced-motion` turns animation off site-wide.
+Spacing follows a loose 4px rhythm (0.25, 0.5, 0.75, 1, 1.25, 1.5 and 2rem). Breakpoints: 768px (nav collapses to a toggle; filters become the sticky bar and a bottom sheet), 600px (the listing view and the share sheet become full-height and bottom sheets), 480px (the tightest phone adjustments). Hover effects are gated on `(hover: hover)`, and `prefers-reduced-motion` turns animation off site-wide.
 
 ## Elevation & Depth
 
@@ -323,12 +323,17 @@ The pinned index card, in this order:
 2. The **price tab**: a Gold tab with rounded top corners standing up over the photo's bottom edge. Everything on it is Catamount Green (7.25:1): the rent (Title, 700, tabular figures), "/mo", and "or best offer" as a label when negotiable.
 3. The shortened address on one line (Body).
 4. One facts line in Text Secondary: size and roommates, then distance from campus ("3 bd · 1 ba · 1 roommate · 0.5 mi"; the card's accessible name spells out "miles from campus"). It fits one line at both 390px and 1280px; a second line carries estimated utilities when given.
-5. At most three tags: a roommate preference first if there is one, then the amenities rarest among the listings on screen, then "+N more".
+5. One row of tags, never two: a roommate preference first if there is one, then the amenities rarest among the listings on screen, then "+N more". The server sends at most three; app.js hides from the end until the row fits and adds what it hid to "+N more", and a preference too long on its own ends in an ellipsis. The row sits on the card's bottom edge, so cards in a grid row end level.
 
 The poster's name is not on the card; it is in the listing view. The whole card is a keyboard-focusable button that opens the listing view.
 
+### Filter Bar and Sheet (phones)
+At 768px and below the filter panel is replaced by a sticky bar under the nav: a white pill "Filters" button with a green count badge for the active filters, and a List / Map segmented switch (the active segment filled green) that keeps the filters when switching. "Filters" opens the same form as a bottom sheet (12px top corners, Floating shadow, over the slate scrim) with a sticky header (title, close) and a sticky footer button. On Browse the listings update underneath as filters change and the button reads "Show 12 sublets"; on Map it applies them. Chips grow to 40px tap targets inside the sheet. Untouched sliders do not count as filters.
+
 ### Listing View (signature)
-A centered dialog (720px, 12px corners, Floating shadow) with the photo gallery on top (circular arrows, dot pager) and the details below: the price in Catamount Green with "/mo", an action row (Email, Call, Share, Edit, admin Delete), address and semester fields with icons, place and roommate facts, description, utilities and amenities. Contact opens a panel that slides over the details, with a prepared email draft or the phone number and Copy buttons.
+A centered dialog (720px, 12px corners, Floating shadow) with the photo gallery on top and the details below: the price in Catamount Green with "/mo" and a facts line under it (distance from campus · semester · size), an action row (Email, Call, Share, Edit, admin Delete), the address with an "Open in Maps" link, the semester, place and roommate facts, description, utilities and amenities. Utilities the subletter pays are neutral, not gold. The gallery swipes on touch, shows a "2 / 7" counter, and its dots are 24px targets around 8px marks. Contact opens a panel that slides over the details, with a prepared email draft or the phone number and Copy buttons.
+
+At 600px and below the view is a full-screen sheet: a sticky top bar (close and share, 44px round buttons on Fog), a square photo area, and a sticky bottom bar with the price on the left and Email / Call on the right, so the way out and the way to make contact never scroll away. The phone's Back button closes it.
 
 ### Share Sheet (signature)
 A grid of round icon tiles (Share to…, Instagram story, Snapchat, Copy link) above a link field with a Copy button. It becomes a bottom sheet under 600px.
@@ -345,6 +350,7 @@ Green, with the credit, the Instagram contact, and a standing line: "An independ
 - **Do** tint text, scrims and shadows with Slate Ink (#00313C), and use the shadow vocabulary as it stands.
 - **Do** give every interactive element the 3px `:focus-visible` ring with a 2px offset: Focus (#2f86c9) on light surfaces, Gold on green.
 - **Do** gate hover lift and photo zoom on `(hover: hover)`, and keep the site-wide `prefers-reduced-motion` override.
+- **Do** keep a card's tags to one row and touch targets at least 44px on phones (40px for chips inside the filter sheet).
 - **Do** pick 12px for containers, 8px for small inset surfaces, 6px for controls, and pills only for filter chips.
 
 ### Don't:

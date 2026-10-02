@@ -52,6 +52,13 @@ document.addEventListener('DOMContentLoaded', function () {
     // Set by initShare() once the partial is on the page; null on any page that
     // does not include includes/share_sheet.php.
     var shareEls = null;
+
+    // Read by initFilters() during the dispatch below, so declared up here for
+    // the same reason as shareEls: a `var` further down is still undefined
+    // when init runs, and matchMedia(undefined) silently never matches.
+    var PHONE_QUERY = '(max-width: 768px)';
+    // The in-flight Browse filter request, aborted when a newer one starts.
+    var filterController = null;
     var shareTarget = null;
 
     // The tiles, in order. `when` decides whether a tile is worth showing on
@@ -124,12 +131,11 @@ document.addEventListener('DOMContentLoaded', function () {
        Filters (noUiSlider)
        ====================================================================== */
     function initFilters() {
-        const config = window.SUBLET_CONFIG;
+        var config = window.SUBLET_CONFIG;
 
-        // There is no Apply button any more, so auto-apply is the only way to
-        // filter — it must be bound even if the sliders fail to build. They
-        // depend on noUiSlider, which comes from a CDN; without this guard a
-        // blocked CDN would leave the whole filter bar inert.
+        // Filtering must work even if the sliders fail to build: they come
+        // from a CDN, and without this guard a blocked CDN would leave the
+        // whole filter bar inert.
         try {
             if (config && typeof noUiSlider !== 'undefined') {
                 buildSliders(config);
@@ -139,97 +145,354 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         initAutoApply();
+        initFilterSheet();
+    }
+
+    function money(n) {
+        return '$' + Math.round(n).toLocaleString('en-US');
     }
 
     function buildSliders(config) {
-        // Price slider
-        const priceEl = document.getElementById('priceSlider');
+        var minPrice = config.minPrice || 0;
+
+        // Price. The range runs from the cheapest listing to the dearest, and
+        // the hidden fields stay empty while both handles sit at those ends,
+        // so an untouched slider is not a filter: it no longer counts as
+        // active, and a bookmarked URL no longer freezes today's maximum and
+        // hides a dearer listing posted later.
+        var priceEl = document.getElementById('priceSlider');
         if (priceEl) {
             noUiSlider.create(priceEl, {
-                start: [config.initialMinPrice, config.initialMaxPrice],
+                start: [Math.max(config.initialMinPrice, minPrice), config.initialMaxPrice],
                 connect: true,
                 step: 50,
-                range: { min: 0, max: config.maxPrice },
-                format: {
-                    to: function (v) { return '$' + Math.round(v); },
-                    from: function (v) { return Number(v.replace('$', '')); }
-                }
+                range: { min: minPrice, max: config.maxPrice },
+                handleAttributes: [{ 'aria-label': 'Minimum price per month' }, { 'aria-label': 'Maximum price per month' }],
+                ariaFormat: { to: money, from: Number }
             });
 
             priceEl.noUiSlider.on('update', function (values) {
-                document.getElementById('priceValue').textContent = values[0] + ' \u2013 ' + values[1];
-                document.getElementById('minPrice').value = Math.round(parseFloat(values[0].replace('$', '')));
-                document.getElementById('maxPrice').value = Math.round(parseFloat(values[1].replace('$', '')));
+                var lo = Number(values[0]);
+                var hi = Number(values[1]);
+                var open = lo <= minPrice && hi >= config.maxPrice;
+                document.getElementById('priceValue').textContent = open ? 'Any price' : money(lo) + ' – ' + money(hi);
+                document.getElementById('minPrice').value = open ? '' : Math.round(lo);
+                document.getElementById('maxPrice').value = open ? '' : Math.round(hi);
             });
         }
 
-        // Distance slider
+        // Distance, in quarter-mile steps: listings sit within about a mile
+        // and a half, and half-mile steps left the slider three stops long.
         var distEl = document.getElementById('distanceSlider');
         if (distEl) {
             noUiSlider.create(distEl, {
                 start: [config.initialDistance],
                 connect: [true, false],
-                step: 0.5,
-                range: { min: 0.5, max: config.maxDistance },
-                format: {
-                    to: function (v) { return v.toFixed(1); },
-                    from: function (v) { return parseFloat(v); }
-                }
+                step: 0.25,
+                range: { min: 0.25, max: config.maxDistance },
+                handleAttributes: [{ 'aria-label': 'Maximum distance from campus, in miles' }],
+                ariaFormat: { to: function (v) { return Number(v) + ' miles'; }, from: Number }
             });
 
             distEl.noUiSlider.on('update', function (values) {
-                document.getElementById('distanceValue').textContent = '< ' + values[0] + ' mi';
-                document.getElementById('maxDistance').value = parseFloat(values[0]);
+                var d = Number(values[0]);
+                var open = d >= config.maxDistance;
+                document.getElementById('distanceValue').textContent = open ? 'Any distance' : 'Within ' + d + ' mi';
+                document.getElementById('maxDistance').value = open ? '' : d;
             });
         }
     }
 
-    /* Apply filters as they change, instead of making people find the button.
-       The form still submits normally — the server stays the single source of
-       truth for what matches, the URL stays shareable, and the no-JS path is
-       untouched (the Apply button is only hidden once this runs). */
+    // The form's filter fields as a query string, without empty values.
+    // `sort` is left out when only the filters are wanted (links to Map).
+    function filterQuery(form, withSort) {
+        var params = new URLSearchParams();
+        new FormData(form).forEach(function (value, key) {
+            if (value === '' || (!withSort && key === 'sort')) return;
+            params.append(key, value);
+        });
+        return params.toString();
+    }
+
+    // Browse/Map links (nav, the phone's List/Map switch) carry the filters,
+    // so switching view does not reset them.
+    function updateCarryLinks(query) {
+        document.querySelectorAll('[data-carry-filters]').forEach(function (a) {
+            a.setAttribute('href', a.dataset.carryFilters + (query ? '?' + query : ''));
+        });
+    }
+
+    function phoneSheetOpen() {
+        var form = document.getElementById('filterForm');
+        return !!form && form.classList.contains('open');
+    }
+
+    /* Apply filters as they change. On Browse the results are fetched and
+       swapped in place: the server stays the single source of truth for what
+       matches, the URL stays shareable (replaceState), and nothing reloads, so
+       a second tap during an update is no longer lost and keyboard focus stays
+       on the slider. Map's results live in a JS global and its pins, so it
+       still submits the form, but not while the phone sheet is open: there the
+       sheet's button applies. */
     function initAutoApply() {
         var form = document.getElementById('filterForm');
         if (!form) return;
 
+        var live = form.dataset.live === '1' && typeof fetch === 'function'
+            && typeof DOMParser === 'function' && typeof AbortController === 'function';
+        var phone = window.matchMedia(PHONE_QUERY);
         var timer = null;
-        var submitted = false;
+        var lastQuery = filterQuery(form, true);
 
-        function apply() {
-            if (submitted) return;
+        function schedule() {
             clearTimeout(timer);
-            // Enough of a pause to collect a burst of chip clicks into one
-            // navigation, short enough that a single click still feels direct.
-            timer = setTimeout(function () {
-                submitted = true;
-                document.body.classList.add('filters-applying');
-                try {
-                    sessionStorage.setItem('filterScroll', String(window.scrollY));
-                } catch (e) { /* private mode — losing scroll position is fine */ }
-                form.submit();
-            }, 350);
+            // Long enough to collect a burst of chip taps into one request,
+            // short enough that a single tap still feels direct.
+            timer = setTimeout(apply, 300);
         }
 
+        function apply() {
+            clearTimeout(timer);
+            var query = filterQuery(form, true);
+            if (query === lastQuery) return;
+
+            if (!live) {
+                if (phone.matches && phoneSheetOpen()) return;
+                lastQuery = query;
+                document.body.classList.add('filters-applying');
+                form.submit();
+                return;
+            }
+            lastQuery = query;
+            liveUpdate(form, query);
+        }
+        form._applyNow = apply;
+
         form.querySelectorAll('input[type="checkbox"], select').forEach(function (el) {
-            el.addEventListener('change', apply);
+            el.addEventListener('change', schedule);
         });
 
-        // noUiSlider fires 'change' once on release, unlike the continuous
-        // 'update' the readouts above use — one navigation per drag, not one
-        // per pixel.
+        // noUiSlider fires 'change' once on release (and per keyboard step),
+        // unlike the continuous 'update' the readouts use.
         ['priceSlider', 'distanceSlider'].forEach(function (id) {
             var el = document.getElementById(id);
-            if (el && el.noUiSlider) el.noUiSlider.on('change', apply);
+            if (el && el.noUiSlider) el.noUiSlider.on('change', schedule);
         });
 
-        // A reload would otherwise drop the user back at the top of the page.
-        try {
-            var y = sessionStorage.getItem('filterScroll');
-            if (y !== null) {
-                sessionStorage.removeItem('filterScroll');
-                window.scrollTo(0, parseInt(y, 10) || 0);
+        form.addEventListener('submit', function (e) {
+            if (!live) return;
+            e.preventDefault();
+            apply();
+        });
+
+        updateCarryLinks(filterQuery(form, false));
+        updateSheetButton();
+    }
+
+    function liveUpdate(form, query) {
+        var url = form.getAttribute('action') + (query ? '?' + query : '');
+
+        // Only the latest change matters: an answer for an older one arriving
+        // late must not overwrite a newer grid.
+        if (filterController) filterController.abort();
+        var mine = filterController = new AbortController();
+        document.body.classList.add('filters-applying');
+
+        fetch(url, { signal: mine.signal, credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch' } })
+            .then(function (r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.text();
+            })
+            .then(function (html) {
+                if (mine !== filterController) return;
+                var doc = new DOMParser().parseFromString(html, 'text/html');
+                var nextGrid = doc.getElementById('listingsGrid');
+                var nextHeading = doc.querySelector('.sort-bar-heading');
+                // Anything else (a sign-in page after the session lapsed, an
+                // error page) means the in-place update cannot be trusted.
+                if (!nextGrid || !nextHeading) throw new Error('unexpected response');
+
+                var grid = document.getElementById('listingsGrid');
+                grid.innerHTML = nextGrid.innerHTML;
+                grid.dataset.count = nextGrid.dataset.count;
+                document.querySelector('.sort-bar-heading').innerHTML = nextHeading.innerHTML;
+
+                var nextClear = doc.getElementById('filterClear');
+                var clear = document.getElementById('filterClear');
+                if (clear && nextClear) clear.hidden = nextClear.hidden;
+                var nextCount = doc.getElementById('filterCount');
+                var count = document.getElementById('filterCount');
+                if (count && nextCount) {
+                    count.hidden = nextCount.hidden;
+                    count.textContent = nextCount.textContent;
+                }
+
+                history.replaceState(history.state, '', url);
+                updateCarryLinks(filterQuery(form, false));
+                updateSheetButton();
+                fitCardTags(grid);
+                checkCardImages(grid);
+            })
+            .catch(function (err) {
+                if (err && err.name === 'AbortError') return;
+                // Fall back to an ordinary page load, which also sends a
+                // lapsed session through sign-in.
+                window.location.href = url;
+            })
+            .then(function () {
+                if (mine === filterController) {
+                    filterController = null;
+                    document.body.classList.remove('filters-applying');
+                }
+            });
+    }
+
+    // "Show 12 sublets" on Browse, from the count the server put on the grid.
+    function updateSheetButton() {
+        var btn = document.getElementById('filterSheetApply');
+        var grid = document.getElementById('listingsGrid');
+        if (!btn || !grid) return;
+        var n = parseInt(grid.dataset.count, 10);
+        if (isNaN(n)) return;
+        btn.textContent = n === 0 ? 'No matches yet' : 'Show ' + n + ' sublet' + (n === 1 ? '' : 's');
+    }
+
+    /* The phone's bottom sheet. Below 768px the filter form is hidden behind
+       the sticky Filters button; this opens it, closes it, keeps keyboard
+       focus inside while it is open, and gives focus back afterwards. */
+    function initFilterSheet() {
+        var form = document.getElementById('filterForm');
+        var openBtn = document.getElementById('filterSheetOpen');
+        var closeBtn = document.getElementById('filterSheetClose');
+        var backdrop = document.getElementById('filterSheetBackdrop');
+        var applyBtn = document.getElementById('filterSheetApply');
+        if (!form || !openBtn || !backdrop) return;
+
+        var phone = window.matchMedia(PHONE_QUERY);
+        var live = form.dataset.live === '1';
+
+        function open() {
+            form.classList.add('open');
+            backdrop.hidden = false;
+            openBtn.setAttribute('aria-expanded', 'true');
+            form.setAttribute('role', 'dialog');
+            form.setAttribute('aria-modal', 'true');
+            document.body.classList.add('filter-sheet-open');
+            if (closeBtn) closeBtn.focus();
+        }
+
+        function close(restoreFocus) {
+            if (!form.classList.contains('open')) return;
+            form.classList.remove('open');
+            backdrop.hidden = true;
+            openBtn.setAttribute('aria-expanded', 'false');
+            form.removeAttribute('role');
+            form.removeAttribute('aria-modal');
+            document.body.classList.remove('filter-sheet-open');
+            if (restoreFocus !== false) openBtn.focus();
+        }
+
+        openBtn.addEventListener('click', open);
+        if (closeBtn) closeBtn.addEventListener('click', function () { close(); });
+        backdrop.addEventListener('click', function () { close(); });
+
+        if (applyBtn) {
+            applyBtn.addEventListener('click', function (e) {
+                // Browse has been updating underneath all along; flush any
+                // change still waiting on its debounce, then reveal it. Map
+                // lets the button submit the form.
+                if (live) {
+                    e.preventDefault();
+                    if (form._applyNow) form._applyNow();
+                    close();
+                }
+            });
+        }
+
+        form.addEventListener('keydown', function (e) {
+            if (!form.classList.contains('open')) return;
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                close();
+                return;
             }
-        } catch (e) { /* nothing to restore */ }
+            if (e.key !== 'Tab') return;
+            var focusable = Array.prototype.filter.call(
+                form.querySelectorAll('button, [href], input:not([type="hidden"]), select, [tabindex]:not([tabindex="-1"])'),
+                function (el) { return !el.disabled && !el.hidden && el.offsetParent !== null; }
+            );
+            if (!focusable.length) return;
+            var first = focusable[0];
+            var last = focusable[focusable.length - 1];
+            if (e.shiftKey && document.activeElement === first) {
+                e.preventDefault();
+                last.focus();
+            } else if (!e.shiftKey && document.activeElement === last) {
+                e.preventDefault();
+                first.focus();
+            }
+        });
+
+        // Rotating or resizing past the phone layout leaves no sheet to close.
+        var onChange = function () { if (!phone.matches) close(false); };
+        if (phone.addEventListener) phone.addEventListener('change', onChange);
+        else if (phone.addListener) phone.addListener(onChange);
+    }
+
+    /* ======================================================================
+       Card tags: one row, with the overflow counted in "+N more"
+       ====================================================================== */
+    // The server sends at most three tags, rarest first. Whether three fit
+    // depends on the card's width, so this hides from the end until the row
+    // fits and adds what it hid to "+N more". The first tag is never hidden; if
+    // it is too long on its own (a roommate preference), CSS shortens it with
+    // an ellipsis instead.
+    function fitCardTags(root) {
+        (root || document).querySelectorAll('.card-utilities').forEach(fitTagRow);
+    }
+
+    function fitTagRow(row) {
+        var tags = Array.prototype.slice.call(row.querySelectorAll('.utility-tag:not(.tag-more)'));
+        var more = row.querySelector('.tag-more');
+        var serverMore = more ? (parseInt(more.dataset.more, 10) || 0) : 0;
+
+        tags.forEach(function (t) { t.hidden = false; });
+        if (more) {
+            more.hidden = serverMore === 0;
+            more.textContent = '+' + serverMore + ' more';
+        }
+
+        // Measure at natural widths: while the first tag may shrink, the row
+        // would never report an overflow.
+        row.classList.add('measuring');
+        var hidden = 0;
+        while (row.scrollWidth > row.clientWidth + 1 && tags.length - hidden > 1) {
+            hidden++;
+            tags[tags.length - hidden].hidden = true;
+            if (!more) {
+                more = document.createElement('span');
+                more.className = 'utility-tag tag-more';
+                more.dataset.more = '0';
+                row.appendChild(more);
+            }
+            more.hidden = false;
+            more.textContent = '+' + (serverMore + hidden) + ' more';
+        }
+        row.classList.remove('measuring');
+    }
+
+    function initCardTags() {
+        if (!document.querySelector('.card-utilities')) return;
+        fitCardTags();
+        // Bricolage arriving changes every width, and so does a resize.
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(function () { fitCardTags(); });
+        }
+        var t = null;
+        window.addEventListener('resize', function () {
+            clearTimeout(t);
+            t = setTimeout(function () { fitCardTags(); }, 150);
+        });
     }
 
     /* ======================================================================
@@ -252,10 +515,58 @@ document.addEventListener('DOMContentLoaded', function () {
 
         document.addEventListener('keydown', function (e) {
             if (!overlay.classList.contains('open')) return;
+            // The share sheet sits on top and handles its own keys.
+            if (shareEls && shareEls.overlay && shareEls.overlay.classList.contains('open')) return;
             if (e.key === 'Escape') closeModal();
             if (e.key === 'ArrowLeft') navigateGallery(-1);
             if (e.key === 'ArrowRight') navigateGallery(1);
+            if (e.key === 'Tab') trapFocus(e, overlay);
         });
+
+        // Back (or the close button, which steps back) closes the view.
+        window.addEventListener('popstate', function () {
+            if (overlay.classList.contains('open')) hideModal();
+        });
+
+        // Swipe between photos. touch-action: pan-y on the gallery (CSS)
+        // leaves vertical scrolling to the browser, which cancels the pointer
+        // when it takes over; a mostly-horizontal flick is ours.
+        var gallery = document.getElementById('modalGallery');
+        if (gallery) {
+            var startX = null;
+            var startY = 0;
+            gallery.addEventListener('pointerdown', function (e) {
+                if (e.pointerType === 'mouse') return;
+                startX = e.clientX;
+                startY = e.clientY;
+            });
+            gallery.addEventListener('pointerup', function (e) {
+                if (startX === null) return;
+                var dx = e.clientX - startX;
+                var dy = e.clientY - startY;
+                startX = null;
+                if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+                    navigateGallery(dx < 0 ? 1 : -1);
+                }
+            });
+            gallery.addEventListener('pointercancel', function () { startX = null; });
+        }
+
+        // The phone's top and bottom bars repeat buttons that live in the
+        // header; they forward, so there is one handler per action.
+        overlay.querySelectorAll('[data-forward]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var target = document.getElementById(btn.dataset.forward);
+                if (target) target.click();
+            });
+        });
+        var shareTop = document.getElementById('modalShareTop');
+        if (shareTop) {
+            shareTop.addEventListener('click', function () {
+                var shareBtn = document.getElementById('modalShareBtn');
+                if (shareBtn) shareBtn.click();
+            });
+        }
 
         var prevBtn = document.getElementById('galleryPrev');
         var nextBtn = document.getElementById('galleryNext');
@@ -280,6 +591,24 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Contact popup
         initContactPopup();
+    }
+
+    // Keep Tab inside an open dialog, cycling at the ends.
+    function trapFocus(e, container) {
+        var focusable = Array.prototype.filter.call(
+            container.querySelectorAll('button, [href], input:not([type="hidden"]), select, textarea, [tabindex]:not([tabindex="-1"])'),
+            function (el) { return !el.disabled && !el.hidden && el.offsetParent !== null; }
+        );
+        if (!focusable.length) return;
+        var first = focusable[0];
+        var last = focusable[focusable.length - 1];
+        if (e.shiftKey && (document.activeElement === first || !container.contains(document.activeElement))) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && (document.activeElement === last || !container.contains(document.activeElement))) {
+            e.preventDefault();
+            first.focus();
+        }
     }
 
     function initContactPopup() {
@@ -372,15 +701,36 @@ document.addEventListener('DOMContentLoaded', function () {
         if (container) container.classList.add('contact-active');
     }
 
-    function openModal(data) {
+    function openModal(data, fromHistory) {
         currentPostId = data.id;
+        var overlay = document.getElementById('modal');
 
+        // Name the dialog after the place, not its price.
+        overlay.setAttribute('aria-label', 'Listing at ' + (data.address || 'this address'));
+
+        var priceText = '$' + Number(data.price).toLocaleString();
         var priceEl = document.getElementById('modalPrice');
-        priceEl.textContent = '$' + Number(data.price).toLocaleString();
+        priceEl.textContent = priceText;
         var unit = document.createElement('span');
         unit.className = 'price-unit';
         unit.textContent = '/mo';
         priceEl.appendChild(unit);
+
+        var barPrice = document.getElementById('modalBarPrice');
+        if (barPrice) {
+            barPrice.textContent = priceText;
+            barPrice.appendChild(unit.cloneNode(true));
+        }
+
+        // What a seeker compares first, in one line under the price. Distance
+        // used to be on the card and nowhere in here.
+        var facts = [];
+        var dist = parseFloat(data.distance);
+        if (!isNaN(dist)) facts.push(dist.toFixed(1) + ' mi from campus');
+        if (data.semesterName || data.semester) facts.push(data.semesterName || data.semester);
+        if (data.sizeSummary) facts.push(data.sizeSummary);
+        var factsEl = document.getElementById('modalFacts');
+        if (factsEl) factsEl.textContent = facts.join(' \u00b7 ');
         if (isFlagSet(data.negotiable)) {
             var neg = document.createElement('small');
             neg.className = 'modal-price-neg';
@@ -389,6 +739,14 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         document.getElementById('modalAddress').textContent = data.address;
+        var mapLink = document.getElementById('modalMapLink');
+        if (mapLink) {
+            var lat = parseFloat(data.lat);
+            var lon = parseFloat(data.lon);
+            var where = (!isNaN(lat) && !isNaN(lon)) ? lat + ',' + lon : (data.address || '');
+            mapLink.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(where);
+            mapLink.hidden = where === '';
+        }
         document.getElementById('modalSemester').textContent = data.semesterName || data.semester;
         document.getElementById('modalDescription').textContent = data.description || 'No description provided.';
 
@@ -420,41 +778,43 @@ document.addEventListener('DOMContentLoaded', function () {
 
         document.getElementById('modalPoster').textContent = 'Posted by ' + (data.posterName || data.username);
 
+        var isOwn = currentUser === data.username;
+
         // Email button
         var emailBtn = document.getElementById('modalEmailBtn');
         if (emailBtn) {
-            if (currentUser === data.username) {
-                emailBtn.style.display = 'none';
-            } else {
-                emailBtn.style.display = '';
-                emailBtn.onclick = function () { showContactPopup('email', data); };
-            }
+            emailBtn.hidden = isOwn;
+            emailBtn.onclick = isOwn ? null : function () { showContactPopup('email', data); };
         }
 
         // Phone button
         var phoneBtn = document.getElementById('modalPhoneBtn');
         if (phoneBtn) {
-            if (currentUser === data.username || !data.contactPhone) {
-                phoneBtn.style.display = 'none';
-            } else {
-                phoneBtn.style.display = '';
-                phoneBtn.onclick = function () { showContactPopup('phone', data); };
-            }
+            phoneBtn.hidden = isOwn || !data.contactPhone;
+            phoneBtn.onclick = phoneBtn.hidden ? null : function () { showContactPopup('phone', data); };
         }
+
+        // The phone's bottom bar mirrors those two.
+        var barEmail = document.getElementById('modalBarEmail');
+        var barCall = document.getElementById('modalBarCall');
+        if (barEmail && emailBtn) barEmail.hidden = emailBtn.hidden;
+        if (barCall && phoneBtn) barCall.hidden = phoneBtn.hidden;
 
         // Edit button
         var editBtn = document.getElementById('modalEdit');
         if (editBtn) {
-            editBtn.style.display = (currentUser === data.username) ? '' : 'none';
+            editBtn.hidden = !isOwn;
         }
 
         // Share button. Shown to everyone, not only the poster: sending a
         // listing to a roommate group chat is as much the point as putting
         // your own on a story. Hidden if the page could not build a link.
         var shareBtn = document.getElementById('modalShareBtn');
+        var shareTop = document.getElementById('modalShareTop');
+        if (shareTop) shareTop.hidden = !data.shareUrl;
         if (shareBtn) {
             if (data.shareUrl) {
-                shareBtn.style.display = '';
+                shareBtn.hidden = false;
                 shareBtn.onclick = function () {
                     openShareSheet({
                         url: data.shareUrl,
@@ -463,7 +823,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     });
                 };
             } else {
-                shareBtn.style.display = 'none';
+                shareBtn.hidden = true;
             }
         }
 
@@ -487,10 +847,15 @@ document.addEventListener('DOMContentLoaded', function () {
             })
             .catch(function () {});
 
-        var overlay = document.getElementById('modal');
         overlay.classList.add('open');
         overlay.setAttribute('aria-hidden', 'false');
         document.body.style.overflow = 'hidden';
+
+        // A history entry for the open listing, so a phone's Back button closes
+        // it instead of leaving the page. closeModal() steps back over it.
+        if (!fromHistory) {
+            history.pushState({ listing: String(data.id) }, '', window.location.href);
+        }
 
         // Remember where focus came from so Escape returns the user to the card
         // they opened, rather than dumping them at the top of the document.
@@ -499,7 +864,18 @@ document.addEventListener('DOMContentLoaded', function () {
         if (closeBtn) closeBtn.focus();
     }
 
+    // Closing goes through history when opening added an entry, so the close
+    // button and the Back button leave the same history behind; the popstate
+    // handler in initModal() then hides the view.
     function closeModal() {
+        if (history.state && history.state.listing) {
+            history.back();
+            return;
+        }
+        hideModal();
+    }
+
+    function hideModal() {
         var overlay = document.getElementById('modal');
         if (overlay) {
             overlay.classList.remove('open');
@@ -519,11 +895,13 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function renderGallery() {
+        var count = modalImages.length;
         var img = document.getElementById('modalImage');
-        if (img && modalImages.length > 0) {
+        if (img && count > 0) {
             // Reset broken state. imgRetried has to go too: this one element is
             // reused for every image in the gallery, so leaving it set would
             // deny the next image its retry.
+            img.hidden = false;
             img.style.display = '';
             delete img.dataset.broken;
             delete img.dataset.imgRetried;
@@ -531,25 +909,39 @@ document.addEventListener('DOMContentLoaded', function () {
             var oldPlaceholder = img.parentNode.querySelector('.img-broken-placeholder');
             if (oldPlaceholder) oldPlaceholder.remove();
             img.src = modalImages[modalIndex];
+            img.alt = 'Photo ' + (modalIndex + 1) + ' of ' + count;
+
+            // Fetch the next photo now, so a swipe shows it at once.
+            if (modalIndex + 1 < count) {
+                var next = new Image();
+                next.src = modalImages[modalIndex + 1];
+            }
         }
 
-        // Navigation arrows
         var prevBtn = document.getElementById('galleryPrev');
         var nextBtn = document.getElementById('galleryNext');
-        if (prevBtn) prevBtn.style.display = modalIndex > 0 ? '' : 'none';
-        if (nextBtn) nextBtn.style.display = modalIndex < modalImages.length - 1 ? '' : 'none';
+        if (prevBtn) prevBtn.hidden = modalIndex <= 0;
+        if (nextBtn) nextBtn.hidden = modalIndex >= count - 1;
 
-        // Dots
+        var counter = document.getElementById('galleryCount');
+        if (counter) {
+            counter.hidden = count < 2;
+            counter.textContent = (modalIndex + 1) + ' / ' + count;
+        }
+
         var dotsContainer = document.getElementById('galleryDots');
         if (dotsContainer) {
             dotsContainer.innerHTML = '';
-            if (modalImages.length > 1) {
-                for (var i = 0; i < modalImages.length; i++) {
+            if (count > 1) {
+                for (var i = 0; i < count; i++) {
                     var dot = document.createElement('button');
+                    dot.type = 'button';
                     dot.className = 'gallery-dot' + (i === modalIndex ? ' active' : '');
                     dot.dataset.index = i;
+                    dot.setAttribute('aria-label', 'Show photo ' + (i + 1) + ' of ' + count);
+                    if (i === modalIndex) dot.setAttribute('aria-current', 'true');
                     dot.addEventListener('click', function () {
-                        modalIndex = parseInt(this.dataset.index);
+                        modalIndex = parseInt(this.dataset.index, 10);
                         renderGallery();
                     });
                     dotsContainer.appendChild(dot);
@@ -860,56 +1252,38 @@ document.addEventListener('DOMContentLoaded', function () {
     /* ======================================================================
        Index Page — Listing Cards
        ====================================================================== */
+    // The grid's contents are replaced on every filter change, so everything a
+    // card responds to is handled once, on the grid, rather than per card.
     function initIndex() {
-        document.querySelectorAll('.listing-card').forEach(function (card) {
-            // The card carries role="button", so it has to answer Enter and
-            // Space the way a real button would.
-            card.addEventListener('keydown', function (e) {
-                if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
-                    e.preventDefault();
-                    card.click();
-                }
-            });
+        var grid = document.getElementById('listingsGrid');
+        if (!grid) return;
 
-            card.addEventListener('click', function () {
-                var imgEl = card.querySelector('.card-image img');
-                openModal({
-                    id: card.dataset.id,
-                    shareUrl: card.dataset.shareUrl || '',
-                    price: card.dataset.price,
-                    address: card.dataset.address,
-                    semester: card.dataset.semester,
-                    semesterName: card.dataset.semesterName,
-                    description: card.dataset.description,
-                    username: card.dataset.username,
-                    contactEmail: card.dataset.contactEmail,
-                    contactPhone: card.dataset.contactPhone,
-                    image_url: imgEl ? imgEl.src : '',
-                    utility_electric: card.dataset.utilityElectric || '',
-                    utility_gas: card.dataset.utilityGas || '',
-                    utility_water: card.dataset.utilityWater || '',
-                    utility_internet: card.dataset.utilityInternet || '',
-                    utility_cost: card.dataset.utilityCost || '',
-                    amenity_free_parking: card.dataset.amenityFreeParking || '0',
-                    amenity_paid_parking: card.dataset.amenityPaidParking || '0',
-                    amenity_laundry_free: card.dataset.amenityLaundryFree || '0',
-                    amenity_laundry_paid: card.dataset.amenityLaundryPaid || '0',
-                    amenity_dishwasher: card.dataset.amenityDishwasher || '0',
-                    amenity_air_conditioning: card.dataset.amenityAirConditioning || '0',
-                    amenity_pets_allowed: card.dataset.amenityPetsAllowed || '0',
-                    amenity_furnished: card.dataset.amenityFurnished || '0',
-                    posterName: card.dataset.posterName || '',
-                    negotiable: card.dataset.negotiable || '0',
-                    sizeSummary: card.dataset.sizeSummary || '',
-                    roommateGender: card.dataset.roommateGender || '',
-                    roommatePreference: card.dataset.roommatePreference || ''
-                });
-            });
+        grid.addEventListener('click', function (e) {
+            var card = e.target.closest('.listing-card');
+            if (card && grid.contains(card)) openModalFromCard(card);
         });
 
+        // The card carries role="button", so it has to answer Enter and Space
+        // the way a real button would.
+        grid.addEventListener('keydown', function (e) {
+            if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+            var card = e.target.closest('.listing-card');
+            if (!card || e.target !== card) return;
+            e.preventDefault();
+            openModalFromCard(card);
+        });
+
+        // Images: error does not bubble, so listen in the capture phase.
+        grid.addEventListener('error', function (e) {
+            if (e.target.tagName === 'IMG' && e.target.closest('.card-image')) imageFailed(e.target);
+        }, true);
+        checkCardImages(grid);
+
+        initCardTags();
+
         // Instant client-side sorting. The hidden `sort` field on the filter
-        // form is kept in step so that applying a filter — which reloads the
-        // page — comes back sorted the same way rather than snapping to Newest.
+        // form is kept in step so a filter change comes back in the same
+        // order, and the URL carries it so a refresh does too.
         var sortSelect = document.getElementById('sortFilter');
         var sortInput = document.getElementById('sortInput');
         if (sortSelect) {
@@ -917,10 +1291,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 var sortVal = sortSelect.value;
                 if (sortInput) sortInput.value = sortVal;
 
-                var grid = document.querySelector('.listings-grid');
-                if (!grid) return;
-                var cards = Array.from(grid.querySelectorAll('.listing-card'));
+                var params = new URLSearchParams(window.location.search);
+                params.delete('id');
+                if (sortVal === 'newest') params.delete('sort'); else params.set('sort', sortVal);
+                var qs = params.toString();
+                history.replaceState(history.state, '', window.location.pathname + (qs ? '?' + qs : ''));
 
+                var cards = Array.from(grid.querySelectorAll('.listing-card'));
                 cards.sort(function (a, b) {
                     switch (sortVal) {
                         case 'price_asc':
@@ -947,6 +1324,52 @@ document.addEventListener('DOMContentLoaded', function () {
             var d = parseFloat(card.dataset.distance);
             return isNaN(d) ? Infinity : d;
         }
+    }
+
+    // A card image whose load failed before this file ran fires no event left
+    // to catch; the markup records those with onerror="this.dataset.imgError".
+    function checkCardImages(root) {
+        root.querySelectorAll('.card-image img').forEach(function (img) {
+            if (img.dataset.imgError) imageFailed(img);
+        });
+    }
+
+    function openModalFromCard(card) {
+        var imgEl = card.querySelector('.card-image img');
+        openModal({
+            id: card.dataset.id,
+            shareUrl: card.dataset.shareUrl || '',
+            price: card.dataset.price,
+            address: card.dataset.address,
+            semester: card.dataset.semester,
+            semesterName: card.dataset.semesterName,
+            description: card.dataset.description,
+            username: card.dataset.username,
+            contactEmail: card.dataset.contactEmail,
+            contactPhone: card.dataset.contactPhone,
+            image_url: imgEl ? imgEl.src : '',
+            utility_electric: card.dataset.utilityElectric || '',
+            utility_gas: card.dataset.utilityGas || '',
+            utility_water: card.dataset.utilityWater || '',
+            utility_internet: card.dataset.utilityInternet || '',
+            utility_cost: card.dataset.utilityCost || '',
+            amenity_free_parking: card.dataset.amenityFreeParking || '0',
+            amenity_paid_parking: card.dataset.amenityPaidParking || '0',
+            amenity_laundry_free: card.dataset.amenityLaundryFree || '0',
+            amenity_laundry_paid: card.dataset.amenityLaundryPaid || '0',
+            amenity_dishwasher: card.dataset.amenityDishwasher || '0',
+            amenity_air_conditioning: card.dataset.amenityAirConditioning || '0',
+            amenity_pets_allowed: card.dataset.amenityPetsAllowed || '0',
+            amenity_furnished: card.dataset.amenityFurnished || '0',
+            posterName: card.dataset.posterName || '',
+            negotiable: card.dataset.negotiable || '0',
+            sizeSummary: card.dataset.sizeSummary || '',
+            roommateGender: card.dataset.roommateGender || '',
+            roommatePreference: card.dataset.roommatePreference || '',
+            distance: card.dataset.distance || '',
+            lat: card.dataset.lat || '',
+            lon: card.dataset.lon || ''
+        });
     }
 
     /* ======================================================================
@@ -1075,7 +1498,10 @@ document.addEventListener('DOMContentLoaded', function () {
                             // lives in includes/listing_fields.php, not here.
                             sizeSummary: sublet.size_summary || '',
                             roommateGender: sublet.roommate_gender_label || '',
-                            roommatePreference: sublet.roommate_preference_label || ''
+                            roommatePreference: sublet.roommate_preference_label || '',
+                            distance: sublet.distance_mi || '',
+                            lat: sublet.lat,
+                            lon: sublet.lon
                         });
                     });
                 });
@@ -1983,8 +2409,9 @@ document.addEventListener('DOMContentLoaded', function () {
         setTimeout(function () { img.src = retried; }, 150);
     }
 
-    // Attach to all images on page load
-    document.querySelectorAll('.card-image img, .modal-gallery img, .map-popup img').forEach(function (img) {
+    // Attach to the images present on page load. Card images are handled on
+    // the grid instead (initIndex), because live filtering replaces them.
+    document.querySelectorAll('.modal-gallery img, .map-popup img').forEach(function (img) {
         img.addEventListener('error', function () { imageFailed(img); });
         // A load that failed before this file ran fires no event left to catch.
         // The markup records those with onerror="this.dataset.imgError='1'" -- an

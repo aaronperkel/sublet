@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "includes/listing_modal.php"
+        ],
+        "createdAt": "2026-10-02T21:10:01.902Z",
+        "reason": "Claude, verified in code: #modalImage is the gallery's single image element; openModal()/renderGallery() in js/app.js set its src before the dialog is shown, and it has no src in markup on purpose"
+      }
+    ]
+  }
+}

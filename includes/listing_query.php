@@ -89,21 +89,26 @@ function build_listing_filters(array $query, array $columns): array {
         $params[] = (int)$query['min_bedrooms'];
     }
 
-    // Whether the visitor narrowed anything, which decides both which empty
-    // state to show and whether a "Clear filters" link is worth offering.
-    $active = $amenities !== []
-        || !empty($query['semester'])
-        || !empty($query['negotiable'])
-        || !empty($query['min_bedrooms'])
-        || (isset($query['max_distance']) && $query['max_distance'] !== '')
-        || (isset($query['min_price'], $query['max_price'])
-            && $query['min_price'] !== '' && $query['max_price'] !== '');
+    // How many separate things the visitor narrowed by: price, semester,
+    // distance, each amenity, negotiable, bedrooms. It decides which empty
+    // state to show, whether "Clear filters" is offered, and the number on the
+    // phone's Filters button. app.js leaves the price and distance fields empty
+    // while their sliders sit at the ends of the range, so an untouched slider
+    // no longer counts as a filter.
+    $count = count($amenities)
+        + (!empty($query['semester']) ? 1 : 0)
+        + (!empty($query['negotiable']) && isset($columns['price_negotiable']) ? 1 : 0)
+        + (!empty($query['min_bedrooms']) && isset($columns['bedrooms']) ? 1 : 0)
+        + ((isset($query['max_distance']) && $query['max_distance'] !== '') ? 1 : 0)
+        + ((isset($query['min_price'], $query['max_price'])
+            && $query['min_price'] !== '' && $query['max_price'] !== '') ? 1 : 0);
 
     return [
         'where' => $where,
         'params' => $params,
         'amenities' => $amenities,
-        'active' => $active,
+        'active' => $count > 0,
+        'count' => $count,
     ];
 }
 
@@ -135,4 +140,32 @@ function listing_sort_sql(?string $sort): array {
     }
 
     return [' ORDER BY ' . $map[$sort], $sort];
+}
+
+/** The query-string keys that describe listing filters (not sort, not ?id=). */
+const LISTING_FILTER_KEYS = ['min_price', 'max_price', 'semester', 'max_distance', 'amenities', 'negotiable', 'min_bedrooms'];
+
+/**
+ * The filter part of a request's query, re-encoded, for links that switch
+ * between Browse and Map without dropping the filters. Empty values are left
+ * out; app.js keeps the same set in step after a live update.
+ */
+function listing_filter_query(array $query): string {
+    $keep = [];
+    foreach (LISTING_FILTER_KEYS as $key) {
+        if (!isset($query[$key]) || $query[$key] === '' || $query[$key] === []) {
+            continue;
+        }
+        $value = $query[$key];
+        if (is_array($value)) {
+            $value = array_values(array_filter($value, static fn($v) => is_string($v) && $v !== ''));
+            if ($value === []) {
+                continue;
+            }
+        } elseif (!is_string($value)) {
+            continue;
+        }
+        $keep[$key] = $value;
+    }
+    return http_build_query($keep, '', '&', PHP_QUERY_RFC3986);
 }

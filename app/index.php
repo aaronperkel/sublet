@@ -16,7 +16,6 @@ $openId = isset($_GET['id']) && ctype_digit((string)$_GET['id']) ? (int)$_GET['i
 // build_listing_filters() applies that itself so map.php cannot diverge.
 $columns = table_columns($pdo, 'sublets');
 $filters = build_listing_filters($openId ? [] : $_GET, $columns);
-$activeAmenities = $filters['amenities'];
 
 // distance_mi is selected rather than only compared so "closest to campus" can
 // sort on it and each card can carry it for the client-side re-sort.
@@ -56,64 +55,7 @@ foreach ($availableSemesters as $sem) {
 }
 ?>
 
-<!-- Filters -->
-<form id="filterForm" method="get" class="filters">
-    <div class="filters-row">
-        <div class="filter-group">
-            <label>
-                Price Range
-                <span class="slider-value" id="priceValue"></span>
-            </label>
-            <div id="priceSlider"></div>
-            <input type="hidden" name="min_price" id="minPrice">
-            <input type="hidden" name="max_price" id="maxPrice">
-        </div>
-        <div class="filter-group">
-            <label>Semester</label>
-            <select name="semester" id="semesterFilter">
-                <option value="">All Semesters</option>
-                <?php foreach ($availableSemesters as $sem): ?>
-                    <option value="<?= htmlspecialchars($sem['semester']) ?>" <?= (isset($_GET['semester']) && $_GET['semester'] === $sem['semester']) ? 'selected' : '' ?>>
-                        <?= htmlspecialchars($sem['name']) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div class="filter-group">
-            <label>
-                Distance from Campus
-                <span class="slider-value" id="distanceValue"></span>
-            </label>
-            <div id="distanceSlider"></div>
-            <input type="hidden" name="max_distance" id="maxDistance">
-        </div>
-    </div>
-
-    <?php /* Amenity toggles submit with the rest of the form. Rendered from
-             LISTING_AMENITY_FILTERS so Browse and Map cannot offer different
-             sets. Sort travels along as a hidden field so applying a filter
-             does not silently reset it. */ ?>
-    <div class="filter-chips">
-        <span class="filter-chips-label">Must have</span>
-        <?php foreach (LISTING_AMENITY_FILTERS as $key => $amenity): ?>
-            <label class="filter-chip">
-                <input type="checkbox" name="amenities[]" value="<?= htmlspecialchars($key) ?>"
-                       <?= in_array($key, $activeAmenities, true) ? 'checked' : '' ?>>
-                <span><i class="fa-solid <?= htmlspecialchars($amenity['icon']) ?>"></i> <?= htmlspecialchars($amenity['label']) ?></span>
-            </label>
-        <?php endforeach; ?>
-        <?php if (isset($columns['price_negotiable'])): ?>
-            <label class="filter-chip">
-                <input type="checkbox" name="negotiable" value="1" <?= !empty($_GET['negotiable']) ? 'checked' : '' ?>>
-                <span><i class="fa-solid fa-tag"></i> Price negotiable</span>
-            </label>
-        <?php endif; ?>
-        <?php if ($hasActiveFilters): ?>
-            <a href="index.php" class="filter-clear"><i class="fa-solid fa-xmark"></i> Clear filters</a>
-        <?php endif; ?>
-    </div>
-    <input type="hidden" name="sort" id="sortInput" value="<?= htmlspecialchars($sort) ?>">
-</form>
+<?php require '../includes/filter_bar.php'; ?>
 
 <!-- Sort Bar -->
 <div class="sort-bar">
@@ -136,7 +78,9 @@ foreach ($availableSemesters as $sem) {
 </div>
 
 <!-- Listings Grid -->
-<div class="listings-grid">
+<?php /* data-count is read by the filter sheet's "Show N sublets" button after a
+         live update. */ ?>
+<div class="listings-grid" id="listingsGrid" data-count="<?= count($sublets) ?>">
     <?php if (empty($sublets)): ?>
         <?php /* $availableSemesters is derived from visible listings only, so an
                  empty one means the site has nothing to show at all — a different
@@ -152,8 +96,8 @@ foreach ($availableSemesters as $sem) {
         <?php else: ?>
             <div class="listings-empty">
                 <i class="fa-solid fa-magnifying-glass"></i>
-                <p>No sublets match these filters.</p>
-                <p class="listings-empty-sub">Try widening the price or distance range.</p>
+                <p>No sublets match all of these.</p>
+                <p class="listings-empty-sub">Try turning off a must-have or two; A/C and pets narrow things the most.</p>
                 <a href="index.php" class="btn btn-secondary">Clear filters</a>
             </div>
         <?php endif; ?>
@@ -250,10 +194,10 @@ foreach ($availableSemesters as $sem) {
                 <?php if ($cardTags['tags']): ?>
                     <div class="card-utilities">
                         <?php foreach ($cardTags['tags'] as $tag): ?>
-                            <span class="utility-tag tag-<?= htmlspecialchars($tag['kind']) ?>"><i class="fa-solid <?= htmlspecialchars($tag['icon']) ?>" aria-hidden="true"></i> <?= htmlspecialchars($tag['label']) ?></span>
+                            <span class="utility-tag tag-<?= htmlspecialchars($tag['kind']) ?>"><i class="fa-solid <?= htmlspecialchars($tag['icon']) ?>" aria-hidden="true"></i><span class="tag-label"><?= htmlspecialchars($tag['label']) ?></span></span>
                         <?php endforeach; ?>
                         <?php if ($cardTags['more'] > 0): ?>
-                            <span class="utility-tag tag-more">+<?= $cardTags['more'] ?> more</span>
+                            <span class="utility-tag tag-more" data-more="<?= $cardTags['more'] ?>">+<?= $cardTags['more'] ?> more</span>
                         <?php endif; ?>
                     </div>
                 <?php endif; ?>
@@ -262,63 +206,7 @@ foreach ($availableSemesters as $sem) {
     <?php endif; ?>
 </div>
 
-<!-- Modal -->
-<div class="modal-overlay" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalPrice" aria-hidden="true">
-    <div class="modal-container">
-        <button class="modal-close" id="modalClose" aria-label="Close listing">&times;</button>
-        <div class="modal-gallery" id="modalGallery">
-            <img id="modalImage" src="" alt="Sublet image">
-            <button class="gallery-nav prev" id="galleryPrev" aria-label="Previous photo"><i class="fa-solid fa-chevron-left"></i></button>
-            <button class="gallery-nav next" id="galleryNext" aria-label="Next photo"><i class="fa-solid fa-chevron-right"></i></button>
-            <div class="gallery-dots" id="galleryDots"></div>
-        </div>
-        <div class="modal-details" id="modalDetails">
-            <div class="modal-details-inner">
-                <div class="modal-header">
-                    <span class="modal-price" id="modalPrice"></span>
-                    <div class="modal-actions" id="modalActions">
-                        <button id="modalEmailBtn" class="btn btn-primary btn-sm" title="Email">
-                            <i class="fa-solid fa-envelope"></i> Email
-                        </button>
-                        <button id="modalPhoneBtn" class="btn btn-primary btn-sm" title="Call" style="display:none;">
-                            <i class="fa-solid fa-phone"></i> Call
-                        </button>
-                        <button id="modalShareBtn" class="btn btn-secondary btn-sm" title="Share">
-                            <i class="fa-solid fa-arrow-up-from-bracket"></i> Share
-                        </button>
-                        <a id="modalEdit" href="post.php" class="btn btn-gold btn-sm" style="display:none;">
-                            <i class="fa-solid fa-pen"></i> Edit
-                        </a>
-                        <?php if (is_admin()): ?>
-                            <button id="modalDelete" class="btn btn-danger btn-sm">
-                                <i class="fa-solid fa-trash"></i> Delete
-                            </button>
-                        <?php endif; ?>
-                    </div>
-                </div>
-                <div class="modal-body">
-                    <div class="modal-field">
-                        <i class="fa-solid fa-location-dot"></i>
-                        <span id="modalAddress"></span>
-                    </div>
-                    <div class="modal-field">
-                        <i class="fa-solid fa-calendar"></i>
-                        <span id="modalSemester"></span>
-                    </div>
-                    <div class="modal-description" id="modalDescription"></div>
-                    <div class="modal-poster" id="modalPoster"></div>
-                </div>
-            </div>
-            <div class="modal-contact-panel" id="contactPanel">
-                <button class="contact-back-btn" id="contactBackBtn">
-                    <i class="fa-solid fa-arrow-left"></i> Back to listing
-                </button>
-                <h3 class="contact-panel-title" id="contactPanelTitle">Contact</h3>
-                <div id="contactPanelBody"></div>
-            </div>
-        </div>
-    </div>
-</div>
+<?php require '../includes/listing_modal.php'; ?>
 
 <?php require_once '../includes/share_sheet.php'; ?>
 
@@ -326,8 +214,9 @@ foreach ($availableSemesters as $sem) {
     window.SUBLET_CONFIG = {
         maxPrice: <?= $maxPriceRounded ?>,
         maxDistance: <?= $maxDistanceRounded ?>,
-        initialMinPrice: <?= isset($_GET['min_price']) ? (int)$_GET['min_price'] : 0 ?>,
-        initialMaxPrice: <?= isset($_GET['max_price']) ? (int)$_GET['max_price'] : $maxPriceRounded ?>,
+        minPrice: <?= $minPriceRounded ?>,
+        initialMinPrice: <?= isset($_GET['min_price']) && $_GET['min_price'] !== '' ? (int)$_GET['min_price'] : $minPriceRounded ?>,
+        initialMaxPrice: <?= isset($_GET['max_price']) && $_GET['max_price'] !== '' ? (int)$_GET['max_price'] : $maxPriceRounded ?>,
         initialDistance: <?= isset($_GET['max_distance']) && $_GET['max_distance'] !== '' ? (float)$_GET['max_distance'] : $maxDistanceRounded ?>,
         semesterMap: <?= json_encode($semesterMap) ?>,
         openId: <?= $openId ?>
