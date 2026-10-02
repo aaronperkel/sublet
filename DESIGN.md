@@ -136,23 +136,19 @@ components:
     backgroundColor: "{colors.included-tint}"
     textColor: "{colors.included-ink}"
     rounded: "{rounded.xs}"
-  tag-tenant-pays:
-    backgroundColor: "{colors.tenant-tint}"
-    textColor: "{colors.tenant-ink}"
-    rounded: "{rounded.xs}"
   tag-preference:
     backgroundColor: "{colors.card-white}"
     textColor: "{colors.text-secondary}"
     rounded: "{rounded.xs}"
   price-tab:
-    backgroundColor: "{colors.card-white}"
+    backgroundColor: "{colors.gold}"
     textColor: "{colors.catamount-green}"
     typography: "{typography.title}"
     rounded: "{rounded.xs}"
     padding: "0.4rem 0.75rem 0.15rem 1.45rem"
   badge-semester:
-    backgroundColor: "{colors.gold}"
-    textColor: "{colors.catamount-green}"
+    backgroundColor: "{colors.catamount-green}"
+    textColor: "{colors.card-white}"
     typography: "{typography.label}"
     rounded: "{rounded.xs}"
     padding: "0.2rem 0.5rem"
@@ -181,11 +177,11 @@ UVM Sublets is the bulletin board outside every dorm, kept tidy. Each listing is
 
 The confirmed mood is **friendly and student-made, lively and social**. It should feel like something students run for each other: warm, direct, and worth sharing into a group chat or a story. It is not an institutional portal and it is not a real-estate marketplace. Density is moderate: generous enough for photos to carry each card, tight enough that a phone screen shows a listing's price and facts without opening it.
 
-The notice board is drawn with **light touches**, not a costume: the price on each card is a paper tab pinned over the photo's edge, and that is the motif. No tilted cards, no cork texture, no handwriting fonts. Everything is set in **Bricolage Grotesque**, a grotesque with ink traps and a little flyer energy, self-hosted and used at two weights.
+The notice board is drawn with **light touches**, not a costume: the price on each card is a gold tab standing up over the photo's edge, and that is the motif. No tilted cards, no cork texture, no handwriting fonts. Everything is set in **Bricolage Grotesque**, a grotesque with ink traps and a little flyer energy, self-hosted and used at two weights.
 
 **Key Characteristics:**
 - Deep green structure, bright gold pins, white index cards on a pale fog ground.
-- Every listing card shows the same facts in the same places: photo, pinned price tab, address, one facts line, at most three tags.
+- Every listing card shows the same facts in the same places: photo, gold price tab, address, one facts line, at most three tags.
 - A soft, slate-tinted lift: cards rest on a faint shadow and rise slightly when a real pointer hovers.
 - Tactile, pinned controls: solid buttons, pill-shaped filter chips that snap to green when selected.
 - One typeface, two weights, seven sizes. Light mode only. Text and shadows are slate, never black.
@@ -198,7 +194,7 @@ A two-accent palette taken from UVM's colors: Catamount Green carries structure 
 - **Catamount Green** (#154734): the felt of the board. Navigation bar, primary buttons, prices, selected filter chips, page headings, links, the footer, and the focus glow on form fields (as a 10% tint). Hover deepens to Catamount Green Hover (#1a5c44).
 
 ### Secondary
-- **Gold** (#FFD100): the pushpin. The pin on each card's price tab, the logo tile, the active nav link, a semester badge on a card whose semester differs from the rest, the Edit button, and text selection. It sits on green or under green text (7.25:1), never as text on white (1.46:1). Hover is Gold Hover (#e6bc00).
+- **Gold** (#FFD100): the pushpin. Each card's price tab, the logo tile, the active nav link, the Edit button, and text selection. On a card it means the price and nothing else. It sits on green or under green text (7.25:1), never as text on white (1.46:1). Hover is Gold Hover (#e6bc00).
 
 ### Tertiary
 - **Focus** (#2f86c9): keyboard focus rings (3px, offset 2px) on light surfaces, 3.91:1 on white. On the green nav and footer the ring is Gold instead, because no blue clears 3:1 against both green and white. Focus Sky (#489FDF) remains for link hover only.
@@ -215,14 +211,14 @@ A two-accent palette taken from UVM's colors: Catamount Green carries structure 
 ### State tints
 Four sets, each a tint, an ink and a line, each drawn from the palette:
 - **Included** (green; tint #e8f5e9, ink #1a6b4a): amenities and utilities that come with the place, success alerts and banners.
-- **Tenant pays** (gold; tint #fff8e1, ink #7a6100): paid parking or paid laundry, warning alerts and banners.
+- **Tenant pays** (gold; tint #fff8e1, ink #7a6100): utilities the subletter pays, in the listing view, and warning alerts and banners. Not on cards: there, gold is the price, so paid parking and paid laundry use the plain tag.
 - **Error** (orange; tint #fce8e3, ink #b5401a): error alerts.
 - **Notice** (sky; tint #eaf3fb, ink #0b4f7d): info alerts and the default announcement banner.
 
 A roommate preference is not a state: its tag is white with a hairline border and a green icon, so it reads as a note, not a requirement.
 
 ### Named Rules
-**The Two-Pin Rule.** Green is the board and Gold is the pin. Green carries structure and every primary action. Gold marks only what is pinned: the price tab's pin, the active page, a card that stands apart from the board's semester, the poster's own Edit. Gold never fills a large area and is never text on a light ground.
+**The Two-Pin Rule.** Green is the board and Gold is the pin. Green carries structure and every primary action. Gold marks only what is pinned: the price tab, the active page, the poster's own Edit. On a card, gold means the price and nothing else. Gold never fills a large area and is never text on a light ground.
 
 **The Slate Ink Rule.** Text, scrims and shadows are tints of Slate Ink (#00313C); nothing on the site uses pure black.
 
@@ -270,7 +266,6 @@ Surfaces are layered paper on a fog ground. Cards and panels rest on a faint sla
 - **Lifted** (`box-shadow: 0 4px 16px rgba(0, 49, 60, 0.10)`): a hovered card and the nav bar.
 - **Floating** (`box-shadow: 0 8px 32px rgba(0, 49, 60, 0.14)`): dialogs, the share sheet and map popups.
 - **Tab** (`box-shadow: 0 -3px 8px rgba(0, 49, 60, 0.12)`): a card's price tab, casting up onto the photo it overlaps.
-- **Pin** (`box-shadow: 0 1px 1.5px rgba(0, 49, 60, 0.4)`): the gold pin on the tab.
 - **Field focus** (`box-shadow: 0 0 0 3px rgba(21, 71, 52, 0.1)`): a green glow around a focused input or select.
 
 ### Named Rules
@@ -280,7 +275,7 @@ Surfaces are layered paper on a fog ground. Cards and panels rest on a faint sla
 
 ## Shapes
 
-Index cards with gently rounded corners. Cards, panels, dialogs and the share sheet use a 12px radius. Small inset or floating surfaces (alerts, map popups, the nav's logo tile, share tiles) use 8px. Buttons, inputs, tags and badges use a tighter 6px; the price tab rounds only its top two corners (6px) so it reads as part of the card it stands up from. Filter chips are full pills, the only pill shape on the site, and gallery arrows, dots, share icons and the price pin are circles. Card photos are cropped to a 3:2 box with `object-fit: cover`. Outlines are hairlines: 1px Border Light on cards and 1px Border on fields.
+Index cards with gently rounded corners. Cards, panels, dialogs and the share sheet use a 12px radius. Small inset or floating surfaces (alerts, map popups, the nav's logo tile, share tiles) use 8px. Buttons, inputs, tags and badges use a tighter 6px; the price tab rounds only its top two corners (6px) so it reads as part of the card it stands up from. Filter chips are full pills, the only pill shape on the site, and gallery arrows, dots and share icons are circles. Card photos are cropped to a 3:2 box with `object-fit: cover`. Outlines are hairlines: 1px Border Light on cards and 1px Border on fields.
 
 ### Named Rules
 **The Index Card Rule.** Containers are 12px, small inset surfaces 8px, controls 6px; filter chips are pills and nothing else is. A new component picks one of these, never a new radius.
@@ -304,7 +299,7 @@ Solid and pressable, like a well-made index-card tab.
 ### Tags
 Small facts at the bottom of a card and inside the listing view.
 - **Style:** 6px corners, 0.75rem/700, a 1px border, Fog by default.
-- **Variants:** Included (green tint), Tenant pays (gold tint), Preference (white, hairline border, green icon, "Prefers …"), and a borderless "+N more".
+- **Variants:** Included (green tint), plain (Fog; paid parking, paid laundry), Preference (white, hairline border, green icon, "Prefers …"), and a borderless "+N more". No gold tag: on a card gold is the price.
 
 ### Cards / Containers
 - **Corner Style:** 12px.
@@ -324,10 +319,10 @@ Small facts at the bottom of a card and inside the listing view.
 
 ### Listing Card (signature)
 The pinned index card, in this order:
-1. A 3:2 photo. A Gold semester badge (top right, uppercase label) appears only on a card whose semester differs from the one most listings on screen share.
-2. The **price tab**: a white tab with rounded top corners standing up over the photo's bottom edge, held by a small Gold pin. Inside: the rent in Catamount Green (Title, 700, tabular figures), "/mo" in Text Secondary, and "or best offer" as a label when negotiable.
+1. A 3:2 photo. A green semester badge with white text (top right, uppercase label) appears only on a card whose semester differs from the one most listings on screen share.
+2. The **price tab**: a Gold tab with rounded top corners standing up over the photo's bottom edge. Everything on it is Catamount Green (7.25:1): the rent (Title, 700, tabular figures), "/mo", and "or best offer" as a label when negotiable.
 3. The shortened address on one line (Body).
-4. One facts line in Text Secondary: size and roommates, then distance ("3 bd · 1 ba · 1 roommate · 0.5 mi to campus"), and a second line for estimated utilities when given.
+4. One facts line in Text Secondary: size and roommates, then distance from campus ("3 bd · 1 ba · 1 roommate · 0.5 mi"; the card's accessible name spells out "miles from campus"). It fits one line at both 390px and 1280px; a second line carries estimated utilities when given.
 5. At most three tags: a roommate preference first if there is one, then the amenities rarest among the listings on screen, then "+N more".
 
 The poster's name is not on the card; it is in the listing view. The whole card is a keyboard-focusable button that opens the listing view.
@@ -344,7 +339,7 @@ Green, with the credit, the Instagram contact, and a standing line: "An independ
 ## Do's and Don'ts
 
 ### Do:
-- **Do** use Catamount Green (#154734) for every primary action, the price and the selected state, and Gold (#FFD100) only as a pin.
+- **Do** use Catamount Green (#154734) for every primary action and the selected state, and Gold (#FFD100) only as a pin: the price tab, the active page, Edit.
 - **Do** keep every listing card's facts in the same positions (price tab, address, facts line, tags), so the board scans.
 - **Do** use the seven `--text-*` sizes and the two weights, and keep form fields at 1rem.
 - **Do** tint text, scrims and shadows with Slate Ink (#00313C), and use the shadow vocabulary as it stands.

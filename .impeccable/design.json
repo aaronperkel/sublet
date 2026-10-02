@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-02T14:54:08+00:00",
+  "generatedAt": "2026-10-02T20:54:40+00:00",
   "title": "Design System: UVM Sublets",
   "extensions": {
     "colorMeta": {
@@ -494,11 +494,6 @@
         "purpose": "A card's price tab, casting up onto the photo."
       },
       {
-        "name": "pin",
-        "value": "0 1px 1.5px rgba(0, 49, 60, 0.4)",
-        "purpose": "The gold pin on the tab."
-      },
-      {
         "name": "field-focus",
         "value": "0 0 0 3px rgba(21, 71, 52, 0.1)",
         "purpose": "Green glow around a focused input or select."
@@ -591,9 +586,9 @@
       "name": "Tags",
       "kind": "chip",
       "refersTo": "tag-included",
-      "description": "Facts on a card: preference (white), included (green tint), tenant pays (gold tint), \"+N more\".",
-      "html": "<span class=\"ds-tag ds-tag-pref\">Prefers Women</span> <span class=\"ds-tag ds-tag-inc\">Pets OK</span> <span class=\"ds-tag ds-tag-ten\">Paid laundry</span> <span class=\"ds-tag ds-tag-more\">+2 more</span>",
-      "css": ".ds-tag{display:inline-flex;align-items:center;gap:.25rem;font:700 var(--text-xs,.75rem)/1.4 'Bricolage Grotesque','Bricolage Fallback',-apple-system,'Segoe UI',Roboto,Arial,sans-serif;padding:.15rem .45rem;border-radius:var(--radius-xs,6px);background:var(--fog,#F7F7F7);color:var(--text-secondary,#4a5e63);border:1px solid var(--border-light,#eef1f2);white-space:nowrap} .ds-tag-pref{background:#fff;border-color:var(--border,#dce1e3)} .ds-tag-inc{background:var(--included-tint,#e8f5e9);color:var(--included-ink,#1a6b4a);border-color:var(--included-line,#c8e6c9)} .ds-tag-ten{background:var(--tenant-tint,#fff8e1);color:var(--tenant-ink,#7a6100);border-color:var(--tenant-line,#ffecb3)} .ds-tag-more{background:transparent;border-color:transparent}"
+      "description": "Facts on a card: preference (white), included (green tint), plain (paid amenities), \"+N more\". No gold tag.",
+      "html": "<span class=\"ds-tag ds-tag-pref\">Prefers Women</span> <span class=\"ds-tag ds-tag-inc\">Pets OK</span> <span class=\"ds-tag\">Paid laundry</span> <span class=\"ds-tag ds-tag-more\">+2 more</span>",
+      "css": ".ds-tag{display:inline-flex;align-items:center;gap:.25rem;font:700 var(--text-xs,.75rem)/1.4 'Bricolage Grotesque','Bricolage Fallback',-apple-system,'Segoe UI',Roboto,Arial,sans-serif;padding:.15rem .45rem;border-radius:var(--radius-xs,6px);background:var(--fog,#F7F7F7);color:var(--text-secondary,#4a5e63);border:1px solid var(--border-light,#eef1f2);white-space:nowrap} .ds-tag-pref{background:#fff;border-color:var(--border,#dce1e3)} .ds-tag-inc{background:var(--included-tint,#e8f5e9);color:var(--included-ink,#1a6b4a);border-color:var(--included-line,#c8e6c9)} .ds-tag-more{background:transparent;border-color:transparent}"
     },
     {
       "name": "Text Field",
@@ -615,17 +610,17 @@
       "name": "Listing Card",
       "kind": "card",
       "refersTo": "card-listing",
-      "description": "The pinned index card: 3:2 photo, a white price tab pinned over its edge, address, one facts line, at most three tags.",
-      "html": "<article class=\"ds-card\" tabindex=\"0\"><div class=\"ds-card-photo\"></div><div class=\"ds-card-info\"><p class=\"ds-price\"><span class=\"ds-amt\">$975</span><span class=\"ds-unit\">/mo</span><span class=\"ds-note\">or best offer</span></p><p class=\"ds-addr\">37 Sample Street, Burlington</p><p class=\"ds-facts\">3 bd · 1 ba · 1 roommate · 0.5 mi to campus</p></div><div class=\"ds-card-tags\"><span class=\"ds-tag2 ds-pref\">Prefers Women</span><span class=\"ds-tag2 ds-inc\">Pets OK</span><span class=\"ds-tag2 ds-more\">+2 more</span></div></article>",
-      "css": ".ds-card{width:300px;background:#fff;border-radius:var(--radius,12px);overflow:hidden;border:1px solid var(--border-light,#eef1f2);box-shadow:0 1px 3px rgba(0,49,60,.06);cursor:pointer;transition:box-shadow .2s ease,transform .2s ease;font-family:'Bricolage Grotesque','Bricolage Fallback',-apple-system,'Segoe UI',Roboto,Arial,sans-serif} .ds-card:hover{box-shadow:0 4px 16px rgba(0,49,60,.10);transform:translateY(-2px)} .ds-card:focus-visible{outline:3px solid var(--focus,#2f86c9);outline-offset:2px;} .ds-card-photo{aspect-ratio:3/2;background:linear-gradient(135deg,#cfd8d4,#e9eeec)} .ds-card-info{padding:0 1rem .75rem} .ds-price{position:relative;z-index:1;display:inline-flex;align-items:baseline;flex-wrap:wrap;column-gap:.3rem;margin:-1.45rem 0 .4rem -.35rem;padding:.4rem .75rem .15rem 1.45rem;background:#fff;border-radius:6px 6px 0 0;box-shadow:0 -3px 8px rgba(0,49,60,.12);color:var(--green,#154734);line-height:1.15} .ds-price::before{content:'';position:absolute;left:.6rem;top:.8rem;width:.5rem;height:.5rem;border-radius:50%;background:var(--gold,#FFD100);box-shadow:0 1px 1.5px rgba(0,49,60,.4)} .ds-amt{font-size:var(--text-xl,1.375rem);font-weight:700;letter-spacing:-.01em;font-variant-numeric:tabular-nums} .ds-unit{font-size:var(--text-sm,.875rem);color:var(--text-secondary,#4a5e63)} .ds-note{font-size:var(--text-xs,.75rem);font-weight:700;color:var(--text-secondary,#4a5e63);text-transform:uppercase;letter-spacing:.04em} .ds-addr{margin:0;font-size:1rem;color:var(--text,#00313C);white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .ds-facts{margin:.15rem 0 0;font-size:var(--text-sm,.875rem);color:var(--text-secondary,#4a5e63)} .ds-card-tags{display:flex;flex-wrap:wrap;gap:.3rem;padding:0 1rem .875rem} .ds-tag2{font-size:var(--text-xs,.75rem);font-weight:700;padding:.15rem .45rem;border-radius:6px;border:1px solid var(--border-light,#eef1f2);background:var(--fog,#F7F7F7);color:var(--text-secondary,#4a5e63)} .ds-pref{background:#fff;border-color:var(--border,#dce1e3)} .ds-inc{background:var(--included-tint,#e8f5e9);color:var(--included-ink,#1a6b4a);border-color:var(--included-line,#c8e6c9)} .ds-more{background:transparent;border-color:transparent}"
+      "description": "The pinned index card: 3:2 photo, a gold price tab over its edge, address, one facts line, at most three tags.",
+      "html": "<article class=\"ds-card\" tabindex=\"0\"><div class=\"ds-card-photo\"></div><div class=\"ds-card-info\"><p class=\"ds-price\"><span class=\"ds-amt\">$975</span><span class=\"ds-unit\">/mo</span><span class=\"ds-note\">or best offer</span></p><p class=\"ds-addr\">37 Sample Street, Burlington</p><p class=\"ds-facts\">3 bd · 1 ba · 1 roommate · 0.5 mi</p></div><div class=\"ds-card-tags\"><span class=\"ds-tag2 ds-pref\">Prefers Women</span><span class=\"ds-tag2 ds-inc\">Pets OK</span><span class=\"ds-tag2 ds-more\">+2 more</span></div></article>",
+      "css": ".ds-card{width:300px;background:#fff;border-radius:var(--radius,12px);overflow:hidden;border:1px solid var(--border-light,#eef1f2);box-shadow:0 1px 3px rgba(0,49,60,.06);cursor:pointer;transition:box-shadow .2s ease,transform .2s ease;font-family:'Bricolage Grotesque','Bricolage Fallback',-apple-system,'Segoe UI',Roboto,Arial,sans-serif} .ds-card:hover{box-shadow:0 4px 16px rgba(0,49,60,.10);transform:translateY(-2px)} .ds-card:focus-visible{outline:3px solid var(--focus,#2f86c9);outline-offset:2px;} .ds-card-photo{aspect-ratio:3/2;background:linear-gradient(135deg,#cfd8d4,#e9eeec)} .ds-card-info{padding:0 1rem .75rem} .ds-price{position:relative;z-index:1;display:inline-flex;align-items:baseline;flex-wrap:wrap;column-gap:.3rem;margin:-1.45rem 0 .4rem -.35rem;padding:.4rem .75rem .15rem;background:var(--gold,#FFD100);border-radius:6px 6px 0 0;box-shadow:0 -3px 8px rgba(0,49,60,.12);color:var(--green,#154734);line-height:1.15} .ds-amt{font-size:var(--text-xl,1.375rem);font-weight:700;letter-spacing:-.01em;font-variant-numeric:tabular-nums} .ds-unit{font-size:var(--text-sm,.875rem)} .ds-note{font-size:var(--text-xs,.75rem);font-weight:700;text-transform:uppercase;letter-spacing:.04em} .ds-addr{margin:0;font-size:1rem;color:var(--text,#00313C);white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .ds-facts{margin:.15rem 0 0;font-size:var(--text-sm,.875rem);color:var(--text-secondary,#4a5e63)} .ds-card-tags{display:flex;flex-wrap:wrap;gap:.3rem;padding:0 1rem .875rem} .ds-tag2{font-size:var(--text-xs,.75rem);font-weight:700;padding:.15rem .45rem;border-radius:6px;border:1px solid var(--border-light,#eef1f2);background:var(--fog,#F7F7F7);color:var(--text-secondary,#4a5e63)} .ds-pref{background:#fff;border-color:var(--border,#dce1e3)} .ds-inc{background:var(--included-tint,#e8f5e9);color:var(--included-ink,#1a6b4a);border-color:var(--included-line,#c8e6c9)} .ds-more{background:transparent;border-color:transparent}"
     }
   ],
   "narrative": {
     "northStar": "The Campus Notice Board",
-    "overview": "**Creative North Star: \"The Campus Notice Board\"**\n\nUVM Sublets is the bulletin board outside every dorm, kept tidy. Each listing is an index card pinned to the same board: a photo, a price, a few facts about the place, all in the same positions on every card so a student can scan a wall of them in seconds. The board is green felt (Catamount Green), the pins are Gold, and the cards are white paper that lifts a little when you reach for one. Order is what makes the board useful; the handwriting on it is what makes it feel like it came from a fellow student rather than an office.\n\nThe confirmed mood is **friendly and student-made, lively and social**. It should feel like something students run for each other: warm, direct, and worth sharing into a group chat or a story. It is not an institutional portal and it is not a real-estate marketplace. Density is moderate: generous enough for photos to carry each card, tight enough that a phone screen shows a listing's price and facts without opening it.\n\nThe notice board is drawn with **light touches**, not a costume: the price on each card is a paper tab pinned over the photo's edge, and that is the motif. No tilted cards, no cork texture, no handwriting fonts. Everything is set in **Bricolage Grotesque**, a grotesque with ink traps and a little flyer energy, self-hosted and used at two weights.",
+    "overview": "**Creative North Star: \"The Campus Notice Board\"**\n\nUVM Sublets is the bulletin board outside every dorm, kept tidy. Each listing is an index card pinned to the same board: a photo, a price, a few facts about the place, all in the same positions on every card so a student can scan a wall of them in seconds. The board is green felt (Catamount Green), the pins are Gold, and the cards are white paper that lifts a little when you reach for one. Order is what makes the board useful; the handwriting on it is what makes it feel like it came from a fellow student rather than an office.\n\nThe confirmed mood is **friendly and student-made, lively and social**. It should feel like something students run for each other: warm, direct, and worth sharing into a group chat or a story. It is not an institutional portal and it is not a real-estate marketplace. Density is moderate: generous enough for photos to carry each card, tight enough that a phone screen shows a listing's price and facts without opening it.\n\nThe notice board is drawn with **light touches**, not a costume: the price on each card is a gold tab standing up over the photo's edge, and that is the motif. No tilted cards, no cork texture, no handwriting fonts. Everything is set in **Bricolage Grotesque**, a grotesque with ink traps and a little flyer energy, self-hosted and used at two weights.",
     "keyCharacteristics": [
       "Deep green structure, bright gold pins, white index cards on a pale fog ground.",
-      "Every listing card shows the same facts in the same places: photo, pinned price tab, address, one facts line, at most three tags.",
+      "Every listing card shows the same facts in the same places: photo, gold price tab, address, one facts line, at most three tags.",
       "A soft, slate-tinted lift: cards rest on a faint shadow and rise slightly when a real pointer hovers.",
       "Tactile, pinned controls: solid buttons, pill-shaped filter chips that snap to green when selected.",
       "One typeface, two weights, seven sizes. Light mode only. Text and shadows are slate, never black."
@@ -633,7 +628,7 @@
     "rules": [
       {
         "name": "The Two-Pin Rule",
-        "body": "Green is the board and Gold is the pin. Green carries structure and every primary action. Gold marks only what is pinned: the price tab's pin, the active page, a card that stands apart from the board's semester, the poster's own Edit. Gold never fills a large area and is never text on a light ground.",
+        "body": "Green is the board and Gold is the pin. Green carries structure and every primary action. Gold marks only what is pinned: the price tab, the active page, the poster's own Edit. On a card, gold means the price and nothing else. Gold never fills a large area and is never text on a light ground.",
         "section": "colors"
       },
       {
@@ -678,7 +673,7 @@
       }
     ],
     "dos": [
-      "**Do** use Catamount Green (#154734) for every primary action, the price and the selected state, and Gold (#FFD100) only as a pin.",
+      "**Do** use Catamount Green (#154734) for every primary action and the selected state, and Gold (#FFD100) only as a pin: the price tab, the active page, Edit.",
       "**Do** keep every listing card's facts in the same positions (price tab, address, facts line, tags), so the board scans.",
       "**Do** use the seven `--text-*` sizes and the two weights, and keep form fields at 1rem.",
       "**Do** tint text, scrims and shadows with Slate Ink (#00313C), and use the shadow vocabulary as it stands.",

@@ -168,7 +168,10 @@ foreach ($availableSemesters as $sem) {
                 // One line of the facts that differ between listings.
                 $facts = $sizeSummary !== '' ? [$sizeSummary] : [];
                 if (isset($sublet['distance_mi'])) {
-                    $facts[] = number_format((float)$sublet['distance_mi'], 1) . ' mi to campus';
+                    // Just "0.5 mi": with "to campus" the line wrapped at desktop
+                    // card width. Distance from campus is the only distance the
+                    // site measures, and the card's aria-label says so in full.
+                    $facts[] = number_format((float)$sublet['distance_mi'], 1) . ' mi';
                 }
                 $utilityCost = (float)($sublet['utility_cost'] ?? 0);
             ?>
@@ -177,7 +180,7 @@ foreach ($availableSemesters as $sem) {
             <div class="listing-card"
                  role="button"
                  tabindex="0"
-                 aria-label="View listing at <?= htmlspecialchars($displayAddress) ?>, $<?= number_format($sublet['price']) ?> per month"
+                 aria-label="View listing at <?= htmlspecialchars($displayAddress) ?>, $<?= number_format($sublet['price']) ?> per month<?= isset($sublet['distance_mi']) ? ', ' . number_format((float)$sublet['distance_mi'], 1) . ' miles from campus' : '' ?>"
                  data-id="<?= $sublet['id'] ?>"
                  <?php /* The public /s/ link for this listing. Carried on every
                           card because the share sheet is opened from the modal,

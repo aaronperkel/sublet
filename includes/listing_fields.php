@@ -137,17 +137,18 @@ function listing_size_summary(array $s): string {
 /**
  * The amenity tags a listing card can carry, in tie-break order.
  *
- * `kind` picks the tint: `included` comes with the place (green), `tenant`
- * costs the subletter extra (gold).
+ * `kind` picks the tint: `included` comes with the place (green); `plain` is
+ * the neutral tag, used for the amenities the subletter pays extra for. Those
+ * were gold, but on a card gold means the price and nothing else.
  */
 const LISTING_CARD_TAGS = [
     'amenity_pets_allowed'     => ['label' => 'Pets OK',       'icon' => 'fa-paw',            'kind' => 'included'],
     'amenity_air_conditioning' => ['label' => 'A/C',           'icon' => 'fa-snowflake',      'kind' => 'included'],
     'amenity_dishwasher'       => ['label' => 'Dishwasher',    'icon' => 'fa-sink',           'kind' => 'included'],
     'amenity_free_parking'     => ['label' => 'Free parking',  'icon' => 'fa-square-parking', 'kind' => 'included'],
-    'amenity_paid_parking'     => ['label' => 'Paid parking',  'icon' => 'fa-square-parking', 'kind' => 'tenant'],
+    'amenity_paid_parking'     => ['label' => 'Paid parking',  'icon' => 'fa-square-parking', 'kind' => 'plain'],
     'amenity_laundry_free'     => ['label' => 'Laundry',       'icon' => 'fa-shirt',          'kind' => 'included'],
-    'amenity_laundry_paid'     => ['label' => 'Paid laundry',  'icon' => 'fa-shirt',          'kind' => 'tenant'],
+    'amenity_laundry_paid'     => ['label' => 'Paid laundry',  'icon' => 'fa-shirt',          'kind' => 'plain'],
     'amenity_furnished'        => ['label' => 'Furnished',     'icon' => 'fa-couch',          'kind' => 'included'],
 ];
 
