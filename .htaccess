@@ -40,3 +40,8 @@ DirectoryIndex landing.php
 # which has its own RewriteEngine — is unaffected by turning it on here.
 RewriteEngine On
 RewriteRule ^s/([0-9]+-[a-f0-9]{10})/?$ /s.php?i=$1 [L,QSA]
+
+# The read-only demo at /demo/ was retired. Old links (the README, past story
+# posts) land on the front page instead of a 404. Deliberately a 302: a 301 is
+# cached by browsers indefinitely, and a new demo may take this path back.
+RewriteRule ^demo(/.*)?$ / [R=302,L]

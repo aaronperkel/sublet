@@ -22,7 +22,7 @@ Since this directory is the live docroot, a fatal parse error takes the site dow
 
 ## Configuration
 
-`.env` is loaded from **one level above the web root** (`/users/a/p/aperkel/.env`), not from the `.env` in this directory — `includes/db.php` calls `Dotenv::createImmutable(__DIR__ . '/../../')`, and `demo/includes/db.php` uses `'/../../../'`. The in-repo `.env` is not the file being read. Keys: `DBNAME`, `DBUSER`, `DBPASS`, `GOOGLE_API`. The DB host `webdb.uvm.edu` is hardcoded in both `db.php` files.
+`.env` is loaded from **one level above the web root** (`/users/a/p/aperkel/.env`), not from the `.env` in this directory — `includes/db.php` calls `Dotenv::createImmutable(__DIR__ . '/../../')`. The in-repo `.env` is not the file being read. Keys: `DBNAME`, `DBUSER`, `DBPASS`, `GOOGLE_API`. The DB host `webdb.uvm.edu` is hardcoded in `includes/db.php`.
 
 ## Authentication — Apache, not PHP
 
@@ -37,17 +37,11 @@ Since this directory is the live docroot, a fatal parse error takes the site dow
 |---|---|---|
 | `landing.php` | Public marketing/roadmap page; `DirectoryIndex` at the root. Fully self-contained — inline `<style>`, does not use `includes/header.php`. | none |
 | `app/` | The real application. | CAS |
-| `demo/` | Read-only mirror of `app/` with sample data. | `AuthType None` |
 | `recover/` | Break-glass restore of `app/.htaccess`. Self-contained like `landing.php`; requires only `auth.php` + `htaccess_allowlist.php`, never `db.php`. | CAS, `Require user aperkel` |
 | `s.php` | Public interstitial a share link lands on, reached as `/s/<id>-<token>`. Self-contained like `landing.php`. See "Sharing a listing". | none |
 | `share-card.php` | Generates the preview image the share link unfurls into. | none |
 
-`demo/` **duplicates** `index.php`, `map.php`, `post.php`, and the `includes/` files rather than sharing them. It shares only `css/style.css`, `js/app.js`, and `public/images/`. So:
-
-- A markup change to `app/index.php` or `app/map.php` usually needs the parallel edit in `demo/`.
-- `demo/includes/db.php` defines `DEMO_MODE` and `$SUBLET_TABLE = 'sublets_demo'` / `$IMAGES_TABLE = 'sublet_images_demo'`; demo queries interpolate those variables into SQL.
-- `demo/includes/auth.php` returns `'DemoUser'`, `is_admin()` is always false, `require_admin()` always 403s.
-- `demo/api/*.php` are no-op stubs returning `{"success":true,"demo":true}`; only `geocode.php` proxies to the real endpoint. `demo/post.php` shows a success message without writing anything.
+There used to be a read-only `demo/` mirror of `app/` on sample data. It was retired in October 2026 because it duplicated `index.php`, `map.php`, `post.php` and `includes/` while sharing `css/style.css` and `js/app.js`, so every markup change had to be made twice. `/demo` now 302s to the front page (a 302 rather than a 301 so the path can be reused). The `sublets_demo` / `sublet_images_demo` tables may still exist until they are dropped by hand in phpMyAdmin; nothing reads them.
 
 ## The public link is go.uvm.edu/sublet
 
@@ -63,7 +57,7 @@ page. So deep links have to keep being built on the real host:
 
 | Constant (`includes/share.php`) | Use |
 |---|---|
-| `SHARE_ORIGIN` | anything with a path — `/s/<slug>`, `/app/`, `/demo/`, `og:image` |
+| `SHARE_ORIGIN` | anything with a path — `/s/<slug>`, `/app/`, `og:image` |
 | `SHARE_SHORT_URL` | a link that only has to reach the front door |
 | `SHARE_DISPLAY_URL` | the bare `go.uvm.edu/sublet` painted into artwork |
 
@@ -160,8 +154,6 @@ returns from CAS; it **drops the other filters** for that request, so a stale
 price or semester in the URL cannot hide the card the link was sent to open.
 Visibility still applies.
 
-`demo/` has no share button — the one part of `app/` it does not mirror.
-
 ## Access allowlist (who can reach `/app/`)
 
 The **Access** tab in `app/admin.php` edits who gets in, so that granting an
@@ -247,7 +239,7 @@ Pages inside `app/` set `$basePath = '../'` *before* requiring `../includes/head
 
 ## Client-side: one file, page-dispatched
 
-`js/app.js` is a single `DOMContentLoaded` block that branches on `document.body.dataset.page` (set by `header.php` from `basename($_SERVER['PHP_SELF'])`) and reads `dataset.user` / `dataset.admin`. Server→client data is passed through globals emitted inline by each page: `window.SUBLET_CONFIG`, `window.MAP_SUBLETS`, `window.POST_CONFIG`, `window.DEMO_MODE`. Assets are cache-busted with `?v=<?= filemtime(...) ?>`.
+`js/app.js` is a single `DOMContentLoaded` block that branches on `document.body.dataset.page` (set by `header.php` from `basename($_SERVER['PHP_SELF'])`) and reads `dataset.user` / `dataset.admin`. Server→client data is passed through globals emitted inline by each page: `window.SUBLET_CONFIG`, `window.MAP_SUBLETS`, `window.POST_CONFIG`. Assets are cache-busted with `?v=<?= filemtime(...) ?>`.
 
 Adding a page means adding both an `init<Page>()` branch in `app.js` and the matching `$currentPage` checks in `header.php` (which is what conditionally loads Leaflet and noUiSlider).
 
@@ -257,7 +249,7 @@ Everything lives in one closure, so **module state read during init must be decl
 
 ## API layer (`app/api/`)
 
-Form-encoded POST in, JSON out — not REST. Endpoints dispatch on `$_POST['action']`; deletes are tunneled as `POST` with `_method=DELETE` (`images.php`). Admin endpoints call `require_admin()` immediately after setting the JSON header. `fetch()` calls in `app.js` use relative `api/...` paths so they resolve correctly under both `/app/` and `/demo/`.
+Form-encoded POST in, JSON out — not REST. Endpoints dispatch on `$_POST['action']`; deletes are tunneled as `POST` with `_method=DELETE` (`images.php`). Admin endpoints call `require_admin()` immediately after setting the JSON header. `fetch()` calls in `app.js` use relative `api/...` paths, resolved against `/app/`.
 
 | File | Notes |
 |---|---|
@@ -279,7 +271,6 @@ There is no schema/migration file in the tree; the shape below is what the queri
 - **`semesters`** — `code`, `name`, `active`, `sort_order`. `code` joins to `sublets.semester`; queries `COALESCE(sem.name, s.semester)` so unmapped codes still render.
 - **`contact_logs`** — `post_id`, `poster_username`, `contacted_by`, `contact_type`, `created_at`.
 - **`allowed_users`** — `uid`, `kind` (`allow`/`block`), `note`, `added_by`, `added_at`. `UNIQUE` on `uid` alone, not `(uid, kind)`: a netid is on one list or the other, never both. Source of truth for the generated `Require` line — see "Access allowlist". The `note` column is the reason someone has access ("gap year, back Fall 2026") and stays in the database; it never reaches `app/.htaccess`, which is committed to a public repo.
-- **`sublets_demo`** / **`sublet_images_demo`** — demo copies.
 
 ## Listing visibility (semester deactivation)
 
@@ -290,9 +281,9 @@ VISIBLE_SEMESTER_JOIN    // LEFT JOIN semesters sem ON s.semester = sem.code
 VISIBLE_SEMESTER_WHERE   // (sem.code IS NULL OR sem.active = 1)
 ```
 
-The `sem.code IS NULL` half is load-bearing, not defensive padding: listings whose semester code has no row in `semesters` must stay visible. The demo data relies on this — its codes (`summer2026`, `fall2026`) are unmapped, so a naive `sem.active = 1` would blank the entire demo site.
+The `sem.code IS NULL` half is load-bearing, not defensive padding: listings whose semester code has no row in `semesters` must stay visible. Hiding a listing takes an explicit deactivation; a code that is merely missing from the table (a legacy code, or one an admin has not added yet) must fail open, not silently blank those listings. A naive `sem.active = 1` would do exactly that.
 
-Applied in `includes/header.php` (dropdown + both slider bounds), `app/index.php`, `app/map.php`, and all four demo equivalents. **Any new query that lists sublets to the public needs it too.** `app/admin.php` deliberately does *not* filter — it shows every listing and flags the hidden ones via a `NOT (VISIBLE_SEMESTER_WHERE) as is_hidden` column.
+Applied in `includes/header.php` (dropdown + both slider bounds), in `build_listing_filters()` (`includes/listing_query.php`, shared by `app/index.php` and `app/map.php`), and in `landing.php`'s photo strip and counts. **Any new query that lists sublets to the public needs it too.** `app/admin.php` deliberately does *not* filter — it shows every listing and flags the hidden ones via a `NOT (VISIBLE_SEMESTER_WHERE) as is_hidden` column.
 
 Deactivation is reversible and deletes nothing. `app/post.php` keeps a deactivated semester selectable for the user who is already in it (otherwise the `<select>` would silently reassign their listing to the first option on save) and shows them an explanatory notice.
 
@@ -300,16 +291,15 @@ The rule also governs **who gets a broadcast email**: `$emailableUsers` in `app/
 
 ## Cleaning up public/images
 
-The database does **not** fully describe this directory. `favicon.svg` is referenced only from `includes/header.php`, so a DB-only orphan scan will delete it. Any cleanup must union the DB references (`sublets`, `sublets_demo`, `sublet_images`, `sublet_images_demo` — both `image_url` *and* `thumbnail_url`) with a grep of the source tree, and protect the `_thumb.webp` sibling of everything it keeps.
+The database does **not** fully describe this directory, so never clean it from the DB alone. Any cleanup must union the DB references (`sublets` and `sublet_images` — both `image_url` *and* `thumbnail_url`) with a grep of the source tree, and protect the `_thumb.webp` sibling of everything it keeps. (The favicon used to live here and was the classic casualty of a DB-only scan; it is now `assets/favicon.svg`.)
 
 Orphans accumulate mainly because uploads are keyed `{username}_{n}.{ext}`: re-posting with a different extension writes a new file instead of overwriting the old one.
 
 ## Things that are duplicated and drift easily
 
-- **Campus coordinates** `44.477435, -73.195323` are hardcoded in the distance SQL in `includes/header.php`, `app/index.php`, `app/map.php`, and the demo equivalents, and again as PHP haversine in `app/post.php` (which rejects locations >50 miles). Changing them means changing all of them.
-- **The listing filter query** (price / semester / distance) is copy-pasted across `app/index.php`, `app/map.php`, `demo/index.php`, `demo/map.php`.
-- **The listing modal markup** is duplicated in `app/index.php` and `app/map.php` (and both demo copies) and is driven by the shared `openModal()` in `app.js`.
-- **The Instagram handle** lives as `SOCIAL_INSTAGRAM_URL` / `SOCIAL_INSTAGRAM_HANDLE` in `includes/share.php`, used by `includes/footer.php` and `s.php`, and is hardcoded again in `demo/includes/footer.php`, `landing.php` and `app/api/email.php` — each of which is deliberately dependency-free and already hardcodes the short link for the same reason. Five places.
+- **Campus coordinates** `44.477435, -73.195323` are `CAMPUS_LAT` / `CAMPUS_LON` in `includes/listing_query.php` (used by the distance SQL and `app/post.php`'s haversine, which rejects locations >50 miles), and are written out again as `CAMPUS` in `js/app.js` and as the default map centre in `app/post.php`'s `POST_CONFIG`. Changing them means changing all three.
+- **The listing modal markup** is duplicated in `app/index.php` and `app/map.php` and is driven by the shared `openModal()` in `app.js`.
+- **The Instagram handle** lives as `SOCIAL_INSTAGRAM_URL` / `SOCIAL_INSTAGRAM_HANDLE` in `includes/share.php`, used by `includes/footer.php` and `s.php`, and is hardcoded again in `landing.php` and `app/api/email.php` — each of which is deliberately dependency-free and already hardcodes the short link for the same reason. Three places.
 
 ## Images
 

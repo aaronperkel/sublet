@@ -58,9 +58,9 @@ const SHARE_DISPLAY_URL = 'go.uvm.edu/sublet';
  * the two are separate for the same reason SHARE_SHORT_URL and
  * SHARE_DISPLAY_URL are.
  *
- * Hardcoded again in demo/includes/footer.php, landing.php and
- * app/api/email.php, each of which is deliberately dependency-free and already
- * hardcodes the short link for that reason. Change one, change all five.
+ * Hardcoded again in landing.php and app/api/email.php, each of which is
+ * deliberately dependency-free and already hardcodes the short link for that
+ * reason. Change one, change all three.
  */
 const SOCIAL_INSTAGRAM_URL    = 'https://www.instagram.com/uvmsublets/';
 const SOCIAL_INSTAGRAM_HANDLE = '@uvmsublets';

@@ -389,8 +389,8 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('modalDescription').textContent = data.description || 'No description provided.';
 
         // Bedrooms / bathrooms / roommates. Absent on listings that predate
-        // those fields, and on the demo site, so the block is only built when
-        // there is something to put in it.
+        // those fields, so the block is only built when there is something to
+        // put in it.
         var existingPlace = document.getElementById('modalPlace');
         if (existingPlace) existingPlace.remove();
         var placeHtml = buildPlaceHtml(data);

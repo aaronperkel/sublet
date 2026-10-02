@@ -324,24 +324,6 @@ if ($showcaseImages && count($showcaseImages) < 8) {
             }
         }
 
-        .demo-link-text {
-            text-align: center;
-            font-size: 0.9rem;
-            color: var(--text-secondary);
-            margin-bottom: 2rem;
-        }
-
-        .demo-link-text a {
-            color: var(--green);
-            text-decoration: underline;
-            text-underline-offset: 2px;
-            font-weight: 500;
-        }
-
-        .demo-link-text a:hover {
-            color: var(--sky);
-        }
-
         /* Features */
         .features {
             padding: 3.5rem 1.5rem 4rem;
@@ -565,9 +547,6 @@ if ($showcaseImages && count($showcaseImages) < 8) {
     <?php endif; ?>
 
     <section class="features">
-        <p class="demo-link-text">
-            Not a UVM student? <a href="demo/">See how the site works</a>
-        </p>
         <div class="features-grid">
             <div class="feature-card">
                 <div class="feature-icon">
@@ -605,7 +584,6 @@ if ($showcaseImages && count($showcaseImages) < 8) {
                     <li><i class="fa-solid fa-check"></i> Better image uploader &amp; rendering</li>
                     <li><i class="fa-solid fa-check"></i> Utilities &amp; amenity flags</li>
                     <li><i class="fa-solid fa-check"></i> New landing page</li>
-                    <li><i class="fa-solid fa-check"></i> New demo site</li>
                     <li><i class="fa-solid fa-check"></i> Bedroom, bathroom &amp; roommate info</li>
                     <li><i class="fa-solid fa-check"></i> Filter listings by amenities</li>
                     <li><i class="fa-solid fa-check"></i> Sort by price, date &amp; distance</li>

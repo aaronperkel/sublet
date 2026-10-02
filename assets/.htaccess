@@ -1,4 +1,4 @@
-# Project-owned static assets (favicon, demo sample imagery) that ship with the
+# Project-owned static assets (favicon, social graphics) that ship with the
 # repository. Unlike public/images/, nothing user-uploaded is ever written here.
 # The same execution guard applies anyway, so a mistake upstream can never turn
 # this directory into a code path.

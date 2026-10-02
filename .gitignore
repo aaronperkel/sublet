@@ -9,7 +9,7 @@ public/share/
 
 # User-uploaded listing photos. These are real students' images, keyed to their
 # netid by filename, and this repository is public — they must never be
-# committed. Project-owned imagery (favicon, demo samples) lives in assets/
+# committed. Project-owned imagery (favicon, social graphics) lives in assets/
 # instead, which is tracked. public/.htaccess is still tracked.
 public/images/
 

@@ -5,11 +5,10 @@ campus. Students create a listing with photos, price, address, semester and
 description; everyone else browses them in a grid or on an interactive map,
 filtered by price, semester and distance from campus.
 
-Live at **[go.uvm.edu/sublet](https://go.uvm.edu/sublet)** · public demo at
-**[/demo/](https://sublet.aperkel.w3.uvm.edu/demo/)** (no login required).
+Live at **[go.uvm.edu/sublet](https://go.uvm.edu/sublet)**.
 
 `go.uvm.edu/sublet` is the link to share. It redirects to the app's real host,
-`sublet.aperkel.w3.uvm.edu`, which is still what deep links such as `/demo/` and
+`sublet.aperkel.w3.uvm.edu`, which is still what deep links such as `/app/` and
 `/s/<id>-<token>` have to be built on — the short link is one redirect to the
 root, not a path prefix.
 
@@ -19,15 +18,10 @@ root, not a path prefix.
 |---|---|
 | `landing.php` | Public marketing / roadmap page. `DirectoryIndex` at the root, fully self-contained. |
 | `app/` | The real application. Behind CAS authentication. |
-| `demo/` | Read-only mirror of `app/` running on sample data, open to anyone. |
 | `includes/` | Shared PHP: DB connection, auth, header, thumbnailing, visibility rules. |
-| `assets/` | Project-owned static imagery — favicon and the demo sample listings. |
+| `assets/` | Project-owned static imagery — favicon and social graphics. |
 | `public/images/` | Runtime upload target for listing photos. Not tracked (see below). |
 | `css/`, `js/` | One stylesheet and one page-dispatched JS file. |
-
-`demo/` deliberately duplicates `index.php`, `map.php`, `post.php` and its own
-`includes/` rather than sharing them, so a markup change in `app/` usually needs
-the parallel edit in `demo/`. It shares only `css/`, `js/` and `assets/`.
 
 ## Running it
 
@@ -86,15 +80,13 @@ filename. Both live in `includes/`; new POST endpoints need the former.
   site without deleting anything. The rule lives in `includes/visibility.php`
   and any new public listing query needs it.
 - **`contact_logs`** — records when a browser contacts a poster.
-- **`sublets_demo`** / **`sublet_images_demo`** — sample data behind `/demo/`.
 
 ## A note on `public/images/`
 
 Listing photos are uploaded by real students and are named after their UVM
 netid, so `public/images/` is **git-ignored** and this repository contains none
 of them. A fresh clone will render listings without imagery until uploads
-accumulate; the demo's sample SVGs live in `assets/` and are tracked, so `/demo/`
-looks correct immediately.
+accumulate.
 
 ## License
 

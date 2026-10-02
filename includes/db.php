@@ -50,7 +50,7 @@ function resolve_path(string $path): string {
  *
  * Returning a root-relative URL keeps image loads out of the protected
  * directory altogether: /public/images/ is served directly, and is already
- * public (the demo site, which has no auth at all, shares that same directory).
+ * public (landing.php's photo strip loads from it without a sign-in).
  */
 function image_src(?string $path): string {
     if ($path === null || $path === '') {

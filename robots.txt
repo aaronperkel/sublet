@@ -15,7 +15,7 @@ Disallow: /share-card.php
 Disallow: /app/
 
 # Listing photos are uploaded by real students and are named after their
-# NetID. The directory is served without authentication because the demo site
-# and the link previews both need it, which is exactly why it should not also
-# be indexable.
+# NetID. The directory is served without authentication because the landing
+# page's photo strip loads from it, which is exactly why it should not also be
+# indexable.
 Disallow: /public/images/

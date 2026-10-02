@@ -188,16 +188,6 @@ if ($listing === null) {
             margin-top: 0.9rem;
         }
 
-        .share-alt {
-            margin-top: 1.5rem;
-            padding-top: 1.25rem;
-            border-top: 1px solid var(--border-light);
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-        }
-
-        .share-alt a { color: var(--green); font-weight: 600; }
-
         .share-foot {
             margin-top: 1.5rem;
             font-size: 0.8rem;
@@ -234,11 +224,6 @@ if ($listing === null) {
                 </p>
                 <a class="share-btn" href="<?= htmlspecialchars($appUrl) ?>">Browse sublets</a>
             <?php endif; ?>
-
-            <p class="share-alt">
-                Not a UVM student?
-                <a href="<?= htmlspecialchars(SHARE_ORIGIN) ?>/demo/">See how the site works &rarr;</a>
-            </p>
         </div>
     </main>
 
