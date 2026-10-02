@@ -222,7 +222,7 @@ function render_managed_block(array $allow, array $block): string {
     return ALLOWLIST_BEGIN . "\n"
         . "# Generated from the allowed_users table by the Access tab in app/admin.php.\n"
         . "# Do not edit by hand: the next change made in the portal overwrites it.\n"
-        . "# Last written " . date('Y-m-d H:i:s') . ".\n"
+        . "# Last written " . date('Y-m-d H:i:s T') . ".\n"
         . 'Require ldap-filter ' . $filter . "\n"
         . ALLOWLIST_END;
 }
@@ -302,7 +302,11 @@ function htaccess_backup(?string &$error): ?string {
         return null;
     }
 
-    $backup = $dir . '/app.htaccess.' . date('Ymd-His') . '.' . getmypid();
+    // UTC, not local time: backups are ordered by name (list_htaccess_backups()),
+    // and local time runs backwards for an hour each November, which would let
+    // prune_htaccess_backups() discard the newest copy. Every backup made
+    // before .user.ini set a timezone was named in UTC too.
+    $backup = $dir . '/app.htaccess.' . gmdate('Ymd-His') . '.' . getmypid();
     if (!@copy(htaccess_path(), $backup)) {
         $error = 'Could not back up app/.htaccess, so nothing was changed.';
         return null;

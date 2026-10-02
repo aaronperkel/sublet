@@ -22,7 +22,11 @@ Since this directory is the live docroot, a fatal parse error takes the site dow
 
 ## Configuration
 
-`.env` is loaded from **one level above the web root** (`/users/a/p/aperkel/.env`), not from the `.env` in this directory — `includes/db.php` calls `Dotenv::createImmutable(__DIR__ . '/../../')`. The in-repo `.env` is not the file being read. Keys: `DBNAME`, `DBUSER`, `DBPASS`, `GOOGLE_API`. The DB host `webdb.uvm.edu` is hardcoded in `includes/db.php`.
+`.env` is loaded from **one level above the web root** (`/users/a/p/aperkel/.env`) — `includes/db.php` calls `Dotenv::createImmutable(__DIR__ . '/../../')`. There is no `.env` in this directory, and the root `.htaccess` would refuse to serve one. Keys: `DBNAME`, `DBUSER`, `DBPASS`, `GOOGLE_API`. The DB host `webdb.uvm.edu` is hardcoded in `includes/db.php`.
+
+PHP settings for the web server live in `.user.ini` (upload limits, `date.timezone`). The CLI never reads it, so `/usr/bin/php82 -r` runs in UTC; use `php82 -c .user.ini -r '…'` to see what the web server sees. Changes take up to `user_ini.cache_ttl` (300s) to apply.
+
+**Time zones.** PHP's `date()` is America/New_York via `.user.ini`, matching the server clock and MySQL (`time_zone = SYSTEM`, Eastern). Every DB timestamp (`posted_at`, `created_at`, `added_at`) is filled by `DEFAULT CURRENT_TIMESTAMP`; PHP never writes one. Before October 2026 PHP ran in UTC, so `updated_at` values in old copies of `data/announcement.json` and older "Last written" lines are UTC. The `.htaccess` backup filenames are deliberately still UTC (`gmdate()`), because they are sorted by name and local time repeats an hour every November.
 
 ## Authentication — Apache, not PHP
 
