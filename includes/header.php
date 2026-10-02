@@ -49,19 +49,25 @@ $availableSemesters = $stmtSemesters->fetchAll(PDO::FETCH_ASSOC);
     <meta name="description" content="Find and post sublet listings exclusively for UVM students.">
     <meta name="author" content="Aaron Perkel">
     <link rel="icon" type="image/svg+xml" href="<?= $basePath ?>assets/favicon.svg">
+    <?php /* Exact versions with SRI hashes (cdnjs's published ones). Leaflet used
+             to come from unpkg as leaflet@1.9, a range that unpkg answers with
+             a redirect on every load before serving anything. Bumping either
+             library means updating its integrity values too. */ ?>
     <?php if ($currentPage === 'index' || $currentPage === 'map'): ?>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.css" integrity="sha512-qveKnGrvOChbSzAdtSs8p69eoLegyh+1hwOMbmpCViIwj7rn4oJjdmMvWOuyQlTOZgTlZA0N2PXA7iA8/2TUYA==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <?php endif; ?>
     <?php if ($currentPage === 'map' || $currentPage === 'post'): ?>
-        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9/dist/leaflet.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" integrity="sha512-Zcn6bjR/8RZbLEpLIeOwNtzREBAJnUKESxces60Mpoj+2okopSAcSUIUOseddDm0cxnGQzxIR7vJgsLZbdLE3w==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <?php endif; ?>
     <link rel="stylesheet" href="<?= $basePath ?>css/style.css?v=<?= filemtime(__DIR__ . '/../css/style.css') ?>">
-    <script src="https://kit.fontawesome.com/c428e5511d.js" crossorigin="anonymous"></script>
+    <?php /* Deferred: the kit only injects a stylesheet (it is configured for
+             the CSS method), so nothing needs it before the page is parsed. */ ?>
+    <script src="https://kit.fontawesome.com/c428e5511d.js" crossorigin="anonymous" defer></script>
     <?php if ($currentPage === 'map' || $currentPage === 'post'): ?>
-        <script src="https://unpkg.com/leaflet@1.9/dist/leaflet.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js" integrity="sha512-BwHfrr4c9kmRkLw6iXFdzcdWV/PGkVgiIyIWLLlTSXzWQzxuSg4DiQUCpauz/EWjgk5TYQqX/kvn9pG1NpYfqg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <?php endif; ?>
     <?php if ($currentPage === 'index' || $currentPage === 'map'): ?>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.js" integrity="sha512-1mDhG//LAjM3pLXCJyaA+4c+h5qmMoTc7IuJyuNNPaakrWT9rVTxICK4tIizf7YwJsXgDC2JP74PGCc7qxLAHw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <?php endif; ?>
 </head>
 <body data-page="<?= $currentPage ?>" data-user="<?= htmlspecialchars($currentUser ?: 'Guest') ?>" data-user-name="<?= htmlspecialchars($currentUserName ?: 'Guest') ?>" data-admin="<?= is_admin() ? '1' : '0' ?>">

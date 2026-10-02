@@ -100,7 +100,7 @@ if ($showcaseImages && count($showcaseImages) < 8) {
     <meta name="twitter:image" content="https://sublet.aperkel.w3.uvm.edu/assets/social/link-preview.png">
     <meta name="theme-color" content="#154734">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23154734'/%3E%3Cpath d='M32 12 L52 28 L52 52 L38 52 L38 38 L26 38 L26 52 L12 52 L12 28 Z' fill='%23FFD100'/%3E%3C/svg%3E">
-    <script src="https://kit.fontawesome.com/c428e5511d.js" crossorigin="anonymous"></script>
+    <script src="https://kit.fontawesome.com/c428e5511d.js" crossorigin="anonymous" defer></script>
     <style>
         :root {
             --green: #154734;
@@ -539,7 +539,7 @@ if ($showcaseImages && count($showcaseImages) < 8) {
             <div class="showcase-track">
                 <?php for ($pass = 0; $pass < 2; $pass++): ?>
                     <?php foreach ($showcaseImages as $img): ?>
-                        <img src="<?= htmlspecialchars($img) ?>" alt="" loading="lazy" width="240" height="160">
+                        <img src="<?= htmlspecialchars(image_src($img)) ?>" alt="" loading="lazy" decoding="async" width="240" height="160">
                     <?php endforeach; ?>
                 <?php endfor; ?>
             </div>

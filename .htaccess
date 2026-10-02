@@ -27,6 +27,25 @@ DirectoryIndex landing.php
     # Authentication is ambient (CAS via browser credentials), so framing this
     # site elsewhere is a clickjacking path against signed-in users.
     Header always set X-Frame-Options "SAMEORIGIN"
+
+    # Cache scripts, stylesheets and fonts for a year without revalidating.
+    # Safe only because every reference carries ?v=<filemtime>, so an edit is a
+    # new URL: a <link> or <script> added without one would be stuck on the
+    # first version anyone fetched. Fonts are referenced from CSS url(), which
+    # has no ?v — give a changed font file a new name instead of overwriting it.
+    # Images get the same treatment in public/.htaccess.
+    <FilesMatch "\.(css|js|woff2)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+</IfModule>
+
+# Compress text responses. style.css and app.js were going out uncompressed at
+# 55 KB and 93 KB. AddOutputFilterByType belongs to mod_filter in Apache 2.4,
+# hence the second guard: without it, a missing module would be a 500.
+<IfModule mod_filter.c>
+    <IfModule mod_deflate.c>
+        AddOutputFilterByType DEFLATE text/html text/plain text/css text/javascript application/javascript application/json image/svg+xml
+    </IfModule>
 </IfModule>
 
 # Pretty share links: /s/42-a1b2c3d4e5 -> /s.php?i=42-a1b2c3d4e5

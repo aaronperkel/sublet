@@ -135,8 +135,8 @@ under a fingerprint of the photo, its mtime and the text, and swept per listing
 on rewrite. Bump `SHARE_CARD_VERSION` after a layout change. A source photo over
 `SHARE_SOURCE_MAX_PIXELS` is pre-shrunk by ImageMagick rather than loaded — GD
 holds 4 bytes a pixel and the largest upload on disk would exceed `memory_limit`
-by itself. Re-encoding also strips the GPS EXIF that survives in the originals
-under `public/images/`.
+by itself. (Originals are now capped at 3000px on upload, so that path matters
+less than it did, but older share cards were drawn before the cap.)
 
 **In the app**, `includes/share_sheet.php` is the sheet markup, included by
 `app/index.php`, `app/map.php` and `app/post.php` — a partial, not a fourth
@@ -226,10 +226,12 @@ Auth is ambient (Apache/CAS via browser credentials), which shapes four rules:
 
 - **`require_same_origin()`** (`includes/auth.php`) guards every state-changing request. There is no PHP session, so it validates `Sec-Fetch-Site`, falling back to `Origin`/`Referer`. **Any new POST endpoint needs it** — without it, any site on the internet can make a signed-in user's browser perform admin actions. It is a no-op on GET, which is also why destructive actions must never be reachable by GET.
 - **Uploads are typed by their bytes, never their filename.** `safe_image_extension()` (`includes/thumbnail.php`) returns the extension to save under, or `null` to reject. `public/images/` is served by Apache, so trusting a client-supplied extension is a remote-code-execution path. `public/.htaccess` denies script extensions as a second layer.
+- **Uploads keep no metadata but ICC.** `public/images/` is served without auth at NetID-named URLs, and phone photos carry GPS. Anything that writes an image must go through `normalize_original()` / `make_display_image()` (both use `IMAGE_KEEP_ONLY_ICC`), never a bare `convert` or `-strip` — `-strip` also drops the Display P3 profile and washes iPhone photos out.
+- **Every image URL comes from `image_src()` or `display_src()`.** `public/.htaccess` caches uploads for a year as `immutable`, and upload names are reused on re-post; the `?v=<mtime>` those helpers append is the only thing that makes a replaced photo show up. The same holds for CSS/JS/woff2 via the root `.htaccess` — every `<link>`/`<script>` needs `?v=filemtime`.
 - **The public share surface is `share_card_lines()` and nothing else.** `s.php` and `share-card.php` sit outside `/app/` and are read by anyone, crawlers included. Adding a field there publishes it — see "Sharing a listing".
 - **`escapeHtml()` in `app.js` must escape quotes**, because its output is interpolated into `data-copy="..."` and `src="..."` attributes. The `textContent`→`innerHTML` idiom does *not* escape quotes and is unsafe here.
 
-Deleting an image goes through **`delete_image_files()`**, which also removes the `_thumb.webp` sibling. Unlinking the path directly leaks thumbnails.
+Deleting an image goes through **`delete_image_files()`**, which also removes the `_thumb.webp` and `_display.webp` siblings. Unlinking the path directly leaks them.
 
 ## Path duality: URL vs filesystem
 
@@ -239,7 +241,7 @@ Pages inside `app/` set `$basePath = '../'` *before* requiring `../includes/head
 
 ## Client-side: one file, page-dispatched
 
-`js/app.js` is a single `DOMContentLoaded` block that branches on `document.body.dataset.page` (set by `header.php` from `basename($_SERVER['PHP_SELF'])`) and reads `dataset.user` / `dataset.admin`. Server→client data is passed through globals emitted inline by each page: `window.SUBLET_CONFIG`, `window.MAP_SUBLETS`, `window.POST_CONFIG`. Assets are cache-busted with `?v=<?= filemtime(...) ?>`.
+`js/app.js` is a single `DOMContentLoaded` block that branches on `document.body.dataset.page` (set by `header.php` from `basename($_SERVER['PHP_SELF'])`) and reads `dataset.user` / `dataset.admin`. Server→client data is passed through globals emitted inline by each page: `window.SUBLET_CONFIG`, `window.MAP_SUBLETS`, `window.POST_CONFIG`. Assets are cache-busted with `?v=<?= filemtime(...) ?>`, and that is load-bearing: the root `.htaccess` serves CSS/JS/woff2 as `immutable` for a year, so a reference without it would be stuck on whatever version a browser first fetched.
 
 Adding a page means adding both an `init<Page>()` branch in `app.js` and the matching `$currentPage` checks in `header.php` (which is what conditionally loads Leaflet and noUiSlider).
 
@@ -291,7 +293,7 @@ The rule also governs **who gets a broadcast email**: `$emailableUsers` in `app/
 
 ## Cleaning up public/images
 
-The database does **not** fully describe this directory, so never clean it from the DB alone. Any cleanup must union the DB references (`sublets` and `sublet_images` — both `image_url` *and* `thumbnail_url`) with a grep of the source tree, and protect the `_thumb.webp` sibling of everything it keeps. (The favicon used to live here and was the classic casualty of a DB-only scan; it is now `assets/favicon.svg`.)
+The database does **not** fully describe this directory, so never clean it from the DB alone. Any cleanup must union the DB references (`sublets` and `sublet_images` — both `image_url` *and* `thumbnail_url`) with a grep of the source tree, and protect the `_thumb.webp` and `_display.webp` siblings of everything it keeps. (The favicon used to live here and was the classic casualty of a DB-only scan; it is now `assets/favicon.svg`.)
 
 Orphans accumulate mainly because uploads are keyed `{username}_{n}.{ext}`: re-posting with a different extension writes a new file instead of overwriting the old one.
 
@@ -303,7 +305,17 @@ Orphans accumulate mainly because uploads are keyed `{username}_{n}.{ext}`: re-p
 
 ## Images
 
-Uploads land in `public/images/`, named `{username}_{n}.{ext}` on create and `{username}_{time}_{order}.{ext}` when added during an edit. `includes/thumbnail.php` shells out to ImageMagick `convert` (or `sips` on macOS) to convert HEIC/HEIF to JPEG and auto-orient, then uses GD to write a `_thumb.webp` sibling. Note that only the first image of a *new* post gets a thumbnail generated; images added on edit do not.
+Uploads land in `public/images/`, named `{username}_{n}.{ext}` on create and `{username}_{time}_{order}.{ext}` when added during an edit. Each one goes through `includes/thumbnail.php`:
+
+| File | Made by | What it is | Shown by |
+|---|---|---|---|
+| `x.jpg` (original) | `ensure_browser_safe()` → `normalize_original()` | HEIC→JPEG, upright, ≤3000px long edge, ICC only. Rewritten in place via a dotfile temp + `rename()`. | nothing in the UI any more |
+| `x_display.webp` | `make_display_image()` (ImageMagick) | ≤1600px, q80, ICC only, ~90–170 KB | modal gallery, map modal, admin image grid, post edit page — via `display_src()`, which falls back to the original |
+| `x_thumb.webp` | `make_thumbnail()` (GD) | 600px wide | listing cards, map popups, landing strip — via `sublets.thumbnail_url` |
+
+Every image gets a display copy. Only the card image gets a thumbnail: the first image of a new post, or the image promoted by `images.php` when the card image is deleted. GD needs the 3000px cap to stay inside `memory_limit`.
+
+`~/sublet-scripts/backfill_images.php` (outside the docroot) brought the existing files to this state in October 2026 and is idempotent if it ever needs re-running; the pre-backfill originals are in `~/sublet-image-backups/`.
 
 ## Announcements
 
@@ -317,4 +329,4 @@ That address is plumbing, not a support channel. **The only contact route the si
 
 ## Styling
 
-Single stylesheet `css/style.css`, built on CSS custom properties for the UVM palette (`--green`, `--gold`, `--slate`, `--sky`, `--orange`, `--fog`) plus shadow/radius/spacing tokens. Light mode only — there is no `prefers-color-scheme` handling. Font Awesome is loaded from a CDN kit; Leaflet and noUiSlider are CDN-loaded only on the pages that need them. `landing.php` does not use this stylesheet — it carries its own inline copy of the design tokens.
+Single stylesheet `css/style.css`, built on CSS custom properties for the UVM palette (`--green`, `--gold`, `--slate`, `--sky`, `--orange`, `--fog`) plus shadow/radius/spacing tokens. Light mode only — there is no `prefers-color-scheme` handling. Font Awesome is loaded from a CDN kit with `defer` (it is a CSS-method kit, so nothing needs it before parse); Leaflet 1.9.4 and noUiSlider 15.6.1 come from cdnjs at exact versions with SRI `integrity` hashes, only on the pages that need them — bumping a version means updating its hash in `includes/header.php`. `landing.php` does not use this stylesheet — it carries its own inline copy of the design tokens.

@@ -473,7 +473,10 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(function (r) { return r.json(); })
             .then(function (images) {
                 if (Array.isArray(images) && images.length > 0) {
-                    modalImages = images.map(function (img) { return img.image_url; });
+                    // The display-size copy, not the original upload, which
+                    // can run to 20 MB. display_url falls back to the original
+                    // server-side when no copy exists.
+                    modalImages = images.map(function (img) { return img.display_url || img.image_url; });
                     modalIndex = 0;
                     renderGallery();
                 }
@@ -1047,7 +1050,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             username: sublet.username,
                             contactEmail: sublet.contact_email,
                             contactPhone: sublet.contact_phone,
-                            image_url: sublet.image_url,
+                            image_url: sublet.display_url || sublet.image_url,
                             utility_electric: sublet.utility_electric || '',
                             utility_gas: sublet.utility_gas || '',
                             utility_water: sublet.utility_water || '',
@@ -1704,7 +1707,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         images.forEach(function (img) {
                             var div = document.createElement('div');
                             div.className = 'admin-image';
-                            div.innerHTML = '<img src="' + escapeHtml(img.image_url) + '" alt="Image">' +
+                            div.innerHTML = '<img src="' + escapeHtml(img.display_url || img.image_url) + '" alt="Image">' +
                                 '<button class="delete-image-btn" data-image-id="' + img.id + '"><i class="fa-solid fa-trash"></i></button>';
                             div.querySelector('.delete-image-btn').addEventListener('click', function () {
                                 if (!confirm('Delete this image?')) return;

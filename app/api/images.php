@@ -25,7 +25,9 @@ if ($method === 'GET') {
 
     // app.js assigns these straight to img.src, so send URLs rather than the
     // page-relative stored paths — see image_src() in includes/db.php.
+    // display_url is what the gallery shows; image_url stays the original.
     foreach ($images as &$image) {
+        $image['display_url'] = display_src($image['image_url']);
         $image['image_url'] = image_src($image['image_url']);
     }
     unset($image);

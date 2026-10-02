@@ -218,7 +218,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$postTooLarge) {
                         $fsTarget = ensure_browser_safe($fsTarget);
                         // No thumbnail here: only sublets.thumbnail_url (the
                         // card image) is ever read, so a thumb for a gallery
-                        // image would be a file nothing loads.
+                        // image would be a file nothing loads. The gallery
+                        // shows the display-size copy instead.
+                        make_display_image($fsTarget);
                         $urlTarget = $url_prefix . basename($fsTarget);
                         $stmtImage->execute([$subletId, $urlTarget, $newOrder]);
                     }
@@ -244,6 +246,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$postTooLarge) {
                 $error_message = "Error uploading image.";
             } else {
                 $fsTarget = ensure_browser_safe($fsTarget);
+                make_display_image($fsTarget);
                 $urlTarget = $url_prefix . basename($fsTarget);
                 $thumbWebp = make_thumbnail($fsTarget);
                 $urlThumb = $url_prefix . basename($thumbWebp);
@@ -275,7 +278,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$postTooLarge) {
                     $fsT = $fs_dir . $fname;
                     if (move_uploaded_file($_FILES['images']['tmp_name'][$i], $fsT)) {
                         $fsT = ensure_browser_safe($fsT);
-                        // See above: gallery images need no thumbnail.
+                        // See above: gallery images need no thumbnail, only
+                        // the display-size copy.
+                        make_display_image($fsT);
                         $urlT = $url_prefix . basename($fsT);
                         $stmtImage->execute([$subletId, $urlT, $i]);
                     }
@@ -371,7 +376,7 @@ if ($isEdit) {
                 <div class="image-previews" id="imagePreviews">
                     <?php foreach ($existingImages as $img): ?>
                         <div class="image-preview <?= $img['sort_order'] === 0 ? 'is-thumbnail' : '' ?>" data-image-id="<?= $img['id'] ?>">
-                            <img src="<?= htmlspecialchars(image_src($img['image_url'])) ?>" alt="Listing image">
+                            <img src="<?= htmlspecialchars(display_src($img['image_url'])) ?>" alt="Listing image" decoding="async">
                             <button type="button" class="remove-image" data-image-id="<?= $img['id'] ?>">
                                 <i class="fa-solid fa-xmark"></i>
                             </button>

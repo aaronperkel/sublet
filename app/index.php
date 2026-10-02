@@ -138,7 +138,7 @@ foreach ($availableSemesters as $sem) {
             </div>
         <?php endif; ?>
     <?php else: ?>
-        <?php foreach ($sublets as $sublet): ?>
+        <?php foreach ($sublets as $cardIndex => $sublet): ?>
             <?php
                 // Build amenity tags for card
                 $cardTags = [];
@@ -206,7 +206,12 @@ foreach ($availableSemesters as $sem) {
                  data-roommate-gender="<?= htmlspecialchars(option_label(ROOMMATE_GENDER_OPTIONS, $sublet['roommate_gender'] ?? null)) ?>"
                  data-roommate-preference="<?= htmlspecialchars($prefLabel) ?>">
                 <div class="card-image">
-                    <img src="<?= htmlspecialchars(image_src($sublet['thumbnail_url'] ?: $sublet['image_url'])) ?>" alt="Sublet at <?= htmlspecialchars($displayAddress) ?>" loading="lazy" onerror="this.dataset.imgError='1'">
+                    <?php /* The first row is what the page opens on, so those load
+                             straight away; lazy-loading them would only delay the
+                             first paint. Four is the widest the grid gets. The
+                             600x400 is the card's 3:2 box; CSS crops the
+                             thumbnail to it with object-fit. */ ?>
+                    <img src="<?= htmlspecialchars(image_src($sublet['thumbnail_url'] ?: $sublet['image_url'])) ?>" alt="Sublet at <?= htmlspecialchars($displayAddress) ?>" width="600" height="400" decoding="async"<?= $cardIndex >= 4 ? ' loading="lazy"' : '' ?> onerror="this.dataset.imgError='1'">
                     <span class="card-badge">
                         $<?= number_format($sublet['price']) ?><?php if (!empty($sublet['price_negotiable'])): ?><small class="card-badge-neg">or best offer</small><?php endif; ?>
                     </span>

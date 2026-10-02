@@ -2,6 +2,7 @@
 $basePath = '../';
 require_once '../includes/header.php';
 require_once '../includes/share.php';
+require_once '../includes/thumbnail.php';
 
 // Same filters as index.php, from the same builder — see includes/listing_query.php.
 $columns = table_columns($pdo, 'sublets');
@@ -18,8 +19,10 @@ $sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // app.js builds popup and modal <img> tags straight out of these values, and a
 // page-relative path would resolve against /app/ and get gated on CAS. Hand it
-// root-relative URLs instead — see image_src() in includes/db.php.
+// root-relative URLs instead — see image_src() in includes/db.php. The modal
+// opens on display_url, so tapping a pin does not start a 20 MB download.
 foreach ($sublets as &$sublet) {
+    $sublet['display_url'] = display_src($sublet['image_url'] ?? null);
     $sublet['image_url'] = image_src($sublet['image_url'] ?? null);
     $sublet['thumbnail_url'] = image_src($sublet['thumbnail_url'] ?? null);
 }

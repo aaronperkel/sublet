@@ -51,6 +51,12 @@ function resolve_path(string $path): string {
  * Returning a root-relative URL keeps image loads out of the protected
  * directory altogether: /public/images/ is served directly, and is already
  * public (landing.php's photo strip loads from it without a sign-in).
+ *
+ * The URL carries ?v=<mtime>, like the stylesheet and script, because
+ * public/.htaccess caches uploads as immutable. Upload names are not unique —
+ * re-posting writes {username}_0.jpg again — so without the version a poster
+ * would keep seeing their old photo. Every <img> on the site has to get its URL
+ * from here (or display_src(), which calls it) for that caching to be safe.
  */
 function image_src(?string $path): string {
     if ($path === null || $path === '') {
@@ -63,7 +69,10 @@ function image_src(?string $path): string {
         return $path;
     }
 
-    return '/' . ltrim(preg_replace('#^(?:\./|\.\./)+#', '', $path), '/');
+    $url = '/' . ltrim(preg_replace('#^(?:\./|\.\./)+#', '', $path), '/');
+
+    $mtime = @filemtime(resolve_path($path));
+    return $mtime ? $url . '?v=' . $mtime : $url;
 }
 
 $pdo = new PDO(
