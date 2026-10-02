@@ -67,6 +67,9 @@ $carrySuffix = $carryQuery !== '' ? '?' . $carryQuery : '';
                         <?= htmlspecialchars($sem['name']) ?>
                     </option>
                 <?php endforeach; ?>
+                <?php foreach ($emptySemesters as $sem): ?>
+                    <option value="<?= htmlspecialchars($sem['code']) ?>" disabled><?= htmlspecialchars($sem['name']) ?> (none yet)</option>
+                <?php endforeach; ?>
             </select>
         </div>
         <div class="filter-group">

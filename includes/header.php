@@ -43,6 +43,15 @@ $maxDistanceRounded = max(ceil($maxDistance * 2) / 2, 1);
 
 $stmtSemesters = $pdo->query("SELECT DISTINCT s.semester, COALESCE(sem.name, s.semester) as name FROM sublets s " . VISIBLE_SEMESTER_JOIN . " WHERE " . VISIBLE_SEMESTER_WHERE . " ORDER BY s.semester");
 $availableSemesters = $stmtSemesters->fetchAll(PDO::FETCH_ASSOC);
+
+// Open semesters nobody has posted for yet. The filter lists them as "none
+// yet" rather than leaving them out, so someone looking for summer learns
+// there is nothing rather than wondering whether summer is covered at all.
+$listedCodes = array_column($availableSemesters, 'semester');
+$emptySemesters = array_values(array_filter(
+    $pdo->query("SELECT code, name FROM semesters WHERE active = 1 ORDER BY sort_order, code")->fetchAll(PDO::FETCH_ASSOC),
+    static fn($sem) => !in_array($sem['code'], $listedCodes, true)
+));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -88,7 +97,7 @@ $availableSemesters = $stmtSemesters->fetchAll(PDO::FETCH_ASSOC);
                 </span>
                 <span class="nav-title">UVM Sublets</span>
             </a>
-            <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">
+            <button type="button" class="nav-toggle" id="navToggle" aria-label="Menu" aria-expanded="false" aria-controls="navMenu">
                 <i class="fa-solid fa-bars"></i>
             </button>
             <div class="nav-menu" id="navMenu">

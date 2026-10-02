@@ -155,3 +155,34 @@ function listing_map_links(?string $address, $lat, $lon): array {
         'apple'  => $apple,
     ];
 }
+
+/**
+ * When a listing went up, in the words a reader uses: "today", "3 days ago",
+ * "Sep 14". posted_at is set once on insert and never on edit, so this is
+ * the listing's age, which is what tells a November post from a fresh one.
+ * Both sides are Eastern (see CLAUDE.md, "Time zones").
+ */
+function posted_ago(?string $postedAt, ?int $now = null): string {
+    $ts = $postedAt ? strtotime($postedAt) : false;
+    if ($ts === false) {
+        return '';
+    }
+    $now = $now ?? time();
+    // Rounded, not floored: a span across a DST change is 23 or 25 hours a day.
+    $days = (int)round((strtotime('today', $now) - strtotime('today', $ts)) / 86400);
+
+    if ($days <= 0) {
+        return 'today';
+    }
+    if ($days === 1) {
+        return 'yesterday';
+    }
+    if ($days < 7) {
+        return $days . ' days ago';
+    }
+    if ($days < 28) {
+        $weeks = intdiv($days, 7);
+        return $weeks === 1 ? 'last week' : $weeks . ' weeks ago';
+    }
+    return date('Y', $ts) === date('Y', $now) ? date('M j', $ts) : date('M j, Y', $ts);
+}

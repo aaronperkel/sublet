@@ -44,6 +44,7 @@ foreach ($sublets as &$s) {
     $s['roommate_preference_label'] = option_label(ROOMMATE_PREFERENCE_OPTIONS, $s['roommate_preference'] ?? null);
     // username stays as-is: app.js compares it to the signed-in user.
     $s['poster_name'] = poster_name($s);
+    $s['posted_ago'] = posted_ago($s['posted_at'] ?? null);
     // The public /s/ link, built here rather than in JS so the HMAC secret
     // never has to reach the client. index.php carries the same value as
     // data-share-url on each card.
@@ -58,6 +59,9 @@ foreach ($availableSemesters as $sem) {
 ?>
 
 <?php require '../includes/filter_bar.php'; ?>
+
+<?php /* The pins are the page, so the heading is for screen readers only. */ ?>
+<h1 class="sr-only">Map of <?= count($sublets) ?> sublet<?= count($sublets) === 1 ? '' : 's' ?></h1>
 
 <div class="map-page-layout">
     <div id="mainMap"></div>

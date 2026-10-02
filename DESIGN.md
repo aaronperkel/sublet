@@ -312,10 +312,11 @@ Small facts at the bottom of a card and inside the listing view.
 - **Style:** Card White, a 1px Border, 6px corners, 0.65rem × 0.875rem padding, 1rem text. Selects carry a custom caret in Text Secondary.
 - **Focus:** the border turns Catamount Green with the green Field focus glow; there is no outline ring.
 - **Error / Disabled:** errors are shown as an Error alert above the form, not on the field.
+- **Busy:** a submit button that has been pressed swaps its icon for a spinner and its label for what is happening ("Uploading 3 photos…"), and further presses are ignored. It is not `disabled`, which would drop it from the form data.
 
 ### Navigation
 - **Style:** a sticky 64px Catamount Green bar with the Gold logo tile (an inline SVG house, the same mark as the favicon) and the white "UVM Sublets" wordmark at the left. Links are white at 85% opacity (0.875rem), get a faint white wash on hover, and the active link turns Gold on a faint gold wash. The signed-in student's name sits at the right behind a hairline divider.
-- **Mobile:** below 768px the links collapse behind a toggle.
+- **Mobile:** below 768px the links collapse behind a toggle that reports `aria-expanded`.
 
 ### Listing Card (signature)
 The pinned index card, in this order:
@@ -331,9 +332,12 @@ The poster's name is not on the card; it is in the listing view. The whole card 
 At 768px and below the filter panel is replaced by a sticky bar under the nav: a white pill "Filters" button with a green count badge for the active filters, and a List / Map segmented switch (the active segment filled green) that keeps the filters when switching. "Filters" opens the same form as a bottom sheet (12px top corners, Floating shadow, over the slate scrim) with a sticky header (title, close) and a sticky footer button. On Browse the listings update underneath as filters change and the button reads "Show 12 sublets"; on Map it applies them. Chips grow to 40px tap targets inside the sheet. Untouched sliders do not count as filters.
 
 ### Listing View (signature)
-A centered dialog (720px, 12px corners, Floating shadow) with the photo gallery on top and the details below: the price in Catamount Green with "/mo" and a facts line under it (distance from campus · semester · size), an action row (Email, Call, Share, Edit, admin Delete), the address with an "Open in Maps" link, the semester, place and roommate facts, description, utilities and amenities. Utilities the subletter pays are neutral, not gold. The gallery swipes on touch, shows a "2 / 7" counter, and its dots are 24px targets around 8px marks. Contact opens a panel that slides over the details, with a prepared email draft or the phone number and Copy buttons.
+A centered dialog (720px, 12px corners, Floating shadow) with the photo gallery on top and the details below: the price in Catamount Green with "/mo", a facts line under it (distance from campus · semester · size) and the poster line ("Posted by Maya · 3 days ago", the listing's age, not its last edit), an action row (Email, Call, Share, Edit, admin Delete), the address with a maps link ("Open in Maps" to Apple Maps on iPhone, iPad and Mac, otherwise "Open in Google Maps"), the semester, place and roommate facts, description, utilities and amenities. Utilities the subletter pays are neutral, not gold. The gallery swipes on touch, shows a "2 / 7" counter, and its dots are 24px targets around 8px marks. Contact opens a panel that slides over the details: an editable email draft that greets the poster by name (or "Hi there", never a NetID) and names the listing, price and semester, with Copy buttons and a note that everyone here signs in with a UVM NetID; or the phone number with Call and Text.
 
 At 600px and below the view is a full-screen sheet: a sticky top bar (close and share, 44px round buttons on Fog), a square photo area, and a sticky bottom bar with the price on the left and Email / Call on the right, so the way out and the way to make contact never scroll away. The phone's Back button closes it.
+
+### Post Form
+One white panel. The address field is a combobox: suggestions as a listbox the arrow keys move through, and "Searching…", "No match…" and lookup-failed messages in the same dropdown. Under it a lock-icon note says who sees the address. The map preview opens on campus with no pin until there is a place; picking a suggestion or tapping the map places the pin, and on a desktop the pin drags. On a desktop the map is sticky beside the form; at 768px and below it sits under the address field, where one finger scrolls the page past it and two fingers pan. Photos add up across picks; each has a 28px remove button that is always visible (a 44px target), and the first carries a Gold "Cover" label.
 
 ### Share Sheet (signature)
 A grid of round icon tiles (Share to…, Instagram story, Snapchat, Copy link) above a link field with a Copy button. It becomes a bottom sheet under 600px.
@@ -349,7 +353,7 @@ Green, with the credit, the Instagram contact, and a standing line: "An independ
 - **Do** use the seven `--text-*` sizes and the two weights, and keep form fields at 1rem.
 - **Do** tint text, scrims and shadows with Slate Ink (#00313C), and use the shadow vocabulary as it stands.
 - **Do** give every interactive element the 3px `:focus-visible` ring with a 2px offset: Focus (#2f86c9) on light surfaces, Gold on green.
-- **Do** gate hover lift and photo zoom on `(hover: hover)`, and keep the site-wide `prefers-reduced-motion` override.
+- **Do** gate hover lift, photo zoom and button hover colours on `(hover: hover)`, and keep the site-wide `prefers-reduced-motion` override.
 - **Do** keep a card's tags to one row and touch targets at least 44px on phones (40px for chips inside the filter sheet).
 - **Do** pick 12px for containers, 8px for small inset surfaces, 6px for controls, and pills only for filter chips.
 

@@ -163,11 +163,11 @@ if ($allowlistReady && $parsedUids !== null) {
             </div>
             <div class="add-form" id="addSemesterForm">
                 <div class="form-group">
-                    <label>Code</label>
+                    <label for="semCode">Code</label>
                     <input type="text" id="semCode" placeholder="e.g. fall26">
                 </div>
                 <div class="form-group">
-                    <label>Display Name</label>
+                    <label for="semName">Display Name</label>
                     <input type="text" id="semName" placeholder="e.g. Fall 2026">
                 </div>
                 <button class="btn btn-primary btn-sm" id="addSemesterBtn">
@@ -369,7 +369,7 @@ if ($allowlistReady && $parsedUids !== null) {
 
                     <!-- Semester selector (hidden by default) -->
                     <div id="semesterRecipientGroup" style="display:none; margin-top: 0.5rem;">
-                        <select id="emailSemester" class="form-group" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius-xs);">
+                        <select id="emailSemester" aria-label="Semester" class="form-group" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius-xs);">
                             <?php foreach ($allSemesters as $sem): ?>
                                 <option value="<?= htmlspecialchars($sem['code']) ?>"><?= htmlspecialchars($sem['name']) ?></option>
                             <?php endforeach; ?>
@@ -497,11 +497,11 @@ if ($allowlistReady && $parsedUids !== null) {
                 </div>
                 <div class="add-form" id="addAllowForm">
                     <div class="form-group">
-                        <label>NetID</label>
+                        <label for="allowUid">NetID</label>
                         <input type="text" id="allowUid" placeholder="e.g. ocongdon" autocapitalize="off" autocomplete="off" spellcheck="false">
                     </div>
                     <div class="form-group">
-                        <label>Note (optional)</label>
+                        <label for="allowNote">Note (optional)</label>
                         <input type="text" id="allowNote" placeholder="e.g. gap year, back Fall 2026">
                     </div>
                     <button class="btn btn-primary btn-sm" id="addAllowBtn">
@@ -544,11 +544,11 @@ if ($allowlistReady && $parsedUids !== null) {
                 </div>
                 <div class="add-form" id="addBlockForm">
                     <div class="form-group">
-                        <label>NetID</label>
+                        <label for="blockUid">NetID</label>
                         <input type="text" id="blockUid" placeholder="e.g. bkamont" autocapitalize="off" autocomplete="off" spellcheck="false">
                     </div>
                     <div class="form-group">
-                        <label>Note (optional)</label>
+                        <label for="blockNote">Note (optional)</label>
                         <input type="text" id="blockNote" placeholder="e.g. repeated fake listings">
                     </div>
                     <button class="btn btn-danger btn-sm" id="addBlockBtn">

@@ -34,8 +34,8 @@
         </div>
 
         <p class="share-sheet-note" id="shareSheetNote">
-            Anyone with this link sees the price and how far it is from campus.
-            The address and your contact details stay behind UVM sign-in.
+            Anyone with this link sees the price, semester, size and distance
+            from campus. The address and contact details stay behind UVM sign-in.
         </p>
     </div>
 </div>

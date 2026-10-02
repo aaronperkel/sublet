@@ -264,3 +264,16 @@ function make_thumbnail(string $sourcePath, int $maxWidth = IMAGE_THUMB_WIDTH, i
 
     return convert_into_place($sourcePath . '[0]', $ops, $out) ? $out : $sourcePath;
 }
+
+/**
+ * A php.ini size ("30M", "120M", "1G") in bytes, for telling the post form the
+ * limits it will be held to. 0 when unset or unlimited.
+ */
+function ini_bytes(string $key): int {
+    $value = trim((string)ini_get($key));
+    if ($value === '' || !preg_match('/^(\d+)\s*([KMG]?)$/i', $value, $m)) {
+        return 0;
+    }
+    $shift = ['' => 0, 'K' => 10, 'M' => 20, 'G' => 30][strtoupper($m[2])];
+    return (int)$m[1] << $shift;
+}

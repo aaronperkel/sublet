@@ -37,6 +37,10 @@
                     <div class="modal-heading">
                         <span class="modal-price" id="modalPrice"></span>
                         <p class="modal-facts" id="modalFacts"></p>
+                        <?php /* Who posted it and when, next to the price: the
+                                 two things a student checks before emailing a
+                                 stranger. */ ?>
+                        <p class="modal-poster" id="modalPoster"></p>
                     </div>
                     <div class="modal-actions" id="modalActions">
                         <button type="button" id="modalEmailBtn" class="btn btn-primary btn-sm">
@@ -71,7 +75,6 @@
                         <span id="modalSemester"></span>
                     </div>
                     <div class="modal-description" id="modalDescription"></div>
-                    <div class="modal-poster" id="modalPoster"></div>
                 </div>
             </div>
             <div class="modal-contact-panel" id="contactPanel">

@@ -141,6 +141,7 @@ foreach ($availableSemesters as $sem) {
                           name is a separate attribute, used only for labels. */ ?>
                  data-username="<?= htmlspecialchars($sublet['username']) ?>"
                  data-poster-name="<?= htmlspecialchars(poster_name($sublet)) ?>"
+                 data-posted-ago="<?= htmlspecialchars(posted_ago($sublet['posted_at'] ?? null)) ?>"
                  data-contact-email="<?= htmlspecialchars($sublet['contact_email'] ?? '') ?>"
                  data-contact-phone="<?= htmlspecialchars($sublet['contact_phone'] ?? '') ?>"
                  data-lat="<?= $sublet['lat'] ?>"

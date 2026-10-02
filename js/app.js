@@ -116,13 +116,15 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!toggle || !menu) return;
 
         toggle.addEventListener('click', function () {
-            menu.classList.toggle('open');
+            var open = menu.classList.toggle('open');
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
         });
 
         // Close menu on link click (mobile)
         menu.querySelectorAll('.nav-link').forEach(function (link) {
             link.addEventListener('click', function () {
                 menu.classList.remove('open');
+                toggle.setAttribute('aria-expanded', 'false');
             });
         });
     }
@@ -640,21 +642,32 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (type === 'email') {
             var email = data.contactEmail || (data.username + '@uvm.edu');
-            var subject = 'Interested in Your Sublet Posting';
-            // Address the poster by the name they chose, and sign with the
-            // sender's own — both fall back to the NetID.
-            var greetName = data.posterName || data.username;
-            var signName = document.body.dataset.userName || currentUser;
-            var draftBody = 'Hi ' + greetName + ',\n\nI\'m interested in your sublet at ' + data.address + '. Could you send me more details?\n\nThanks,\n' + signName;
-            var mailtoUrl = 'mailto:' + encodeURIComponent(email) + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(draftBody);
+            var subject = 'Your sublet at ' + data.address + ' (UVM Sublets)';
 
-            title.textContent = 'Send Email';
+            // Greet the poster by the name they chose; a NetID is not a name,
+            // so without one it is "Hi there". Sign only with a real name too:
+            // the email app already says who it is from.
+            var posterNamed = data.posterName && data.posterName !== data.username;
+            var myName = document.body.dataset.userName || '';
+            var meNamed = myName && myName !== currentUser;
+            var semesterText = data.semesterName || data.semester;
+            var draftBody = (posterNamed ? 'Hi ' + data.posterName + ',' : 'Hi there,') + '\n\n' +
+                'I found your sublet at ' + data.address + ' on UVM Sublets ($' + Number(data.price).toLocaleString() + '/mo' +
+                (semesterText ? ', ' + semesterText : '') + ') and I\u2019m interested. Is it still available? ' +
+                'I\u2019d love to hear a bit more about it, and to see it if that works for you.\n\n' +
+                'Thanks!' + (meNamed ? '\n' + myName : '');
+
+            var mailtoFor = function (text) {
+                return 'mailto:' + encodeURIComponent(email) + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(text);
+            };
+
+            title.textContent = 'Send an email';
             body.innerHTML =
                 '<div class="contact-field">' +
                     '<label>To</label>' +
                     '<div class="contact-value-row">' +
                         '<span class="contact-value">' + escapeHtml(email) + '</span>' +
-                        '<button class="btn btn-secondary btn-sm contact-copy" data-copy="' + escapeHtml(email) + '"><i class="fa-solid fa-copy"></i> Copy</button>' +
+                        '<button type="button" class="btn btn-secondary btn-sm contact-copy" data-copy="' + escapeHtml(email) + '"><i class="fa-solid fa-copy" aria-hidden="true"></i> Copy</button>' +
                     '</div>' +
                 '</div>' +
                 '<div class="contact-field">' +
@@ -662,13 +675,23 @@ document.addEventListener('DOMContentLoaded', function () {
                     '<span class="contact-value">' + escapeHtml(subject) + '</span>' +
                 '</div>' +
                 '<div class="contact-field">' +
-                    '<label>Draft Message</label>' +
-                    '<div class="contact-draft">' + escapeHtml(draftBody) + '</div>' +
+                    '<label for="contactDraft">Message <span class="label-aside">(yours to edit)</span></label>' +
+                    '<textarea class="contact-draft" id="contactDraft" rows="7">' + escapeHtml(draftBody) + '</textarea>' +
                 '</div>' +
                 '<div class="contact-actions">' +
-                    '<a href="' + mailtoUrl + '" class="btn btn-primary"><i class="fa-solid fa-envelope"></i> Open Email Client</a>' +
-                    '<button class="btn btn-secondary contact-copy" data-copy="' + escapeHtml(draftBody) + '"><i class="fa-solid fa-copy"></i> Copy Message</button>' +
-                '</div>';
+                    '<a href="' + escapeHtml(mailtoFor(draftBody)) + '" class="btn btn-primary" id="contactMailto"><i class="fa-solid fa-envelope" aria-hidden="true"></i> Open in your email app</a>' +
+                    '<button type="button" class="btn btn-secondary contact-copy" data-copy-from="contactDraft"><i class="fa-solid fa-copy" aria-hidden="true"></i> Copy message</button>' +
+                '</div>' +
+                '<p class="contact-note">Everyone here signs in with a UVM NetID. If no email app opens (Instagram\u2019s browser often won\u2019t), copy the address and message instead.</p>';
+
+            // The link carries whatever the message says when it is tapped.
+            var mailtoLink = body.querySelector('#contactMailto');
+            var draftField = body.querySelector('#contactDraft');
+            if (mailtoLink && draftField) {
+                mailtoLink.addEventListener('click', function () {
+                    mailtoLink.href = mailtoFor(draftField.value);
+                });
+            }
         } else if (type === 'phone') {
             var phone = data.contactPhone;
             title.textContent = 'Call or Text';
@@ -676,8 +699,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 '<div class="contact-field">' +
                     '<label>Phone Number</label>' +
                     '<div class="contact-value-row">' +
-                        '<span class="contact-value" style="font-size: 1.2rem; font-weight: 600;">' + escapeHtml(phone) + '</span>' +
-                        '<button class="btn btn-secondary btn-sm contact-copy" data-copy="' + escapeHtml(phone) + '"><i class="fa-solid fa-copy"></i> Copy</button>' +
+                        '<span class="contact-value contact-value-lg">' + escapeHtml(phone) + '</span>' +
+                        '<button type="button" class="btn btn-secondary btn-sm contact-copy" data-copy="' + escapeHtml(phone) + '"><i class="fa-solid fa-copy" aria-hidden="true"></i> Copy</button>' +
                     '</div>' +
                 '</div>' +
                 '<div class="contact-actions">' +
@@ -692,7 +715,9 @@ document.addEventListener('DOMContentLoaded', function () {
         // clipboard write that failed left the button saying nothing at all.
         body.querySelectorAll('.contact-copy').forEach(function (btn) {
             btn.addEventListener('click', function () {
-                copyToClipboard(btn.dataset.copy, btn);
+                // data-copy-from: copy the field as edited, not as drafted.
+                var from = btn.dataset.copyFrom && document.getElementById(btn.dataset.copyFrom);
+                copyToClipboard(from ? from.value : btn.dataset.copy, btn);
             });
         });
 
@@ -777,7 +802,12 @@ document.addEventListener('DOMContentLoaded', function () {
             modalDesc.parentNode.insertBefore(utilsDiv, modalDesc.nextSibling);
         }
 
-        document.getElementById('modalPoster').textContent = 'Posted by ' + (data.posterName || data.username);
+        // "Posted by Maya · 3 days ago". The date is when it went up, not when
+        // it was last edited, so a stale listing reads as one.
+        var postedBy = 'Posted by ' + (data.posterName || data.username);
+        document.getElementById('modalPoster').textContent = data.postedAgo
+            ? postedBy + ' \u00b7 ' + data.postedAgo
+            : postedBy;
 
         var isOwn = currentUser === data.username;
 
@@ -1379,6 +1409,7 @@ document.addEventListener('DOMContentLoaded', function () {
             amenity_pets_allowed: card.dataset.amenityPetsAllowed || '0',
             amenity_furnished: card.dataset.amenityFurnished || '0',
             posterName: card.dataset.posterName || '',
+            postedAgo: card.dataset.postedAgo || '',
             negotiable: card.dataset.negotiable || '0',
             sizeSummary: card.dataset.sizeSummary || '',
             roommateGender: card.dataset.roommateGender || '',
@@ -1512,6 +1543,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             amenity_pets_allowed: String(sublet.amenity_pets_allowed || 0),
                             amenity_furnished: String(sublet.amenity_furnished || 0),
                             posterName: sublet.poster_name || '',
+                            postedAgo: sublet.posted_ago || '',
                             negotiable: String(sublet.price_negotiable || 0),
                             // Labelled server-side in map.php — the vocabulary
                             // lives in includes/listing_fields.php, not here.
@@ -1553,10 +1585,9 @@ document.addEventListener('DOMContentLoaded', function () {
        Post Page — Create/Edit
        ====================================================================== */
     function initPost() {
-        initAddressAutocomplete();
-        initPostMap();
+        initPostMap(initAddressAutocomplete());
         initImageUpload();
-        initExistingImageDelete();
+        initPostSubmit();
         initRoommateFields();
         initPostShare();
     }
@@ -1594,47 +1625,164 @@ document.addEventListener('DOMContentLoaded', function () {
         sync();
     }
 
-    // ---- Nominatim Address Autocomplete ----
+    // ---- Address search (Nominatim), as an ARIA combobox ----
+    //
+    // Returns the handle the map uses to place a pin by hand, or null when the
+    // page has no address field.
     function initAddressAutocomplete() {
         var input = document.getElementById('address');
         var results = document.getElementById('addressResults');
-        if (!input || !results) return;
+        var listbox = document.getElementById('addressListbox');
+        var message = document.getElementById('addressMessage');
+        var status = document.getElementById('addressStatus');
+        var latInput = document.getElementById('lat');
+        var lonInput = document.getElementById('lon');
+        if (!input || !results || !listbox || !latInput || !lonInput) return null;
 
         var debounceTimer = null;
-        var highlightedIndex = -1;
+        var activeIndex = -1;
+        var handle = { onPick: null, pinnedByHand: pinnedByHand };
 
-        // lat/lon are only ever set by picking a suggestion. Typing over the
-        // address without picking again used to leave the old coordinates
-        // attached to the new text, so the listing mapped to the previous
-        // place. Track the last address the coordinates actually belong to and
-        // block submission while the two disagree.
+        // lat/lon come from picking a suggestion or from placing the pin by
+        // hand, never from typing. Typing over a picked address without picking
+        // again used to leave the old coordinates attached to the new text, so
+        // the listing mapped to the previous place. So a picked address stays
+        // valid only while the text is still the one that was picked.
+        //
+        // A pin placed by hand is different: the pin is the location and the
+        // text is the student's own label for it, so editing the text keeps it.
         //
         // What post.php renders counts as accepted only when it came with
         // coordinates: after a failed save the field can hold text the student
-        // typed but never picked, and that must not pass as a picked address.
-        var latInput = document.getElementById('lat');
-        var lonInput = document.getElementById('lon');
-        var acceptedAddress = (latInput && latInput.value && lonInput && lonInput.value)
-            ? input.value.trim() : '';
+        // typed but never placed, and that must not pass.
+        var mode = (latInput.value && lonInput.value) ? 'picked' : 'none';
+        var acceptedAddress = mode === 'picked' ? input.value.trim() : '';
 
         function syncAddressValidity() {
-            if (input.value.trim() === acceptedAddress) {
-                input.setCustomValidity('');
-            } else {
-                input.setCustomValidity('Choose an address from the dropdown suggestions so your listing lands in the right place on the map.');
-            }
+            var text = input.value.trim();
+            var ok = text === '' || mode === 'pinned' || (mode === 'picked' && text === acceptedAddress);
+            input.setCustomValidity(ok ? '' : 'Pick your address from the suggestions, or tap your place on the map.');
         }
         syncAddressValidity();
+
+        function announce(text) {
+            if (status) status.textContent = text;
+        }
+
+        function options() {
+            return listbox.querySelectorAll('[role="option"]');
+        }
+
+        function openList() {
+            results.classList.add('open');
+            input.setAttribute('aria-expanded', options().length ? 'true' : 'false');
+        }
+
+        function closeList() {
+            results.classList.remove('open');
+            input.setAttribute('aria-expanded', 'false');
+            input.removeAttribute('aria-activedescendant');
+            activeIndex = -1;
+        }
+
+        // Searching, no match and lookup-failed are shown in the dropdown, but
+        // outside the listbox, so the arrow keys and Enter never land on them.
+        function showMessage(text, speak) {
+            listbox.innerHTML = '';
+            activeIndex = -1;
+            input.removeAttribute('aria-activedescendant');
+            if (message) {
+                message.textContent = text;
+                message.hidden = false;
+            }
+            openList();
+            if (speak) announce(text);
+        }
+
+        function setActive(index) {
+            var items = options();
+            activeIndex = index;
+            items.forEach(function (item, i) {
+                var on = i === index;
+                item.classList.toggle('highlighted', on);
+                item.setAttribute('aria-selected', on ? 'true' : 'false');
+                if (on) item.scrollIntoView({ block: 'nearest' });
+            });
+            if (index >= 0 && items[index]) {
+                input.setAttribute('aria-activedescendant', items[index].id);
+            } else {
+                input.removeAttribute('aria-activedescendant');
+            }
+        }
+
+        function pick(item, label) {
+            input.value = label;
+            acceptedAddress = label.trim();
+            mode = 'picked';
+            latInput.value = item.lat;
+            lonInput.value = item.lon;
+            syncAddressValidity();
+            closeList();
+            announce('Address set. The pin is on the map.');
+            if (handle.onPick) handle.onPick(parseFloat(item.lat), parseFloat(item.lon));
+        }
+
+        // Called by the map when the student taps it or drags the pin.
+        function pinnedByHand(lat, lon) {
+            latInput.value = lat.toFixed(6);
+            lonInput.value = lon.toFixed(6);
+            mode = 'pinned';
+            syncAddressValidity();
+            closeList();
+            announce(input.value.trim() === ''
+                ? 'Pin placed. Type the address you want the listing to show.'
+                : 'Pin placed.');
+        }
+
+        function renderOptions(data, query) {
+            listbox.innerHTML = '';
+            if (message) message.hidden = true;
+
+            // Closing the dropdown on no match left the student with a field
+            // that refuses to submit and nothing saying why.
+            if (!data.length) {
+                showMessage('No match for “' + query + '”. Try just the number and street, like “62 King St”, or tap your place on the map.', true);
+                return;
+            }
+
+            data.forEach(function (item, i) {
+                // short_name is the same shortening the cards and map popups
+                // apply, so what gets picked here is what everyone else sees.
+                var label = item.short_name || item.display_name;
+                var opt = document.createElement('div');
+                opt.className = 'autocomplete-item';
+                opt.id = 'addressOption' + i;
+                opt.setAttribute('role', 'option');
+                opt.setAttribute('aria-selected', 'false');
+                opt.innerHTML = '<i class="fa-solid fa-location-dot" aria-hidden="true"></i> ' + escapeHtml(label);
+                // Keep focus in the field, so picking does not blur it first.
+                opt.addEventListener('mousedown', function (e) { e.preventDefault(); });
+                opt.addEventListener('click', function () { pick(item, label); });
+                listbox.appendChild(opt);
+            });
+
+            setActive(-1);
+            openList();
+            announce(data.length + (data.length === 1 ? ' suggestion' : ' suggestions') + '. Use the arrow keys to choose one.');
+        }
 
         input.addEventListener('input', function () {
             syncAddressValidity();
             clearTimeout(debounceTimer);
             var query = input.value.trim();
             if (query.length < 3) {
-                results.classList.remove('open');
+                closeList();
                 return;
             }
             debounceTimer = setTimeout(function () {
+                // Said in the dropdown but not announced: it would be read out
+                // on every pause in typing.
+                showMessage('Searching…', false);
                 fetch('api/geocode.php?q=' + encodeURIComponent(query))
                     .then(function (r) {
                         if (!r.ok) throw new Error('lookup failed');
@@ -1644,111 +1792,88 @@ document.addEventListener('DOMContentLoaded', function () {
                         // A slower answer for an older query must not replace
                         // the message for what is in the box now.
                         if (input.value.trim() !== query) return;
-                        renderAutocomplete(Array.isArray(data) ? data : [], query);
+                        renderOptions(Array.isArray(data) ? data : [], query);
                     })
                     .catch(function () {
                         if (input.value.trim() !== query) return;
-                        showAutocompleteMessage(
-                            'Couldn\u2019t search addresses right now. Check your connection and try again in a moment.'
-                        );
+                        showMessage('Couldn’t search addresses right now. Try again in a moment, or tap your place on the map.', true);
                     });
             }, 350);
         });
 
         input.addEventListener('keydown', function (e) {
-            var items = results.querySelectorAll('.autocomplete-item');
+            var items = options();
+            var isOpen = results.classList.contains('open');
+
+            if (e.key === 'Escape' && isOpen) {
+                e.preventDefault();
+                closeList();
+                return;
+            }
             if (!items.length) return;
 
             if (e.key === 'ArrowDown') {
                 e.preventDefault();
-                highlightedIndex = Math.min(highlightedIndex + 1, items.length - 1);
-                updateHighlight(items);
+                if (!isOpen) openList();
+                setActive(Math.min(activeIndex + 1, items.length - 1));
             } else if (e.key === 'ArrowUp') {
                 e.preventDefault();
-                highlightedIndex = Math.max(highlightedIndex - 1, 0);
-                updateHighlight(items);
-            } else if (e.key === 'Enter' && highlightedIndex >= 0) {
+                setActive(Math.max(activeIndex - 1, 0));
+            } else if (e.key === 'Enter' && isOpen && activeIndex >= 0) {
                 e.preventDefault();
-                items[highlightedIndex].click();
+                items[activeIndex].click();
+            } else if (e.key === 'Tab') {
+                closeList();
             }
         });
 
-        function updateHighlight(items) {
-            items.forEach(function (item, i) {
-                item.classList.toggle('highlighted', i === highlightedIndex);
-            });
-        }
-
-        // Shown in the dropdown in place of suggestions. It is not an
-        // .autocomplete-item, so the arrow keys and Enter skip it.
-        function showAutocompleteMessage(text) {
-            results.innerHTML = '';
-            highlightedIndex = -1;
-            var div = document.createElement('div');
-            div.className = 'autocomplete-empty';
-            div.textContent = text;
-            results.appendChild(div);
-            results.classList.add('open');
-        }
-
-        function renderAutocomplete(data, query) {
-            results.innerHTML = '';
-            highlightedIndex = -1;
-
-            // Closing the dropdown on no match left the student with a field
-            // that refuses to submit and nothing saying why.
-            if (!data.length) {
-                showAutocompleteMessage(
-                    'No match for \u201c' + query + '\u201d. Try just the house number and street, like \u201c62 King St\u201d.'
-                );
-                return;
-            }
-
-            data.forEach(function (item) {
-                // short_name is the same shortening the cards and map popups
-                // apply, so what gets picked here is what everyone else sees.
-                var label = item.short_name || item.display_name;
-                var div = document.createElement('div');
-                div.className = 'autocomplete-item';
-                div.innerHTML = '<i class="fa-solid fa-location-dot"></i> ' + escapeHtml(label);
-                div.addEventListener('click', function () {
-                    input.value = label;
-                    acceptedAddress = label.trim();
-                    syncAddressValidity();
-                    document.getElementById('lat').value = item.lat;
-                    document.getElementById('lon').value = item.lon;
-                    results.classList.remove('open');
-                    updatePostMapMarker(parseFloat(item.lat), parseFloat(item.lon));
-                });
-                results.appendChild(div);
-            });
-
-            results.classList.add('open');
-        }
-
-        // Close on click outside
         document.addEventListener('click', function (e) {
-            if (!input.contains(e.target) && !results.contains(e.target)) {
-                results.classList.remove('open');
-            }
+            if (!input.contains(e.target) && !results.contains(e.target)) closeList();
         });
+
+        return handle;
     }
 
-    // ---- Post Map Preview ----
-    function initPostMap() {
+    // ---- Post map: where the listing goes ----
+    //
+    // No pin until the listing has a place. A pin parked on campus looked like
+    // an answer. Tapping the map (or dragging the pin, with a mouse) places it
+    // by hand, which is the way out when the geocoder cannot find an address.
+    function initPostMap(address) {
         var mapEl = document.getElementById('postMap');
         if (!mapEl || typeof L === 'undefined') return;
 
-        var uvmIcon = createUvmIcon();
         var config = window.POST_CONFIG || {};
-        var lat = config.lat || CAMPUS.lat;
-        var lon = config.lon || CAMPUS.lon;
+        var hasPlace = typeof config.lat === 'number' && typeof config.lon === 'number';
+        var touch = window.matchMedia('(pointer: coarse)').matches;
+        var hint = document.getElementById('postMapHintText');
 
-        window._postMap = L.map('postMap', { zoomControl: false }).setView([lat, lon], 15);
-        L.tileLayer(TILE_URL, TILE_OPTS).addTo(window._postMap);
-        L.control.zoom({ position: 'topright' }).addTo(window._postMap);
+        // On a phone the map belongs under the address field, not below
+        // Submit; on a desktop it stays sticky in the side column.
+        var box = mapEl.closest('.map-container');
+        var slot = document.getElementById('postMapSlot');
+        var side = document.querySelector('.post-map-section');
+        var phone = window.matchMedia(PHONE_QUERY);
+        var map = null;
 
-        // Same campus reference as the main map \u2014 useful here because the form
+        function placeMap() {
+            if (!box || !slot || !side) return;
+            var target = phone.matches ? slot : side;
+            if (box.parentNode !== target) target.appendChild(box);
+            side.hidden = phone.matches;
+            if (map) map.invalidateSize();
+        }
+        placeMap();
+        if (phone.addEventListener) phone.addEventListener('change', placeMap);
+
+        // In the middle of a phone's form, one finger has to scroll the page
+        // past the map rather than pan it; two fingers still pan and zoom.
+        map = L.map('postMap', { zoomControl: false, dragging: !touch })
+            .setView(hasPlace ? [config.lat, config.lon] : [CAMPUS.lat, CAMPUS.lon], hasPlace ? 16 : 14);
+        L.tileLayer(TILE_URL, TILE_OPTS).addTo(map);
+        L.control.zoom({ position: 'topright' }).addTo(map);
+
+        // Same campus reference as the main map, useful here because the form
         // rejects anything more than 50 miles from it.
         L.circleMarker([CAMPUS.lat, CAMPUS.lon], {
             radius: 7,
@@ -1756,27 +1881,67 @@ document.addEventListener('DOMContentLoaded', function () {
             weight: 2,
             fillColor: '#00313C',
             fillOpacity: 1
-        }).addTo(window._postMap).bindTooltip('UVM campus', { direction: 'top', offset: [0, -6] });
+        }).addTo(map).bindTooltip('UVM campus', { direction: 'top', offset: [0, -6] });
 
-        window._postMarker = L.marker([lat, lon], { icon: uvmIcon }).addTo(window._postMap);
+        var marker = null;
+        var tap = touch ? 'Tap' : 'Click';
 
-        setTimeout(function () { window._postMap.invalidateSize(); }, 200);
+        function setHint(text) {
+            if (hint) hint.textContent = text;
+        }
+
+        function place(lat, lon, recentre) {
+            if (!marker) {
+                marker = L.marker([lat, lon], { icon: createUvmIcon(), draggable: !touch, keyboard: false }).addTo(map);
+                marker.on('dragend', function () {
+                    var p = marker.getLatLng();
+                    if (address) address.pinnedByHand(p.lat, p.lng);
+                });
+            } else {
+                marker.setLatLng([lat, lon]);
+            }
+            if (recentre) map.setView([lat, lon], Math.max(map.getZoom(), 16), { animate: true });
+            setHint(touch ? 'Tap the map to move the pin. Pinch to zoom.' : 'Drag the pin or click the map to move it.');
+        }
+
+        if (hasPlace) {
+            place(config.lat, config.lon, false);
+        } else {
+            setHint('Search your address, or ' + tap.toLowerCase() + ' the map where your place is.');
+        }
+
+        map.on('click', function (e) {
+            place(e.latlng.lat, e.latlng.lng, false);
+            if (address) address.pinnedByHand(e.latlng.lat, e.latlng.lng);
+        });
+
+        if (address) {
+            address.onPick = function (lat, lon) { place(lat, lon, true); };
+        }
+
+        setTimeout(function () { map.invalidateSize(); }, 200);
     }
 
-    function updatePostMapMarker(lat, lon) {
-        if (!window._postMap || !window._postMarker) return;
-        var latlng = L.latLng(lat, lon);
-        window._postMarker.setLatLng(latlng);
-        window._postMap.setView(latlng, 16, { animate: true });
-        setTimeout(function () { window._postMap.invalidateSize(); }, 50);
-    }
-
-    // ---- Drag & Drop Image Upload ----
+    // ---- Photos ----
+    //
+    // Each pick adds to the photos already chosen instead of replacing them,
+    // and every new photo can be taken back out before it is uploaded. The
+    // browser only submits what is in the file input, so the list is written
+    // back into it through a DataTransfer. Where that is unsupported, a pick
+    // replaces the set, as it always used to.
     function initImageUpload() {
         var dropZone = document.getElementById('dropZone');
         var fileInput = document.getElementById('imageInput');
-        var previewContainer = document.getElementById('imagePreviews');
-        if (!dropZone || !fileInput) return;
+        var previews = document.getElementById('imagePreviews');
+        var status = document.getElementById('uploadStatus');
+        if (!dropZone || !fileInput || !previews) return;
+
+        var config = window.POST_CONFIG || {};
+        var canMerge = (function () {
+            try { return typeof DataTransfer === 'function' && !!new DataTransfer().items; } catch (e) { return false; }
+        })();
+        var chosen = [];
+        var note = '';
 
         ['dragenter', 'dragover'].forEach(function (evt) {
             dropZone.addEventListener(evt, function (e) {
@@ -1793,62 +1958,239 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         dropZone.addEventListener('drop', function (e) {
-            if (e.dataTransfer.files.length) {
-                fileInput.files = e.dataTransfer.files;
-                showNewPreviews(fileInput.files);
-            }
+            if (!e.dataTransfer.files.length) return;
+            if (!canMerge) fileInput.files = e.dataTransfer.files;
+            addFiles(e.dataTransfer.files);
         });
 
         fileInput.addEventListener('change', function () {
-            showNewPreviews(fileInput.files);
+            addFiles(fileInput.files);
         });
 
-        function showNewPreviews(files) {
-            // Remove old "new" previews
-            previewContainer.querySelectorAll('.new-preview').forEach(function (el) { el.remove(); });
-
-            Array.from(files).forEach(function (file, i) {
-                var reader = new FileReader();
-                reader.onload = function (e) {
-                    var div = document.createElement('div');
-                    div.className = 'image-preview new-preview';
-                    var existingCount = previewContainer.querySelectorAll('.image-preview:not(.new-preview)').length;
-                    if (existingCount === 0 && i === 0) {
-                        div.classList.add('is-thumbnail');
-                        div.innerHTML = '<img src="' + e.target.result + '" alt="Preview">' +
-                            '<span class="thumbnail-badge">Thumbnail</span>';
-                    } else {
-                        div.innerHTML = '<img src="' + e.target.result + '" alt="Preview">';
-                    }
-                    previewContainer.appendChild(div);
-                };
-                reader.readAsDataURL(file);
-            });
+        function megabytes(bytes) {
+            return (bytes / 1048576).toFixed(bytes < 10485760 ? 1 : 0) + ' MB';
         }
-    }
 
-    // ---- Delete Existing Images (edit mode) ----
-    function initExistingImageDelete() {
-        document.querySelectorAll('.remove-image').forEach(function (btn) {
-            btn.addEventListener('click', function (e) {
-                e.preventDefault();
-                var imageId = btn.dataset.imageId;
-                if (!confirm('Delete this image?')) return;
+        function addFiles(list) {
+            var incoming = Array.from(list);
+            var skipped = [];
 
-                fetch('api/images.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: '_method=DELETE&id=' + imageId
-                })
+            if (!canMerge) {
+                chosen = incoming;
+            } else {
+                incoming.forEach(function (file) {
+                    // The server checks the bytes either way; this only spares
+                    // a wasted upload. HEIC can arrive with no type at all.
+                    if (file.type && !/^image\//.test(file.type)) {
+                        skipped.push(file.name + ' isn’t a photo');
+                        return;
+                    }
+                    if (config.uploadMaxBytes && file.size > config.uploadMaxBytes) {
+                        skipped.push(file.name + ' is over ' + megabytes(config.uploadMaxBytes));
+                        return;
+                    }
+                    var dupe = chosen.some(function (c) {
+                        return c.name === file.name && c.size === file.size && c.lastModified === file.lastModified;
+                    });
+                    if (!dupe) chosen.push(file);
+                });
+
+                // PHP drops every file past max_file_uploads without a word.
+                var max = config.maxFiles || 20;
+                if (chosen.length > max) {
+                    skipped.push((chosen.length - max) + ' more than the ' + max + ' that fit in one save');
+                    chosen = chosen.slice(0, max);
+                }
+                writeBack();
+            }
+
+            note = skipped.length ? 'Left out: ' + skipped.join('; ') + '.' : '';
+            render();
+        }
+
+        function writeBack() {
+            var dt = new DataTransfer();
+            chosen.forEach(function (file) { dt.items.add(file); });
+            fileInput.files = dt.files;
+        }
+
+        function render() {
+            previews.querySelectorAll('.new-preview').forEach(function (el) {
+                if (el.dataset.url) URL.revokeObjectURL(el.dataset.url);
+                el.remove();
+            });
+
+            chosen.forEach(function (file, i) {
+                var url = URL.createObjectURL(file);
+                var div = document.createElement('div');
+                div.className = 'image-preview new-preview';
+                div.dataset.url = url;
+
+                var img = document.createElement('img');
+                img.alt = 'New photo ' + (i + 1);
+                // A HEIC a desktop browser cannot draw still uploads fine (the
+                // server converts it), so name it instead of showing a hole.
+                img.addEventListener('error', function () {
+                    img.remove();
+                    var name = document.createElement('span');
+                    name.className = 'preview-name';
+                    name.textContent = file.name;
+                    div.insertBefore(name, div.firstChild);
+                });
+                img.src = url;
+                div.appendChild(img);
+
+                if (canMerge) {
+                    var remove = document.createElement('button');
+                    remove.type = 'button';
+                    remove.className = 'remove-image';
+                    remove.setAttribute('aria-label', 'Remove new photo ' + (i + 1));
+                    remove.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
+                    remove.addEventListener('click', function () {
+                        chosen.splice(chosen.indexOf(file), 1);
+                        writeBack();
+                        note = '';
+                        render();
+                    });
+                    div.appendChild(remove);
+                }
+
+                previews.appendChild(div);
+            });
+
+            markCover(previews);
+            updateStatus();
+        }
+
+        function updateStatus() {
+            if (!status) return;
+            var total = chosen.reduce(function (n, f) { return n + f.size; }, 0);
+            var line = chosen.length
+                ? chosen.length + (chosen.length === 1 ? ' new photo' : ' new photos') + ' (' + megabytes(total) + ') will upload when you save.'
+                : '';
+            status.textContent = [line, note].filter(Boolean).join(' ');
+        }
+
+        // Existing photos are deleted on the server straight away, so they ask
+        // first. Delegated, because previews are re-rendered around them.
+        previews.addEventListener('click', function (e) {
+            var btn = e.target.closest('.remove-image[data-image-id]');
+            if (!btn) return;
+            e.preventDefault();
+            if (!confirm('Delete this photo? It comes off your listing right away.')) return;
+
+            fetch('api/images.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: '_method=DELETE&id=' + encodeURIComponent(btn.dataset.imageId)
+            })
                 .then(function (r) { return r.json(); })
                 .then(function (data) {
                     if (data.success) {
                         btn.closest('.image-preview').remove();
+                        // The server promotes the next photo to the card.
+                        markCover(previews);
+                        note = '';
+                        updateStatus();
                     } else {
-                        alert(data.error || 'Failed to delete image');
+                        note = data.error || 'That photo could not be deleted.';
+                        updateStatus();
                     }
+                })
+                .catch(function () {
+                    note = 'That photo could not be deleted. Check your connection and try again.';
+                    updateStatus();
                 });
-            });
+        });
+    }
+
+    // The first photo is the card's cover: the first saved one, or else the
+    // first new one. The badge follows it as photos come and go.
+    function markCover(previews) {
+        previews.querySelectorAll('.image-preview').forEach(function (el, i) {
+            el.classList.toggle('is-thumbnail', i === 0);
+            var badge = el.querySelector('.thumbnail-badge');
+            if (i === 0 && !badge) {
+                badge = document.createElement('span');
+                badge.className = 'thumbnail-badge';
+                badge.textContent = 'Cover';
+                el.appendChild(badge);
+            } else if (i !== 0 && badge) {
+                badge.remove();
+            }
+        });
+    }
+
+    // ---- Submit: say what is happening, and only once ----
+    //
+    // Posting with photos can take a while on a phone, and with no sign of it
+    // a second tap sent the form again. The button is not disabled: a
+    // disabled submitter is left out of the form data, and Delete is told
+    // apart by its name=action value.
+    function initPostSubmit() {
+        var form = document.getElementById('postForm');
+        if (!form) return;
+
+        var config = window.POST_CONFIG || {};
+        var status = document.getElementById('uploadStatus');
+        var busy = false;
+        var restore = [];
+
+        form.addEventListener('submit', function (e) {
+            if (busy) {
+                e.preventDefault();
+                return;
+            }
+
+            var submitter = e.submitter || document.getElementById('postSubmit');
+            var deleting = !!submitter && submitter.value === 'delete';
+            var input = document.getElementById('imageInput');
+            var files = input && input.files ? Array.from(input.files) : [];
+            var total = files.reduce(function (n, f) { return n + f.size; }, 0);
+
+            // Over post_max_size PHP receives nothing at all, and the photos
+            // would have to be picked again after the error.
+            if (!deleting && config.postMaxBytes && total > config.postMaxBytes - 1048576) {
+                e.preventDefault();
+                if (status) {
+                    status.textContent = 'These photos come to ' + (total / 1048576).toFixed(0) +
+                        ' MB, more than one save can take. Remove a few, save, then add the rest.';
+                    status.scrollIntoView({ block: 'center' });
+                }
+                return;
+            }
+
+            busy = true;
+            form.setAttribute('aria-busy', 'true');
+            var label = deleting ? 'Deleting…'
+                : files.length ? 'Uploading ' + files.length + (files.length === 1 ? ' photo…' : ' photos…')
+                : config.isEdit ? 'Saving…' : 'Posting…';
+            setBusy(submitter, label);
+        });
+
+        function setBusy(btn, label) {
+            if (!btn) return;
+            var text = btn.querySelector('.btn-label');
+            var icon = btn.querySelector('i');
+            restore = [btn, text ? text.textContent : '', icon ? icon.className : ''];
+            btn.classList.add('is-busy');
+            btn.setAttribute('aria-disabled', 'true');
+            if (text) text.textContent = label;
+            if (icon) icon.className = 'fa-solid fa-spinner fa-spin';
+        }
+
+        // A page restored from the back-forward cache comes back mid-submit.
+        window.addEventListener('pageshow', function (e) {
+            if (!e.persisted || !restore.length) return;
+            var btn = restore[0];
+            var text = btn.querySelector('.btn-label');
+            var icon = btn.querySelector('i');
+            if (text) text.textContent = restore[1];
+            if (icon) icon.className = restore[2];
+            btn.classList.remove('is-busy');
+            btn.removeAttribute('aria-disabled');
+            form.removeAttribute('aria-busy');
+            busy = false;
         });
     }
 

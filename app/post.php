@@ -163,7 +163,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$postTooLarge) {
     // that the listing has no map position, and the distance check below would
     // measure from (0, 0) in the Atlantic and blame the address.
     if ($lat === 0.0 && $lon === 0.0) {
-        $error_message = "Please pick your address from the dropdown suggestions so your listing can be placed on the map.";
+        $error_message = "Pick your address from the suggestions, or tap your place on the map, so your listing lands in the right spot.";
     }
 
     // Validate distance from campus
@@ -392,27 +392,32 @@ if ($isEdit) {
 
         <form method="post" action="post.php" enctype="multipart/form-data" id="postForm">
             <!-- Image Upload -->
+            <?php /* Each pick adds to the photos already chosen (app.js keeps
+                     the list), and every photo has a remove button that is
+                     visible without hovering, since most posts come from a
+                     phone. */ ?>
             <div class="form-group">
-                <label>Photos</label>
+                <label for="imageInput">Photos</label>
                 <div class="upload-zone" id="dropZone">
                     <input type="file" name="images[]" id="imageInput" accept="image/*" multiple <?= $isEdit ? '' : 'required' ?>>
-                    <i class="fa-solid fa-cloud-arrow-up"></i>
-                    <p><strong>Click to upload</strong> or drag and drop</p>
-                    <p class="form-note">First image will be the thumbnail</p>
+                    <i class="fa-solid fa-camera" aria-hidden="true"></i>
+                    <p><strong>Add photos</strong><span class="upload-drag-hint"> or drag them here</span></p>
+                    <p class="form-note">The first photo is the cover on your card.</p>
                 </div>
                 <div class="image-previews" id="imagePreviews">
-                    <?php foreach ($existingImages as $img): ?>
+                    <?php foreach ($existingImages as $n => $img): ?>
                         <div class="image-preview <?= $img['sort_order'] === 0 ? 'is-thumbnail' : '' ?>" data-image-id="<?= $img['id'] ?>">
-                            <img src="<?= htmlspecialchars(display_src($img['image_url'])) ?>" alt="Listing image" decoding="async">
-                            <button type="button" class="remove-image" data-image-id="<?= $img['id'] ?>">
-                                <i class="fa-solid fa-xmark"></i>
+                            <img src="<?= htmlspecialchars(display_src($img['image_url'])) ?>" alt="Photo <?= $n + 1 ?>" decoding="async">
+                            <button type="button" class="remove-image" data-image-id="<?= $img['id'] ?>" aria-label="Delete photo <?= $n + 1 ?>">
+                                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                             </button>
                             <?php if ($img['sort_order'] === 0): ?>
-                                <span class="thumbnail-badge">Thumbnail</span>
+                                <span class="thumbnail-badge">Cover</span>
                             <?php endif; ?>
                         </div>
                     <?php endforeach; ?>
                 </div>
+                <p class="upload-status" id="uploadStatus" role="status" aria-live="polite"></p>
             </div>
 
             <!-- Price -->
@@ -437,17 +442,31 @@ if ($isEdit) {
                      Saving then writes back the shortened form; lat/lon are
                      untouched, so an existing listing keeps its map position. */ ?>
             <!-- Address -->
+            <?php /* An ARIA combobox: the suggestions are a listbox the arrow
+                     keys move through, and what the search found (or did not)
+                     is announced through #addressStatus. Messages sit outside
+                     the listbox, since a listbox may only hold options. */ ?>
             <div class="form-group">
-                <label for="address">Address</label>
+                <label for="address" id="addressLabel">Address</label>
                 <div class="address-wrapper">
-                    <input type="text" id="address" name="address" placeholder="Start typing an address..."
+                    <input type="text" id="address" name="address" placeholder="Start typing your street address"
                            value="<?= htmlspecialchars(format_address($form['address'] ?? '')) ?>"
-                           autocomplete="off" required>
-                    <div class="autocomplete-results" id="addressResults"></div>
+                           autocomplete="off" required
+                           role="combobox" aria-autocomplete="list" aria-expanded="false"
+                           aria-controls="addressListbox" aria-describedby="addressHint addressPrivacy">
+                    <div class="autocomplete-results" id="addressResults">
+                        <div role="listbox" id="addressListbox" aria-labelledby="addressLabel"></div>
+                        <div class="autocomplete-empty" id="addressMessage" hidden></div>
+                    </div>
                 </div>
-                <p class="field-hint"><i class="fa-solid fa-circle-info"></i> Pick a suggestion from the dropdown so your listing lands in the right spot on the map.</p>
+                <p class="sr-only" id="addressStatus" role="status" aria-live="polite"></p>
+                <p class="field-hint" id="addressHint"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Pick a suggestion, or tap your place on the map if it isn&rsquo;t listed.</p>
+                <p class="field-hint" id="addressPrivacy"><i class="fa-solid fa-lock" aria-hidden="true"></i> Only signed-in UVM students see your address. Shared links and previews show how far it is from campus, never the street.</p>
                 <input type="hidden" id="lat" name="lat" value="<?= $formHasLocation ? htmlspecialchars((string)$form['lat']) : '' ?>">
                 <input type="hidden" id="lon" name="lon" value="<?= $formHasLocation ? htmlspecialchars((string)$form['lon']) : '' ?>">
+                <?php /* On a phone app.js moves the map in here, under the field
+                         it answers to; on a desktop it stays in the side column. */ ?>
+                <div class="post-map-slot" id="postMapSlot"></div>
             </div>
 
             <!-- Semester -->
@@ -554,32 +573,32 @@ if ($isEdit) {
 
                 <div class="utility-grid">
                     <div class="utility-row">
-                        <label><i class="fa-solid fa-bolt"></i> Electric</label>
-                        <select name="utility_electric">
+                        <label for="utility_electric"><i class="fa-solid fa-bolt" aria-hidden="true"></i> Electric</label>
+                        <select id="utility_electric" name="utility_electric">
                             <option value="">Not specified</option>
                             <option value="landlord" <?= ($form['utility_electric'] ?? '') === 'landlord' ? 'selected' : '' ?>>Included in rent</option>
                             <option value="tenant" <?= ($form['utility_electric'] ?? '') === 'tenant' ? 'selected' : '' ?>>Tenant pays</option>
                         </select>
                     </div>
                     <div class="utility-row">
-                        <label><i class="fa-solid fa-fire-flame-simple"></i> Gas</label>
-                        <select name="utility_gas">
+                        <label for="utility_gas"><i class="fa-solid fa-fire-flame-simple" aria-hidden="true"></i> Gas</label>
+                        <select id="utility_gas" name="utility_gas">
                             <option value="">Not specified</option>
                             <option value="landlord" <?= ($form['utility_gas'] ?? '') === 'landlord' ? 'selected' : '' ?>>Included in rent</option>
                             <option value="tenant" <?= ($form['utility_gas'] ?? '') === 'tenant' ? 'selected' : '' ?>>Tenant pays</option>
                         </select>
                     </div>
                     <div class="utility-row">
-                        <label><i class="fa-solid fa-droplet"></i> Water</label>
-                        <select name="utility_water">
+                        <label for="utility_water"><i class="fa-solid fa-droplet" aria-hidden="true"></i> Water</label>
+                        <select id="utility_water" name="utility_water">
                             <option value="">Not specified</option>
                             <option value="landlord" <?= ($form['utility_water'] ?? '') === 'landlord' ? 'selected' : '' ?>>Included in rent</option>
                             <option value="tenant" <?= ($form['utility_water'] ?? '') === 'tenant' ? 'selected' : '' ?>>Tenant pays</option>
                         </select>
                     </div>
                     <div class="utility-row">
-                        <label><i class="fa-solid fa-wifi"></i> Internet</label>
-                        <select name="utility_internet">
+                        <label for="utility_internet"><i class="fa-solid fa-wifi" aria-hidden="true"></i> Internet</label>
+                        <select id="utility_internet" name="utility_internet">
                             <option value="">Not specified</option>
                             <option value="landlord" <?= ($form['utility_internet'] ?? '') === 'landlord' ? 'selected' : '' ?>>Included in rent</option>
                             <option value="tenant" <?= ($form['utility_internet'] ?? '') === 'tenant' ? 'selected' : '' ?>>Tenant pays</option>
@@ -676,22 +695,24 @@ if ($isEdit) {
 
             <!-- Info -->
             <p class="form-note form-note-closing">
-                <i class="fa-solid fa-circle-info"></i>
-                Your listing will show contact buttons so interested users can reach you via email and phone (if provided).
+                <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+                Signed-in UVM students can email you, and call or text if you add a number. Neither shows up in shared links or previews.
             </p>
 
             <!-- Actions -->
             <div class="form-actions">
-                <button type="submit" class="btn btn-primary btn-lg">
-                    <i class="fa-solid fa-paper-plane"></i>
-                    <?= $isEdit ? 'Update Listing' : 'Post Listing' ?>
+                <?php /* app.js swaps the label for "Uploading 3 photos…" while the
+                         request is in flight, and ignores a second press. */ ?>
+                <button type="submit" class="btn btn-primary btn-lg" id="postSubmit">
+                    <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
+                    <span class="btn-label"><?= $isEdit ? 'Update Listing' : 'Post Listing' ?></span>
                 </button>
                 <?php if ($isEdit): ?>
                     <?php /* Submits the surrounding form as POST — see the delete handler above.
                              formnovalidate so the required fields don't block a delete. */ ?>
                     <button type="submit" name="action" value="delete" class="btn btn-danger" formnovalidate
                             onclick="return confirm('Are you sure you want to delete your listing? This cannot be undone.');">
-                        <i class="fa-solid fa-trash"></i> Delete
+                        <i class="fa-solid fa-trash" aria-hidden="true"></i> <span class="btn-label">Delete</span>
                     </button>
                 <?php endif; ?>
             </div>
@@ -701,9 +722,9 @@ if ($isEdit) {
     <div class="post-map-section">
         <div class="map-container">
             <div id="postMap"></div>
-            <p class="map-hint">
-                <i class="fa-solid fa-location-dot"></i>
-                Select an address to see it on the map
+            <p class="map-hint" id="postMapHint">
+                <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
+                <span id="postMapHintText"><?= $formHasLocation ? 'Drag the pin or tap the map to move it.' : 'Search your address, or tap the map where your place is.' ?></span>
             </p>
         </div>
     </div>
@@ -712,8 +733,14 @@ if ($isEdit) {
 <script>
     window.POST_CONFIG = {
         isEdit: <?= $isEdit ? 'true' : 'false' ?>,
-        lat: <?= $formHasLocation ? (float)$form['lat'] : CAMPUS_LAT ?>,
-        lon: <?= $formHasLocation ? (float)$form['lon'] : CAMPUS_LON ?>,
+        // null until the listing has a place: the map then opens on campus with
+        // no pin, rather than a pin on campus that looks like an answer.
+        lat: <?= $formHasLocation ? (float)$form['lat'] : 'null' ?>,
+        lon: <?= $formHasLocation ? (float)$form['lon'] : 'null' ?>,
+        // The limits PHP enforces, so the form can say so before uploading.
+        uploadMaxBytes: <?= ini_bytes('upload_max_filesize') ?>,
+        postMaxBytes: <?= ini_bytes('post_max_size') ?>,
+        maxFiles: <?= (int)ini_get('max_file_uploads') ?>,
         shareUrl: <?= json_encode(!empty($existingPost['id']) ? share_url((int)$existingPost['id']) : '') ?>,
         sharePrice: <?= json_encode(!empty($existingPost['price']) ? '$' . number_format((float)$existingPost['price']) : '') ?>,
         shareSemester: <?= json_encode($shareSemesterName) ?>
