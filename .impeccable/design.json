@@ -1,0 +1,468 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-02T14:12:44+00:00",
+  "title": "Design System: UVM Sublets",
+  "extensions": {
+    "colorMeta": {
+      "catamount-green": {
+        "role": "primary",
+        "displayName": "Catamount Green",
+        "canonical": "oklch(35.9% 0.063 164.4)",
+        "tonalRamp": [
+          "oklch(15% 0.063 164.4)",
+          "oklch(26% 0.063 164.4)",
+          "oklch(37% 0.063 164.4)",
+          "oklch(48% 0.063 164.4)",
+          "oklch(60% 0.063 164.4)",
+          "oklch(72% 0.063 164.4)",
+          "oklch(84% 0.063 164.4)",
+          "oklch(95% 0.063 164.4)"
+        ]
+      },
+      "catamount-green-hover": {
+        "role": "primary",
+        "displayName": "Catamount Green Hover",
+        "canonical": "oklch(42.7% 0.077 164.9)",
+        "tonalRamp": [
+          "oklch(15% 0.077 164.9)",
+          "oklch(26% 0.077 164.9)",
+          "oklch(37% 0.077 164.9)",
+          "oklch(48% 0.077 164.9)",
+          "oklch(60% 0.077 164.9)",
+          "oklch(72% 0.077 164.9)",
+          "oklch(84% 0.077 164.9)",
+          "oklch(95% 0.077 164.9)"
+        ]
+      },
+      "gold": {
+        "role": "secondary",
+        "displayName": "Gold",
+        "canonical": "oklch(87.5% 0.179 92.7)",
+        "tonalRamp": [
+          "oklch(15% 0.160 92.7)",
+          "oklch(26% 0.160 92.7)",
+          "oklch(37% 0.160 92.7)",
+          "oklch(48% 0.160 92.7)",
+          "oklch(60% 0.160 92.7)",
+          "oklch(72% 0.160 92.7)",
+          "oklch(84% 0.160 92.7)",
+          "oklch(95% 0.160 92.7)"
+        ]
+      },
+      "gold-hover": {
+        "role": "secondary",
+        "displayName": "Gold Hover",
+        "canonical": "oklch(80.9% 0.166 92.5)",
+        "tonalRamp": [
+          "oklch(15% 0.160 92.5)",
+          "oklch(26% 0.160 92.5)",
+          "oklch(37% 0.160 92.5)",
+          "oklch(48% 0.160 92.5)",
+          "oklch(60% 0.160 92.5)",
+          "oklch(72% 0.160 92.5)",
+          "oklch(84% 0.160 92.5)",
+          "oklch(95% 0.160 92.5)"
+        ]
+      },
+      "focus-sky": {
+        "role": "tertiary",
+        "displayName": "Focus Sky",
+        "canonical": "oklch(67.7% 0.126 243.6)",
+        "tonalRamp": [
+          "oklch(15% 0.126 243.6)",
+          "oklch(26% 0.126 243.6)",
+          "oklch(37% 0.126 243.6)",
+          "oklch(48% 0.126 243.6)",
+          "oklch(60% 0.126 243.6)",
+          "oklch(72% 0.126 243.6)",
+          "oklch(84% 0.126 243.6)",
+          "oklch(95% 0.126 243.6)"
+        ]
+      },
+      "alert-orange": {
+        "role": "tertiary",
+        "displayName": "Alert Orange",
+        "canonical": "oklch(62.6% 0.176 38.5)",
+        "tonalRamp": [
+          "oklch(15% 0.160 38.5)",
+          "oklch(26% 0.160 38.5)",
+          "oklch(37% 0.160 38.5)",
+          "oklch(48% 0.160 38.5)",
+          "oklch(60% 0.160 38.5)",
+          "oklch(72% 0.160 38.5)",
+          "oklch(84% 0.160 38.5)",
+          "oklch(95% 0.160 38.5)"
+        ]
+      },
+      "slate-ink": {
+        "role": "neutral",
+        "displayName": "Slate Ink",
+        "canonical": "oklch(28.9% 0.052 217.7)",
+        "tonalRamp": [
+          "oklch(15% 0.052 217.7)",
+          "oklch(26% 0.052 217.7)",
+          "oklch(37% 0.052 217.7)",
+          "oklch(48% 0.052 217.7)",
+          "oklch(60% 0.052 217.7)",
+          "oklch(72% 0.052 217.7)",
+          "oklch(84% 0.052 217.7)",
+          "oklch(95% 0.052 217.7)"
+        ]
+      },
+      "text-secondary": {
+        "role": "neutral",
+        "displayName": "Text Secondary",
+        "canonical": "oklch(46.7% 0.026 214.6)",
+        "tonalRamp": [
+          "oklch(15% 0.026 214.6)",
+          "oklch(26% 0.026 214.6)",
+          "oklch(37% 0.026 214.6)",
+          "oklch(48% 0.026 214.6)",
+          "oklch(60% 0.026 214.6)",
+          "oklch(72% 0.026 214.6)",
+          "oklch(84% 0.026 214.6)",
+          "oklch(95% 0.026 214.6)"
+        ]
+      },
+      "text-muted": {
+        "role": "neutral",
+        "displayName": "Text Muted",
+        "canonical": "oklch(63.3% 0.024 214.5)",
+        "tonalRamp": [
+          "oklch(15% 0.024 214.5)",
+          "oklch(26% 0.024 214.5)",
+          "oklch(37% 0.024 214.5)",
+          "oklch(48% 0.024 214.5)",
+          "oklch(60% 0.024 214.5)",
+          "oklch(72% 0.024 214.5)",
+          "oklch(84% 0.024 214.5)",
+          "oklch(95% 0.024 214.5)"
+        ]
+      },
+      "fog": {
+        "role": "neutral",
+        "displayName": "Fog",
+        "canonical": "oklch(97.6% 0.000 89.9)",
+        "tonalRamp": [
+          "oklch(15% 0.000 89.9)",
+          "oklch(26% 0.000 89.9)",
+          "oklch(37% 0.000 89.9)",
+          "oklch(48% 0.000 89.9)",
+          "oklch(60% 0.000 89.9)",
+          "oklch(72% 0.000 89.9)",
+          "oklch(84% 0.000 89.9)",
+          "oklch(95% 0.000 89.9)"
+        ]
+      },
+      "card-white": {
+        "role": "neutral",
+        "displayName": "Card White",
+        "canonical": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "oklch(15% 0.000 89.9)",
+          "oklch(26% 0.000 89.9)",
+          "oklch(37% 0.000 89.9)",
+          "oklch(48% 0.000 89.9)",
+          "oklch(60% 0.000 89.9)",
+          "oklch(72% 0.000 89.9)",
+          "oklch(84% 0.000 89.9)",
+          "oklch(95% 0.000 89.9)"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Border",
+        "canonical": "oklch(90.6% 0.006 223.5)",
+        "tonalRamp": [
+          "oklch(15% 0.006 223.5)",
+          "oklch(26% 0.006 223.5)",
+          "oklch(37% 0.006 223.5)",
+          "oklch(48% 0.006 223.5)",
+          "oklch(60% 0.006 223.5)",
+          "oklch(72% 0.006 223.5)",
+          "oklch(84% 0.006 223.5)",
+          "oklch(95% 0.006 223.5)"
+        ]
+      },
+      "border-light": {
+        "role": "neutral",
+        "displayName": "Border Light",
+        "canonical": "oklch(95.6% 0.003 219.5)",
+        "tonalRamp": [
+          "oklch(15% 0.003 219.5)",
+          "oklch(26% 0.003 219.5)",
+          "oklch(37% 0.003 219.5)",
+          "oklch(48% 0.003 219.5)",
+          "oklch(60% 0.003 219.5)",
+          "oklch(72% 0.003 219.5)",
+          "oklch(84% 0.003 219.5)",
+          "oklch(95% 0.003 219.5)"
+        ]
+      },
+      "included-tint": {
+        "role": "neutral",
+        "displayName": "Included Tint (state tint, hard-coded outside :root)"
+      },
+      "included-ink": {
+        "role": "neutral",
+        "displayName": "Included Ink (state tint, hard-coded outside :root)"
+      },
+      "tenant-tint": {
+        "role": "neutral",
+        "displayName": "Tenant-Pays Tint (state tint, hard-coded outside :root)"
+      },
+      "tenant-ink": {
+        "role": "neutral",
+        "displayName": "Tenant-Pays Ink (state tint, hard-coded outside :root)"
+      },
+      "preference-tint": {
+        "role": "neutral",
+        "displayName": "Preference Tint (state tint, hard-coded outside :root)"
+      },
+      "preference-ink": {
+        "role": "neutral",
+        "displayName": "Preference Ink (state tint, hard-coded outside :root)"
+      },
+      "error-tint": {
+        "role": "neutral",
+        "displayName": "Error Tint (state tint, hard-coded outside :root)"
+      },
+      "error-ink": {
+        "role": "neutral",
+        "displayName": "Error Ink (state tint, hard-coded outside :root)"
+      }
+    },
+    "typographyMeta": {
+      "brand": {
+        "displayName": "Brand",
+        "purpose": "The UVM Sublets wordmark in the nav."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page titles, in Catamount Green."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Section headings."
+      },
+      "subtitle": {
+        "displayName": "Subtitle",
+        "purpose": "Form section headings and dialog titles."
+      },
+      "price": {
+        "displayName": "Price",
+        "purpose": "The price at the top of the listing view."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Descriptions and paragraphs."
+      },
+      "body-small": {
+        "displayName": "Body Small",
+        "purpose": "Card addresses, form labels, meta lines; the most-used size."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Uppercase filter-group labels and the semester badge."
+      }
+    },
+    "shadows": [
+      {
+        "name": "resting",
+        "value": "0 1px 3px rgba(0, 49, 60, 0.06)",
+        "purpose": "Listing cards, form panels, badges at rest."
+      },
+      {
+        "name": "panel",
+        "value": "0 2px 8px rgba(0, 49, 60, 0.08)",
+        "purpose": "The filter panel."
+      },
+      {
+        "name": "lifted",
+        "value": "0 4px 16px rgba(0, 49, 60, 0.10)",
+        "purpose": "A hovered card and the nav bar."
+      },
+      {
+        "name": "floating",
+        "value": "0 8px 32px rgba(0, 49, 60, 0.14)",
+        "purpose": "Dialogs, the share sheet, map popups."
+      },
+      {
+        "name": "field-focus",
+        "value": "0 0 0 3px rgba(21, 71, 52, 0.1)",
+        "purpose": "Green glow around a focused input or select."
+      }
+    ],
+    "motion": [
+      {
+        "name": "standard",
+        "value": "0.2s ease",
+        "purpose": "Default for color, background, border and shadow changes (--transition)."
+      },
+      {
+        "name": "photo-zoom",
+        "value": "transform 0.3s ease, scale(1.03)",
+        "purpose": "Card photo on pointer hover."
+      },
+      {
+        "name": "dialog-in",
+        "value": "modalIn 0.25s ease",
+        "purpose": "Listing view entrance."
+      },
+      {
+        "name": "contact-slide",
+        "value": "transform 0.3s ease, translateX(-100%)",
+        "purpose": "Contact panel sliding over the listing details."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion: reduce → durations 0.01ms",
+        "purpose": "Site-wide override; keep it."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "tablet",
+        "value": "768px"
+      },
+      {
+        "name": "sheet",
+        "value": "600px"
+      },
+      {
+        "name": "phone",
+        "value": "480px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Every primary action: Post, Save, Email, Call.",
+      "html": "<button class=\"ds-btn-primary\">Post your sublet</button>",
+      "css": ".ds-btn-primary{display:inline-flex;align-items:center;gap:.4rem;padding:.55rem 1.25rem;border-radius:var(--radius-xs,6px);font:600 .875rem/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;border:none;cursor:pointer;transition:all .2s ease;background:var(--green,#154734);color:#fff} .ds-btn-primary:hover{background:#1a5c44} .ds-btn-primary:focus-visible{outline:3px solid var(--sky,#489FDF);outline-offset:2px;}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Secondary actions: Share, Clear filters, Back.",
+      "html": "<button class=\"ds-btn-secondary\">Share</button>",
+      "css": ".ds-btn-secondary{display:inline-flex;align-items:center;gap:.4rem;padding:.55rem 1.25rem;border-radius:var(--radius-xs,6px);font:600 .875rem/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;border:none;cursor:pointer;transition:all .2s ease;background:var(--fog,#F7F7F7);color:var(--text-secondary,#4a5e63);border:1px solid var(--border,#dce1e3)} .ds-btn-secondary:hover{background:#fff;border-color:var(--text-secondary,#4a5e63);color:var(--text,#00313C)} .ds-btn-secondary:focus-visible{outline:3px solid var(--sky,#489FDF);outline-offset:2px;}"
+    },
+    {
+      "name": "Gold Button",
+      "kind": "button",
+      "refersTo": "button-gold",
+      "description": "The poster's own Edit action; Gold as a pin.",
+      "html": "<button class=\"ds-btn-gold\">Edit</button>",
+      "css": ".ds-btn-gold{display:inline-flex;align-items:center;gap:.4rem;padding:.55rem 1.25rem;border-radius:var(--radius-xs,6px);font:600 .875rem/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;border:none;cursor:pointer;transition:all .2s ease;background:var(--gold,#FFD100);color:var(--green,#154734)} .ds-btn-gold:hover{background:#e6bc00} .ds-btn-gold:focus-visible{outline:3px solid var(--sky,#489FDF);outline-offset:2px;}"
+    },
+    {
+      "name": "Filter Chip",
+      "kind": "chip",
+      "refersTo": "chip-filter",
+      "description": "Amenity filters on Browse and Map; snaps to green when selected.",
+      "html": "<label class=\"ds-chip\"><input type=\"checkbox\"><span>Furnished</span></label> <label class=\"ds-chip\"><input type=\"checkbox\" checked><span>Laundry</span></label>",
+      "css": ".ds-chip{position:relative;display:inline-flex;cursor:pointer} .ds-chip input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer} .ds-chip span{display:inline-flex;align-items:center;gap:.35rem;padding:.35rem .75rem;border-radius:999px;border:1px solid var(--border,#dce1e3);background:#fff;font:500 .8rem/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:var(--text-secondary,#4a5e63);transition:background .2s ease,border-color .2s ease,color .2s ease} .ds-chip:hover span{border-color:var(--green,#154734);color:var(--green,#154734)} .ds-chip input:checked+span{background:var(--green,#154734);border-color:var(--green,#154734);color:#fff} .ds-chip input:focus-visible+span{outline:3px solid var(--sky,#489FDF);outline-offset:2px;}"
+    },
+    {
+      "name": "Amenity Tags",
+      "kind": "chip",
+      "refersTo": "tag-included",
+      "description": "Facts pinned to a card: included (green tint), tenant pays (gold tint), plain.",
+      "html": "<span class=\"ds-tag ds-tag-included\">Furnished</span> <span class=\"ds-tag ds-tag-tenant\">Paid Parking</span> <span class=\"ds-tag\">~$80/mo utils</span>",
+      "css": ".ds-tag{display:inline-flex;align-items:center;gap:.25rem;font:600 .7rem/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:.15rem .45rem;border-radius:var(--radius-xs,6px);background:var(--fog,#F7F7F7);color:var(--text-secondary,#4a5e63);border:1px solid var(--border-light,#eef1f2);white-space:nowrap} .ds-tag-included{background:#e8f5e9;color:#1a6b4a;border-color:#c8e6c9} .ds-tag-tenant{background:#fff8e1;color:#7a6100;border-color:#ffecb3}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Post-form inputs; focus turns the border green with a soft green glow.",
+      "html": "<label class=\"ds-field\"><span>Price per month</span><input type=\"text\" placeholder=\"850\"></label>",
+      "css": ".ds-field{display:block;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif} .ds-field span{display:block;font-size:.85rem;font-weight:600;color:var(--text-secondary,#4a5e63);margin-bottom:.4rem} .ds-field input{width:100%;box-sizing:border-box;padding:.65rem .875rem;border:1px solid var(--border,#dce1e3);border-radius:var(--radius-xs,6px);background:#fff;color:var(--text,#00313C);font:inherit;font-size:1rem;transition:border-color .2s ease,box-shadow .2s ease} .ds-field input:focus{outline:none;border-color:var(--green,#154734);box-shadow:0 0 0 3px rgba(21,71,52,.1)}"
+    },
+    {
+      "name": "Navigation Bar",
+      "kind": "nav",
+      "refersTo": "nav-bar",
+      "description": "Sticky green bar: Gold logo tile, wordmark, links with a Gold active state.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-brand\" href=\"#\"><span class=\"ds-logo\"><svg viewBox=\"0 0 64 64\" width=\"18\" height=\"18\" aria-hidden=\"true\"><path d=\"M32 12 L52 28 L52 52 L38 52 L38 38 L26 38 L26 52 L12 52 L12 28 Z\" fill=\"currentColor\"/></svg></span>UVM Sublets</a><span class=\"ds-links\"><a class=\"ds-link ds-active\" href=\"#\">Browse</a><a class=\"ds-link\" href=\"#\">Map</a><a class=\"ds-link\" href=\"#\">My Post</a></span></nav>",
+      "css": ".ds-nav{display:flex;align-items:center;justify-content:space-between;height:64px;padding:0 1.5rem;background:var(--green,#154734);box-shadow:0 4px 16px rgba(0,49,60,.10);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif} .ds-brand{display:flex;align-items:center;gap:.75rem;color:#fff;font-weight:700;font-size:1.25rem;letter-spacing:-.02em;text-decoration:none} .ds-brand:hover{color:var(--gold,#FFD100)} .ds-logo{width:36px;height:36px;border-radius:8px;background:var(--gold,#FFD100);color:var(--green,#154734);display:flex;align-items:center;justify-content:center} .ds-links{display:flex;gap:.25rem} .ds-link{color:rgba(255,255,255,.85);padding:.5rem 1rem;border-radius:6px;font-size:.9rem;font-weight:500;text-decoration:none;transition:all .2s ease} .ds-link:hover{color:#fff;background:rgba(255,255,255,.12)} .ds-link:focus-visible{outline:3px solid var(--sky,#489FDF);outline-offset:2px;} .ds-active{color:var(--gold,#FFD100);background:rgba(255,209,0,.1)}"
+    },
+    {
+      "name": "Listing Card",
+      "kind": "card",
+      "refersTo": "card-listing",
+      "description": "The pinned index card: 3:2 photo with a green price badge and gold semester pin, then address, size, meta and tags.",
+      "html": "<article class=\"ds-card\" tabindex=\"0\"><div class=\"ds-card-photo\"><span class=\"ds-price\">$850</span><span class=\"ds-sem\">Spring 2027</span></div><div class=\"ds-card-info\"><p class=\"ds-addr\">62 King Street, Downtown</p><p class=\"ds-size\">2 bd &middot; 1 ba &middot; 1 roommate</p><p class=\"ds-meta\">Posted by Sam &middot; 0.4 mi</p></div><div class=\"ds-card-tags\"><span class=\"ds-tag2\">Furnished</span><span class=\"ds-tag2\">Laundry</span></div></article>",
+      "css": ".ds-card{width:300px;background:#fff;border-radius:var(--radius,12px);overflow:hidden;border:1px solid var(--border-light,#eef1f2);box-shadow:0 1px 3px rgba(0,49,60,.06);cursor:pointer;transition:all .2s ease;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif} .ds-card:hover{box-shadow:0 4px 16px rgba(0,49,60,.10);transform:translateY(-2px)} .ds-card:focus-visible{outline:3px solid var(--sky,#489FDF);outline-offset:2px;} .ds-card-photo{position:relative;aspect-ratio:3/2;background:linear-gradient(135deg,#cfd8d4,#e9eeec)} .ds-price{position:absolute;left:.75rem;bottom:.75rem;background:var(--green,#154734);color:#fff;padding:.25rem .6rem;border-radius:6px;font-size:.85rem;font-weight:700;box-shadow:0 1px 3px rgba(0,49,60,.06)} .ds-sem{position:absolute;right:.75rem;top:.75rem;background:var(--gold,#FFD100);color:var(--green,#154734);padding:.2rem .5rem;border-radius:6px;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.02em} .ds-card-info{padding:.875rem 1rem} .ds-addr{margin:0 0 .25rem;font-size:.9rem;font-weight:500;color:var(--text,#00313C);white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .ds-size{margin:0 0 .25rem;font-size:.8rem;color:var(--text-secondary,#4a5e63)} .ds-meta{margin:0;font-size:.8rem;color:var(--text-muted,#7a8e93)} .ds-card-tags{display:flex;flex-wrap:wrap;gap:.3rem;padding:0 1rem .75rem} .ds-tag2{font-size:.7rem;font-weight:600;padding:.15rem .45rem;border-radius:6px;background:#e8f5e9;color:#1a6b4a;border:1px solid #c8e6c9}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Campus Notice Board",
+    "overview": "**Creative North Star: \"The Campus Notice Board\"**\n\nUVM Sublets is the bulletin board outside every dorm, kept tidy. Each listing is an index card pinned to the same board: a photo, a price, a semester, a few facts about the place, all in the same positions on every card so a student can scan a wall of them in seconds. The board is green felt (Catamount Green), the pins are Gold, and the cards are white paper that lifts a little when you reach for one. Order is what makes the board useful; the handwriting on it is what makes it feel like it came from a fellow student rather than an office.\n\nThe confirmed mood is **friendly and student-made, lively and social**. It should feel like something students run for each other: warm, direct, and worth sharing into a group chat or a story. It is not an institutional portal and it is not a real-estate marketplace. Density is moderate: generous enough for photos to carry each card, tight enough that a phone screen shows the price, semester and size of a listing without opening it.\n\nWhat exists today is a coherent but plain version of this board. It uses the system font stack, a single stylesheet (`css/style.css`) of custom properties on `:root`, and a Font Awesome icon set. The palette and shape language are consistent; the type scale, the state tints and some inline styles have drifted (see Typography and Colors).",
+    "keyCharacteristics": [
+      "Deep green structure, bright gold pins, white index cards on a pale fog ground.",
+      "Every listing card shows the same facts in the same places: photo, price badge, semester pin, address, size, distance, a few amenity tags.",
+      "A soft, slate-tinted lift: cards rest on a faint shadow and rise slightly when a real pointer hovers.",
+      "Tactile, pinned controls: solid buttons, pill-shaped filter chips that snap to green when selected.",
+      "Light mode only. Text and shadows are slate, never black."
+    ],
+    "rules": [
+      {
+        "name": "The Two-Pin Rule",
+        "body": "Green is the board and Gold is the pin. Green carries structure and every primary action. Gold marks only what is pinned: the active page, the semester and the poster's own Edit. Gold never fills a large area and is never text on a light ground.",
+        "section": "colors"
+      },
+      {
+        "name": "The Slate Ink Rule",
+        "body": "Text, scrims and shadows are tints of Slate Ink (#00313C); nothing on the site uses pure black.",
+        "section": "colors"
+      },
+      {
+        "name": "The Uppercase Label Rule",
+        "body": "Small uppercase text with 0.05em tracking is reserved for labels that name a control or a category. Content is never set in uppercase.",
+        "section": "typography"
+      },
+      {
+        "name": "The Scale Drift Note",
+        "body": "The stylesheet currently uses about 27 distinct font sizes, from 0.6rem to 3rem; the hierarchy above is the intended core. Sizes below 0.75rem (0.6–0.72rem, mostly on tags and badges) are drift and too small for a phone.",
+        "section": "typography"
+      },
+      {
+        "name": "The Pushpin Lift Rule",
+        "body": "A card rests on the Resting shadow and lifts 2px to Lifted, with its photo easing to 103%, only under `(hover: hover)`. On touch, a tapped card must not stay lifted.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Scrim Rule",
+        "body": "Anything that floats sits over Slate Ink at 60% with a 4px backdrop blur, so the board stays visible behind it.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Index Card Rule",
+        "body": "Containers are 12px, small inset surfaces 8px, controls 6px; filter chips are pills and nothing else is. A new component picks one of these, never a new radius.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "**Do** use Catamount Green (#154734) for every primary action, the price and the selected state, and Gold (#FFD100) only as a pin: the active page, the semester badge, Edit.",
+      "**Do** keep every listing card's facts in the same positions (price bottom-left on the photo, semester top-right, then address, size, distance, tags), so the board scans.",
+      "**Do** tint text, scrims and shadows with Slate Ink (#00313C); use the four-step shadow vocabulary as it stands.",
+      "**Do** give every interactive element the 3px Focus Sky (#489FDF) `:focus-visible` ring with a 2px offset.",
+      "**Do** gate hover lift and photo zoom on `(hover: hover)`, and keep the site-wide `prefers-reduced-motion` override.",
+      "**Do** pick 12px for containers, 8px for small inset surfaces, 6px for controls, and pills only for filter chips."
+    ],
+    "donts": [
+      "**Don't** use official UVM logos or wordmarks, or style a page so it reads as an official university service. UVM Sublets is an independent student project (PRODUCT.md).",
+      "**Don't** put Gold text on white or Fog (1.46:1), and don't fill large areas with Gold.",
+      "**Don't** use pure black for text or shadows.",
+      "**Don't** add new hard-coded hex values outside `:root`; the state tints listed under Colors are the existing exceptions, not a pattern to extend.",
+      "**Don't** set content text below 0.75rem or use Text Muted (#7a8e93) for anything a student needs to read to decide.",
+      "**Don't** leave hover-only effects ungated; a tapped card on a phone must not stay lifted."
+    ]
+  }
+}
