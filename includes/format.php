@@ -153,8 +153,11 @@ function listing_map_links(?string $address, $lat, $lon): array {
     // Addresses picked since the geocoder switch are stored short ("37 South
     // Williams Street, Burlington"), and Google's link has no ll= to pin them,
     // so "Burlington" could resolve to any of a dozen. Name the state, but only
-    // east of Lake Champlain: the 50-mile radius reaches Plattsburgh, and every
-    // New York shore town lies west of -73.35. West of that, add nothing
+    // inside Vermont's corner of the 50-mile radius, which also reaches New
+    // York and Quebec: east of -73.35 (every New York shore town on Lake
+    // Champlain lies west of it, Plattsburgh included) and south of 45.0 (the
+    // Quebec line; Philipsburg and Bedford are east of -73.35). A pin dropped
+    // by hand can land anywhere in the radius. Outside that, add nothing
     // rather than guess.
     $google = $query;
     $states = us_state_names();
@@ -165,7 +168,8 @@ function listing_map_links(?string $address, $lat, $lon): array {
             break;
         }
     }
-    if (!$hasState && is_numeric($lon) && (float)$lon > -73.35) {
+    if (!$hasState && is_numeric($lat) && is_numeric($lon)
+            && (float)$lon > -73.35 && (float)$lat < 45.0) {
         $google .= ', VT';
     }
 
