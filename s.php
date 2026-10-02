@@ -72,7 +72,10 @@ if ($listing === null) {
     $pageTitle = $lines['title'];
     $pageDesc = $lines['description'];
     $cardImage = SHARE_ORIGIN . '/share-card.php?i=' . rawurlencode($canonicalSlug);
-    $appUrl = SHARE_ORIGIN . '/app/index.php?id=' . (int)$listing['id'];
+    // via=share marks the arrival as a share link's in the activity log
+    // (includes/events.php). Nothing is logged here: crawlers read this page,
+    // and only a signed-in arrival in /app/ counts.
+    $appUrl = SHARE_ORIGIN . '/app/index.php?id=' . (int)$listing['id'] . '&via=share';
 }
 ?>
 <!DOCTYPE html>

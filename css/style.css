@@ -1269,6 +1269,34 @@ body.listing-open {
     margin-bottom: 1.5rem;
 }
 
+/* The poster's own numbers, under the heading on the edit form. */
+.listing-stats {
+    margin: -0.75rem 0 1.5rem;
+    padding: 0.75rem 1rem;
+    background: var(--fog);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+}
+
+.listing-stats-line {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    font-size: var(--text-md);
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+}
+
+.listing-stats-line i {
+    color: var(--green);
+}
+
+.listing-stats-note {
+    margin-top: 0.3rem;
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+}
+
 .form-group {
     margin-bottom: 1.25rem;
 }
@@ -1869,6 +1897,171 @@ body.listing-open {
 
 .admin-table tr:hover td {
     background: var(--fog);
+}
+
+/* Activity tab: counts only (includes/events.php). */
+.activity-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.activity-head h3 {
+    margin-bottom: 0;
+}
+
+.activity-range {
+    display: inline-flex;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xs);
+    overflow: hidden;
+}
+
+.activity-range-link {
+    padding: 0.4rem 0.8rem;
+    font-size: var(--text-sm);
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-decoration: none;
+}
+
+.activity-range-link + .activity-range-link {
+    border-left: 1px solid var(--border);
+}
+
+.activity-range-link.active {
+    background: var(--green);
+    color: var(--white);
+}
+
+.activity-note {
+    margin: 0.75rem 0 1.25rem;
+    font-size: var(--text-sm);
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+.activity-totals {
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+}
+
+.activity-subhead {
+    margin: 1.5rem 0 0.5rem;
+    font-size: var(--text-md);
+    color: var(--text);
+}
+
+.activity-chart {
+    display: block;
+    width: 100%;
+    height: 140px;
+}
+
+.activity-chart-axis {
+    stroke: var(--border);
+    stroke-width: 1;
+}
+
+.activity-chart-hit {
+    fill: transparent;
+}
+
+.activity-chart-views {
+    fill: var(--green);
+}
+
+/* Focus blue: 3.9:1 on white, and plainly not green. */
+.activity-chart-contacts {
+    fill: var(--focus);
+}
+
+.activity-chart-scale {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.25rem;
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+}
+
+.activity-legend {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+}
+
+.activity-swatch {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+}
+
+.activity-swatch + .activity-swatch,
+.activity-legend .activity-swatch-contacts {
+    margin-left: 0.75rem;
+}
+
+.activity-swatch-views {
+    background: var(--green);
+}
+
+.activity-swatch-contacts {
+    background: var(--focus);
+}
+
+.activity-breakdowns {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 0 2rem;
+}
+
+.activity-bars {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.activity-bars li {
+    display: grid;
+    grid-template-columns: 8.5rem 1fr 2.5rem;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.25rem 0;
+    font-size: var(--text-sm);
+}
+
+.activity-bars-label {
+    color: var(--text-secondary);
+}
+
+.activity-bars-track {
+    height: 10px;
+    background: var(--fog);
+}
+
+.activity-bars-fill {
+    display: block;
+    height: 100%;
+    width: var(--share, 0%);
+    background: var(--green);
+}
+
+.activity-bars-count,
+.activity-table .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.activity-listing {
+    max-width: 240px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* Semester list */

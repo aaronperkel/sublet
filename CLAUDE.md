@@ -259,6 +259,8 @@ Adding a page means adding both an `init<Page>()` branch in `app.js` and the mat
 
 Everything lives in one closure, so **module state read during init must be declared above the dispatch block**. Function declarations hoist; `var` assignments do not. `SHARE_TILES` declared next to `initShare()` was still `undefined` when the dispatch called it, and the resulting throw landed after `shareEls` was assigned but before any listener was attached — the sheet opened, showed no tiles, and could not be closed or copied from, and the abort took the `?id=` deep link with it.
 
+The listing view's state (`modalImages`, `currentPostId`, `currentSource`, `lastFocused`) is also declared above the dispatch, because `openSharedListing()` opens a listing during init. While it was declared further down, the deep-linked view lost its `currentPostId` and the admin's Delete button did nothing.
+
 `copyToClipboard()` / `flashCopied()` are shared by the contact panel and the share sheet. They exist because `navigator.clipboard` is undefined on insecure origins and rejects when the document is not focused — hence the `execCommand` fallback and the visible failure state.
 
 ## API layer (`app/api/`)
@@ -272,7 +274,7 @@ Form-encoded POST in, JSON out — not REST. Endpoints dispatch on `$_POST['acti
 | `images.php` | list by `sublet_id`; delete allowed for admin **or** post owner; promotes the next image to thumbnail if the thumbnail was deleted |
 | `announcement.php` | GET public, POST admin-only |
 | `email.php` | admin-only bulk `mail()` to `{username}@uvm.edu` |
-| `contact_log.php` | POST logs a contact click (any user); GET is admin-only and paginated |
+| `events.php` | the activity beacon: POST from `track()` in app.js, `require_same_origin()`, always 204 (429 when rate-limited); see "Activity log" |
 | `geocode.php` | proxy to Nominatim (no key needed) |
 | `allowlist.php` | admin-only `add`/`remove`/`rebuild` of approved & blocked netids; rewrites `app/.htaccess` and **undoes its own DB change if that write fails**, so the table and the file never disagree |
 
@@ -283,8 +285,23 @@ There is no schema/migration file in the tree; the shape below is what the queri
 - **`sublets`** — effectively **one row per user**. `post.php` treats `username` as the key: it looks up the user's post to decide create-vs-edit, and updates with `WHERE username = ?`. Also holds `image_url`/`thumbnail_url`, `price`, `address`, `lat`/`lon`, `semester`, `posted_at`, contact fields, `utility_*`, and `amenity_*` flags.
 - **`sublet_images`** — `sublet_id`, `image_url`, `sort_order`. The first image by `sort_order` is the card image (`sublets.image_url`). That is not always `sort_order = 0`: deleting the card image promotes the next one without renumbering, so test for "first", not for 0. Rows cascade-delete with their listing (`ON DELETE CASCADE`); the files do not.
 - **`semesters`** — `code`, `name`, `active`, `sort_order`. `code` joins to `sublets.semester`; queries `COALESCE(sem.name, s.semester)` so unmapped codes still render.
-- **`contact_logs`** — `post_id`, `poster_username`, `contacted_by`, `contact_type`, `created_at`.
+- **`listing_events`** — the activity log: `listing_id`, `poster_username`, `actor_key`, `semester`, `type`, `source`, `target`, `dedupe_key` (UNIQUE), `created_at`. No foreign key to `sublets`, on purpose. See "Activity log".
+- **`contact_logs`** — retired in October 2026. It logged only Email/Call taps, by NetID; its rows were copied into `listing_events` by `~/sublet-scripts/migrate_contact_logs.php` and nothing writes to it. It is to be dropped after the first semester archive.
 - **`allowed_users`** — `uid`, `kind` (`allow`/`block`), `note`, `added_by`, `added_at`. `UNIQUE` on `uid` alone, not `(uid, kind)`: a netid is on one list or the other, never both. Source of truth for the generated `Require` line — see "Access allowlist". The `note` column is the reason someone has access ("gap year, back Fall 2026") and stays in the database; it never reaches `app/.htaccess`, which is committed to a public repo.
+
+## Activity log
+
+`includes/events.php`, `app/api/events.php`, and `track()` in `app.js`. Each event is one beacon (`navigator.sendBeacon`, falling back to `fetch` with `keepalive`), and the server decides what counts:
+
+- **No NetIDs are stored.** The actor is `actor_key()`: the first 16 hex characters of `hash_hmac('sha256', 'actor:' . $netid, share_secret())`. The `actor:` prefix is domain separation from `share_token()`'s `sublet:` input under the same secret. It is pseudonymous, not anonymous (whoever holds the secret can test a given NetID), and every reader counts distinct keys, so no page says who did what.
+- **Excluded:** everything the admin does, and a poster's own views and contacts on their own listing. A poster's own shares (`share_open`, `share_target`) do count, because sharing your own listing is how listings travel.
+- **Deduplicated** per person, listing and day through `dedupe_key`: `listing_open`, `map_pin_open`, `share_open` and `share_arrival`. Contacts and share targets count every time.
+- **Rate-limited** to `EVENTS_PER_MINUTE` stored events per person.
+- **The poster and semester come from the listing**, never the request. The semester is stored on each row so that archiving a semester can delete its events even after the listing itself is gone.
+- **Whitelists:** types are `EVENT_TYPES` (with `CONTACT_EVENT_TYPES` and `SHARE_EVENT_TYPES` as groupings), sources are `EVENT_SOURCES` and share targets are `SHARE_TARGETS`. The columns are VARCHAR, so adding one needs no DDL.
+- **Arrivals:** `s.php` logs nothing, because crawlers read it. Its sign-in link adds `via=share`, which `index.php` passes on as `SUBLET_CONFIG.openSource`, so `openSharedListing()` logs `share_arrival` as `share-link` rather than `deeplink`.
+
+The readers are `listing_activity()` (people who viewed, got in touch, or did both, which is conversion; plus share taps and arrivals), `share_target_counts()`, `view_source_counts()` and `daily_activity()`. They feed the admin **Activity** tab (whose ranges reload the page as `?range=open|30d|all#activity`) and the poster's line on `post.php`. The poster's line counts from `max(LISTING_EVENTS_SINCE, posted_at)`, since nothing but contacts was recorded before the log began. The footer discloses that views and contact taps are counted.
 
 ## Listing visibility (semester deactivation)
 

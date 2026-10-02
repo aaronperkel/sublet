@@ -223,7 +223,10 @@ foreach ($availableSemesters as $sem) {
         initialMaxPrice: <?= isset($_GET['max_price']) && $_GET['max_price'] !== '' ? (int)$_GET['max_price'] : $maxPriceRounded ?>,
         initialDistance: <?= isset($_GET['max_distance']) && $_GET['max_distance'] !== '' ? (float)$_GET['max_distance'] : $maxDistanceRounded ?>,
         semesterMap: <?= json_encode($semesterMap) ?>,
-        openId: <?= $openId ?>
+        openId: <?= $openId ?>,
+        // s.php's sign-in link adds via=share, so the activity log can tell a
+        // share link's arrival from a ?id= typed or pasted by hand.
+        openSource: <?= json_encode(($_GET['via'] ?? '') === 'share' ? 'share-link' : 'deeplink') ?>
     };
 </script>
 <script src="./js/app.js?v=<?= filemtime(ROOT_DIR . '/js/app.js') ?>"></script>

@@ -6,6 +6,7 @@ require_once '../includes/auth.php';
 require_admin();
 require_once '../includes/header.php';
 require_once '../includes/htaccess_allowlist.php';
+require_once '../includes/events.php';
 
 // Stats — totals across everything, since admin sees hidden listings too.
 $totalPosts = $pdo->query("SELECT COUNT(*) FROM sublets")->fetchColumn();
@@ -33,6 +34,49 @@ $hiddenCount = count(array_filter($allPosts, fn($p) => $p['is_hidden']));
 $adminColumns = table_columns($pdo, 'sublets');
 $nameSelect = isset($adminColumns['display_name']) ? ', MAX(display_name) as display_name' : '';
 $allUsers = $pdo->query("SELECT username$nameSelect, COUNT(*) as post_count, MAX(posted_at) as last_post FROM sublets GROUP BY username ORDER BY username")->fetchAll(PDO::FETCH_ASSOC);
+
+// Activity tab (includes/events.php). Counts only: the table stores a keyed
+// hash for each person, never a NetID, and nothing here tries to say who.
+$activityRanges = ['open' => 'Open semesters', '30d' => 'Last 30 days', 'all' => 'All time'];
+$activityRange = isset($activityRanges[$_GET['range'] ?? '']) ? $_GET['range'] : 'open';
+$activityReady = table_exists($pdo, 'listing_events');
+$activityRows = [];
+$activityTotals = ['views' => 0, 'contacts' => 0, 'converted' => 0, 'shares' => 0, 'arrivals' => 0];
+$shareTargetCounts = [];
+$viewSourceCounts = [];
+$dailyActivity = [];
+if ($activityReady) {
+    [$activityWhere, $activityParams] = activity_window($activityRange);
+    $activity = listing_activity($pdo, $activityWhere, $activityParams);
+    $shareTargetCounts = share_target_counts($pdo, $activityWhere, $activityParams);
+    $viewSourceCounts = view_source_counts($pdo, $activityWhere, $activityParams);
+    $dailyActivity = daily_activity($pdo, $activityRange === '30d' ? 30 : 60);
+
+    // Every listing on the site shows up, with zeros, so a listing nobody is
+    // opening is visible too; listings since deleted show up only if counted.
+    $postsById = array_column($allPosts, null, 'id');
+    $zero = ['views' => 0, 'contacts' => 0, 'converted' => 0, 'shares' => 0, 'arrivals' => 0];
+    foreach ($allPosts as $post) {
+        if (!$post['is_hidden'] && !isset($activity[(int)$post['id']])) {
+            $activity[(int)$post['id']] = $zero;
+        }
+    }
+    foreach ($activity as $listingId => $counts) {
+        $post = $postsById[$listingId] ?? null;
+        $activityRows[] = $counts + [
+            'id' => $listingId,
+            'label' => $post ? format_address($post['address']) : 'Deleted listing',
+            'semester' => $post['semester_name'] ?? '',
+            'hidden' => $post ? (bool)$post['is_hidden'] : false,
+        ];
+        foreach ($activityTotals as $k => $v) {
+            $activityTotals[$k] += $counts[$k];
+        }
+    }
+    usort($activityRows, static fn($a, $b) => [$b['views'], $b['contacts']] <=> [$a['views'], $a['contacts']]);
+}
+$shareTargetLabels = ['native' => 'Share to…', 'instagram' => 'Instagram story', 'snapchat' => 'Snapchat', 'text' => 'Text', 'email' => 'Email', 'x' => 'X', 'copy' => 'Copied the link'];
+$viewSourceLabels = ['browse' => 'Browse', 'map' => 'Map', 'share-link' => 'Share links', 'deeplink' => 'Direct links', 'unknown' => 'Unknown'];
 
 // Individually approved / blocked netids for the Access tab. allowed_users is
 // created by hand (the app's DB user has no CREATE grant), so its absence has to
@@ -116,8 +160,8 @@ if ($allowlistReady && $parsedUids !== null) {
         <button class="admin-tab" data-tab="email">
             <i class="fa-solid fa-envelope"></i> Email
         </button>
-        <button class="admin-tab" data-tab="contact-log">
-            <i class="fa-solid fa-address-book"></i> Contact Log
+        <button class="admin-tab" data-tab="activity">
+            <i class="fa-solid fa-chart-simple"></i> Activity
         </button>
         <button class="admin-tab" data-tab="access">
             <i class="fa-solid fa-key"></i> Access
@@ -333,15 +377,165 @@ if ($allowlistReady && $parsedUids !== null) {
         </div>
     </div>
 
-    <!-- Contact Log Tab -->
-    <div class="tab-panel" id="tab-contact-log">
+    <!-- Activity Tab -->
+    <?php
+        // Two bars per day, side by side: views in green, contacts in blue, each
+        // against the white card (so each clears 3:1 on its own). Drawn here as
+        // SVG; there is no chart library on this site.
+        // array_values: the days are keyed by date, and spreading string keys
+        // into max() passes them as named arguments, which it rejects.
+        $chartMax = max(1, ...array_values(array_map(static fn($d) => max($d['views'], $d['contacts']), $dailyActivity ?: [['views' => 0, 'contacts' => 0]])));
+        $chartDays = count($dailyActivity);
+        $chartW = 600;
+        $chartH = 140;
+        $slot = $chartDays ? $chartW / $chartDays : $chartW;
+        $chartViews = array_sum(array_column($dailyActivity, 'views'));
+        $chartContacts = array_sum(array_column($dailyActivity, 'contacts'));
+        $pct = static fn(int $part, int $whole) => $whole > 0 ? round(100 * $part / $whole) . '%' : '—';
+    ?>
+    <div class="tab-panel" id="tab-activity">
         <div class="admin-card">
-            <h3>Contact Log</h3>
-            <p class="text-muted" style="margin-bottom: 1rem; font-size: 0.85rem;">Logged whenever a user clicks Email or Call on a listing.</p>
-            <div id="contactLogContent">
-                <p class="text-muted">Loading...</p>
+            <div class="activity-head">
+                <h3>Activity</h3>
+                <nav class="activity-range" aria-label="Range">
+                    <?php foreach ($activityRanges as $key => $label): ?>
+                        <a href="admin.php?range=<?= $key ?>#activity" class="activity-range-link<?= $key === $activityRange ? ' active' : '' ?>"<?= $key === $activityRange ? ' aria-current="true"' : '' ?>><?= htmlspecialchars($label) ?></a>
+                    <?php endforeach; ?>
+                </nav>
             </div>
-            <div id="contactLogPagination" style="margin-top: 1rem; display: flex; gap: 0.5rem; justify-content: center;"></div>
+            <p class="activity-note">
+                Counts of people, not taps: each person counts once per listing. Views and contacts by posters on their own listing, and by you, are never recorded.
+                Each person is stored as a keyed hash, never a NetID, and raw events are deleted when their semester is archived.
+            </p>
+
+            <?php if (!$activityReady): ?>
+                <p class="text-muted">The <code>listing_events</code> table does not exist yet.</p>
+            <?php else: ?>
+                <div class="admin-stats activity-totals">
+                    <div class="stat-card">
+                        <div class="stat-number"><?= $activityTotals['views'] ?></div>
+                        <div class="stat-label">Views</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number"><?= $activityTotals['contacts'] ?></div>
+                        <div class="stat-label">Got in touch</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number"><?= $pct($activityTotals['converted'], $activityTotals['views']) ?></div>
+                        <div class="stat-label">Conversion</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number"><?= $activityTotals['shares'] ?></div>
+                        <div class="stat-label">Shares</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number"><?= $activityTotals['arrivals'] ?></div>
+                        <div class="stat-label">From share links</div>
+                    </div>
+                </div>
+
+                <h4 class="activity-subhead">Last <?= $chartDays ?> days</h4>
+                <svg class="activity-chart" viewBox="0 0 <?= $chartW ?> <?= $chartH ?>" preserveAspectRatio="none" role="img"
+                     aria-label="Daily views and contacts, last <?= $chartDays ?> days: <?= $chartViews ?> views and <?= $chartContacts ?> contacts in all.">
+                    <line class="activity-chart-axis" vector-effect="non-scaling-stroke" x1="0" y1="<?= $chartH ?>" x2="<?= $chartW ?>" y2="<?= $chartH ?>"></line>
+                    <?php $i = 0; foreach ($dailyActivity as $day => $d): ?>
+                        <?php
+                            $x = $i * $slot;
+                            $vh = $d['views'] / $chartMax * ($chartH - 12);
+                            $ch = $d['contacts'] / $chartMax * ($chartH - 12);
+                        ?>
+                        <g>
+                            <title><?= htmlspecialchars(date('M j', strtotime($day))) ?>: <?= $d['views'] ?> views, <?= $d['contacts'] ?> contacts</title>
+                            <rect class="activity-chart-hit" x="<?= round($x, 2) ?>" y="0" width="<?= round($slot, 2) ?>" height="<?= $chartH ?>"></rect>
+                            <?php if ($vh > 0): ?><rect class="activity-chart-views" x="<?= round($x + $slot * 0.1, 2) ?>" y="<?= round($chartH - $vh, 2) ?>" width="<?= round($slot * 0.38, 2) ?>" height="<?= round($vh, 2) ?>"></rect><?php endif; ?>
+                            <?php if ($ch > 0): ?><rect class="activity-chart-contacts" x="<?= round($x + $slot * 0.52, 2) ?>" y="<?= round($chartH - $ch, 2) ?>" width="<?= round($slot * 0.38, 2) ?>" height="<?= round($ch, 2) ?>"></rect><?php endif; ?>
+                        </g>
+                    <?php $i++; endforeach; ?>
+                </svg>
+                <?php /* Axis labels in HTML: text inside the SVG would scale with
+                         its width, to about 7px on a phone. */ ?>
+                <div class="activity-chart-scale" aria-hidden="true">
+                    <span><?= $chartDays ? htmlspecialchars(date('M j', strtotime(array_key_first($dailyActivity)))) : '' ?></span>
+                    <span>Tallest bar: <?= $chartMax ?></span>
+                    <span>Today</span>
+                </div>
+                <p class="activity-legend">
+                    <span class="activity-swatch activity-swatch-views" aria-hidden="true"></span> Views
+                    <span class="activity-swatch activity-swatch-contacts" aria-hidden="true"></span> Got in touch
+                </p>
+
+                <div class="activity-breakdowns">
+                    <div>
+                        <h4 class="activity-subhead">Where views start</h4>
+                        <?php if (!$viewSourceCounts): ?>
+                            <p class="text-muted">No views yet.</p>
+                        <?php else: $srcMax = max($viewSourceCounts); ?>
+                            <ul class="activity-bars">
+                                <?php foreach ($viewSourceCounts as $key => $count): ?>
+                                    <li>
+                                        <span class="activity-bars-label"><?= htmlspecialchars($viewSourceLabels[$key] ?? $key) ?></span>
+                                        <span class="activity-bars-track"><span class="activity-bars-fill" style="--share: <?= round(100 * $count / $srcMax) ?>%"></span></span>
+                                        <span class="activity-bars-count"><?= $count ?></span>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php endif; ?>
+                    </div>
+                    <div>
+                        <h4 class="activity-subhead">Where shares go</h4>
+                        <?php if (!$shareTargetCounts): ?>
+                            <p class="text-muted">No shares yet.</p>
+                        <?php else: $tgtMax = max($shareTargetCounts); ?>
+                            <ul class="activity-bars">
+                                <?php foreach ($shareTargetCounts as $key => $count): ?>
+                                    <li>
+                                        <span class="activity-bars-label"><?= htmlspecialchars($shareTargetLabels[$key] ?? $key) ?></span>
+                                        <span class="activity-bars-track"><span class="activity-bars-fill" style="--share: <?= round(100 * $count / $tgtMax) ?>%"></span></span>
+                                        <span class="activity-bars-count"><?= $count ?></span>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <h4 class="activity-subhead">By listing</h4>
+                <div class="table-scroll">
+                    <table class="admin-table activity-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Listing</th>
+                                <th scope="col">Semester</th>
+                                <th scope="col" class="num">Views</th>
+                                <th scope="col" class="num">Got in touch</th>
+                                <th scope="col" class="num">Conversion</th>
+                                <th scope="col" class="num">Shares</th>
+                                <th scope="col" class="num">From share links</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($activityRows as $row): ?>
+                                <tr>
+                                    <td class="activity-listing" title="<?= htmlspecialchars($row['label']) ?>"><?= htmlspecialchars($row['label']) ?></td>
+                                    <td>
+                                        <?= htmlspecialchars($row['semester']) ?>
+                                        <?php if ($row['hidden']): ?><span class="utility-tag"><i class="fa-solid fa-eye-slash" aria-hidden="true"></i> Hidden</span><?php endif; ?>
+                                    </td>
+                                    <td class="num"><?= $row['views'] ?></td>
+                                    <td class="num"><?= $row['contacts'] ?></td>
+                                    <td class="num"><?= $pct($row['converted'], $row['views']) ?></td>
+                                    <td class="num"><?= $row['shares'] ?></td>
+                                    <td class="num"><?= $row['arrivals'] ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="activity-note">
+                    Conversion is the share of people who viewed a listing and then got in touch.
+                    Contacts logged before <?= htmlspecialchars(date('M j, Y', strtotime(LISTING_EVENTS_SINCE))) ?> have no view to match, so they count toward &ldquo;Got in touch&rdquo; but not conversion.
+                </p>
+            <?php endif; ?>
         </div>
     </div>
 

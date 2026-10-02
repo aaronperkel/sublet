@@ -343,7 +343,10 @@ One white panel. The address field is a combobox: suggestions as a listbox the a
 A grid of round icon tiles (Share to…, Instagram story, Snapchat, Copy link) above a link field with a Copy button. It becomes a bottom sheet under 600px.
 
 ### Footer
-Green, with the credit, the Instagram contact, and a standing line: "An independent student project, not affiliated with the University of Vermont." The same line is on the landing page and the share interstitial.
+Green, with the credit, the Instagram contact, and two standing lines: "An independent student project, not affiliated with the University of Vermont." (also on the landing page and the share interstitial) and "Listing views and contact taps are counted. Posters and the admin see totals, never who."
+
+### Activity (admin) and the poster's numbers
+Counts only, never names. The admin Activity tab has a segmented range switch (the active segment filled green), stat cards for the totals, a daily bar chart with views in Catamount Green and contacts in Focus blue side by side (each bar clears 3:1 on the white card, and its axis labels are HTML so they do not scale with the SVG), two horizontal-bar breakdowns (where views start, where shares go), and a per-listing table with right-aligned tabular figures. On the edit form, the poster sees one line in a Fog panel under the heading ("Since Oct 2: 48 people viewed it · 6 got in touch · shared 3 times") and the same disclosure.
 
 ## Do's and Don'ts
 

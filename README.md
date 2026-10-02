@@ -79,7 +79,9 @@ filename. Both live in `includes/`; new POST endpoints need the former.
 - **`semesters`** — deactivating one hides all of its listings from the public
   site without deleting anything. The rule lives in `includes/visibility.php`
   and any new public listing query needs it.
-- **`contact_logs`** — records when a browser contacts a poster.
+- **`listing_events`** — the activity log: listing views, contact taps and
+  shares, counted per listing. People are stored as a keyed hash, never a
+  NetID, and the site only ever shows totals.
 
 ## A note on `public/images/`
 

@@ -3,6 +3,7 @@ $basePath = '../';
 require_once '../includes/header.php';
 require_once '../includes/thumbnail.php';
 require_once '../includes/share.php';
+require_once '../includes/events.php';
 
 $username = get_current_user_id();
 if (!$username) {
@@ -346,6 +347,17 @@ if ($formFailed) {
 $formHasLocation = is_numeric($form['lat'] ?? null) && is_numeric($form['lon'] ?? null)
     && (float)$form['lat'] !== 0.0;
 
+// The poster's own numbers, counted from the later of the day the activity log
+// began and the day the listing went up, so a March listing does not claim
+// zero views for months nobody was counting. People, not taps (see
+// listing_activity()); their own views never count.
+$myStats = null;
+if ($isEdit && !empty($existingPost['id']) && table_exists($pdo, 'listing_events')) {
+    $statsSince = max(LISTING_EVENTS_SINCE, substr((string)($existingPost['posted_at'] ?? ''), 0, 10));
+    $mine = listing_activity($pdo, "e.listing_id = ? AND e.created_at >= ?", [(int)$existingPost['id'], $statsSince]);
+    $myStats = ($mine[(int)$existingPost['id']] ?? ['views' => 0, 'contacts' => 0, 'shares' => 0]) + ['since' => $statsSince];
+}
+
 // Get existing images for edit mode
 $existingImages = [];
 if ($isEdit) {
@@ -389,6 +401,20 @@ if ($isEdit) {
 <div class="post-layout">
     <div class="post-form-section">
         <h1><?= $isEdit ? 'Edit Your Listing' : 'Create a Listing' ?></h1>
+
+        <?php if ($myStats !== null): ?>
+            <?php $plural = static fn(int $count, string $one, string $many) => $count . ' ' . ($count === 1 ? $one : $many); ?>
+            <div class="listing-stats">
+                <p class="listing-stats-line">
+                    <i class="fa-solid fa-chart-simple" aria-hidden="true"></i>
+                    <span>Since <?= htmlspecialchars(date('M j', strtotime($myStats['since']))) ?>:
+                    <strong><?= $plural($myStats['views'], 'person', 'people') ?></strong> viewed it &middot;
+                    <strong><?= $myStats['contacts'] ?></strong> got in touch &middot;
+                    shared <strong><?= $plural($myStats['shares'], 'time', 'times') ?></strong></span>
+                </p>
+                <p class="listing-stats-note">Views and contact taps are counted. You and the admin see totals, never who.</p>
+            </div>
+        <?php endif; ?>
 
         <form method="post" action="post.php" enctype="multipart/form-data" id="postForm">
             <!-- Image Upload -->
@@ -744,6 +770,8 @@ if ($isEdit) {
         uploadMaxBytes: <?= ini_bytes('upload_max_filesize') ?>,
         postMaxBytes: <?= ini_bytes('post_max_size') ?>,
         maxFiles: <?= (int)ini_get('max_file_uploads') ?>,
+        // For the activity log's share events (source "post").
+        listingId: <?= !empty($existingPost['id']) ? (int)$existingPost['id'] : 0 ?>,
         shareUrl: <?= json_encode(!empty($existingPost['id']) ? share_url((int)$existingPost['id']) : '') ?>,
         sharePrice: <?= json_encode(!empty($existingPost['price']) ? '$' . number_format((float)$existingPost['price']) : '') ?>,
         shareSemester: <?= json_encode($shareSemesterName) ?>

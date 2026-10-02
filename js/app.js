@@ -61,6 +61,19 @@ document.addEventListener('DOMContentLoaded', function () {
     var filterController = null;
     var shareTarget = null;
 
+    // Listing-view state, up here for the same reason. openSharedListing()
+    // opens a listing during the dispatch, and these used to be declared
+    // further down, where their `var` lines ran afterwards and reset them under
+    // the open view: currentPostId went back to null, so the admin's Delete
+    // button did nothing on a listing opened from a share link.
+    var modalImages = [];
+    var modalIndex = 0;
+    var currentPostId = null;
+    // Where the open listing was opened from, for the activity log:
+    // browse, map, share-link or deeplink.
+    var currentSource = null;
+    var lastFocused = null;
+
     // The tiles, in order. `when` decides whether a tile is worth showing on
     // this device: "Share to…" in a browser with no navigator.share is a dead
     // button, and dead buttons in a share sheet are how people decide the
@@ -498,13 +511,32 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     /* ======================================================================
+       Activity log
+       ====================================================================== */
+    // One beacon per event to api/events.php, which decides what counts: the
+    // admin and a poster's own views and contacts are dropped there, repeats
+    // of a view are folded into one per day, and nothing about who sent it
+    // is ever shown. sendBeacon survives the page being left, which is what a
+    // tap on a mailto:, tel: or share link does next.
+    function track(type, listingId, source, target) {
+        if (!listingId) return;
+        var body = new URLSearchParams();
+        body.set('type', type);
+        body.set('listing_id', String(listingId));
+        if (source) body.set('source', source);
+        if (target) body.set('target', target);
+        try {
+            if (navigator.sendBeacon && navigator.sendBeacon('api/events.php', body)) return;
+        } catch (e) { /* fall through to fetch */ }
+        if (window.fetch) {
+            fetch('api/events.php', { method: 'POST', body: body, keepalive: true, credentials: 'same-origin' })
+                .catch(function () {});
+        }
+    }
+
+    /* ======================================================================
        Modal
        ====================================================================== */
-    var modalImages = [];
-    var modalIndex = 0;
-    var currentPostId = null;
-    var lastFocused = null;
-
     function initModal() {
         var overlay = document.getElementById('modal');
         if (!overlay) return;
@@ -631,14 +663,10 @@ document.addEventListener('DOMContentLoaded', function () {
         var body = document.getElementById('contactPanelBody');
         if (!details || !body) return;
 
-        // Log the contact action
-        fetch('api/contact_log.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            // No poster_username: the endpoint reads it from the post itself so
-            // the log cannot be attributed to someone who never posted.
-            body: 'post_id=' + encodeURIComponent(data.id) + '&contact_type=' + encodeURIComponent(type)
-        }).catch(function () {});
+        // Tapping Email or Call opens this panel. What happens in it (the
+        // email app, the dialler, a copy) is logged by the data-track
+        // attributes below.
+        track(type === 'email' ? 'email_click' : 'call_click', data.id, currentSource);
 
         if (type === 'email') {
             var email = data.contactEmail || (data.username + '@uvm.edu');
@@ -667,7 +695,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     '<label>To</label>' +
                     '<div class="contact-value-row">' +
                         '<span class="contact-value">' + escapeHtml(email) + '</span>' +
-                        '<button type="button" class="btn btn-secondary btn-sm contact-copy" data-copy="' + escapeHtml(email) + '"><i class="fa-solid fa-copy" aria-hidden="true"></i> Copy</button>' +
+                        '<button type="button" class="btn btn-secondary btn-sm contact-copy" data-track="copy_email" data-copy="' + escapeHtml(email) + '"><i class="fa-solid fa-copy" aria-hidden="true"></i> Copy</button>' +
                     '</div>' +
                 '</div>' +
                 '<div class="contact-field">' +
@@ -679,8 +707,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     '<textarea class="contact-draft" id="contactDraft" rows="7">' + escapeHtml(draftBody) + '</textarea>' +
                 '</div>' +
                 '<div class="contact-actions">' +
-                    '<a href="' + escapeHtml(mailtoFor(draftBody)) + '" class="btn btn-primary" id="contactMailto"><i class="fa-solid fa-envelope" aria-hidden="true"></i> Open in your email app</a>' +
-                    '<button type="button" class="btn btn-secondary contact-copy" data-copy-from="contactDraft"><i class="fa-solid fa-copy" aria-hidden="true"></i> Copy message</button>' +
+                    '<a href="' + escapeHtml(mailtoFor(draftBody)) + '" class="btn btn-primary" id="contactMailto" data-track="mail_app"><i class="fa-solid fa-envelope" aria-hidden="true"></i> Open in your email app</a>' +
+                    '<button type="button" class="btn btn-secondary contact-copy" data-track="copy_message" data-copy-from="contactDraft"><i class="fa-solid fa-copy" aria-hidden="true"></i> Copy message</button>' +
                 '</div>' +
                 '<p class="contact-note">Everyone here signs in with a UVM NetID. If no email app opens (Instagram\u2019s browser often won\u2019t), copy the address and message instead.</p>';
 
@@ -700,12 +728,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     '<label>Phone Number</label>' +
                     '<div class="contact-value-row">' +
                         '<span class="contact-value contact-value-lg">' + escapeHtml(phone) + '</span>' +
-                        '<button type="button" class="btn btn-secondary btn-sm contact-copy" data-copy="' + escapeHtml(phone) + '"><i class="fa-solid fa-copy" aria-hidden="true"></i> Copy</button>' +
+                        '<button type="button" class="btn btn-secondary btn-sm contact-copy" data-track="copy_phone" data-copy="' + escapeHtml(phone) + '"><i class="fa-solid fa-copy" aria-hidden="true"></i> Copy</button>' +
                     '</div>' +
                 '</div>' +
                 '<div class="contact-actions">' +
-                    '<a href="tel:' + encodeURIComponent(phone) + '" class="btn btn-primary"><i class="fa-solid fa-phone"></i> Call</a>' +
-                    '<a href="sms:' + encodeURIComponent(phone) + '" class="btn btn-secondary"><i class="fa-solid fa-message"></i> Text</a>' +
+                    '<a href="tel:' + encodeURIComponent(phone) + '" class="btn btn-primary" data-track="dial"><i class="fa-solid fa-phone"></i> Call</a>' +
+                    '<a href="sms:' + encodeURIComponent(phone) + '" class="btn btn-secondary" data-track="text"><i class="fa-solid fa-message"></i> Text</a>' +
                 '</div>';
         }
 
@@ -713,6 +741,12 @@ document.addEventListener('DOMContentLoaded', function () {
         // is also where the execCommand fallback and the failure state came
         // from — this used to be a bare .then() with no rejection path, so a
         // clipboard write that failed left the button saying nothing at all.
+        body.querySelectorAll('[data-track]').forEach(function (el) {
+            el.addEventListener('click', function () {
+                track(el.dataset.track, data.id, currentSource);
+            });
+        });
+
         body.querySelectorAll('.contact-copy').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 // data-copy-from: copy the field as edited, not as drafted.
@@ -728,6 +762,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function openModal(data, fromHistory) {
         currentPostId = data.id;
+        currentSource = data.source || null;
+        if (!fromHistory) track('listing_open', data.id, currentSource);
         var overlay = document.getElementById('modal');
 
         // Name the dialog after the place, not its price.
@@ -850,7 +886,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     openShareSheet({
                         url: data.shareUrl,
                         price: '$' + Number(data.price).toLocaleString(),
-                        semester: data.semesterName || data.semester
+                        semester: data.semesterName || data.semester,
+                        listingId: data.id,
+                        source: currentSource
                     });
                 };
             } else {
@@ -1032,11 +1070,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
         shareEls.grid.addEventListener('click', function (e) {
             var tile = e.target.closest('.share-tile');
-            if (tile && shareTarget) runShareAction(tile.dataset.share, tile);
+            if (!tile || !shareTarget) return;
+            track('share_target', shareTarget.listingId, shareTarget.source, tile.dataset.share);
+            runShareAction(tile.dataset.share, tile);
         });
 
         shareEls.copyBtn.addEventListener('click', function () {
-            if (shareTarget) copyToClipboard(shareTarget.url, shareEls.copyBtn);
+            if (!shareTarget) return;
+            track('share_target', shareTarget.listingId, shareTarget.source, 'copy');
+            copyToClipboard(shareTarget.url, shareEls.copyBtn);
         });
 
         shareEls.closeBtn.addEventListener('click', closeShareSheet);
@@ -1056,6 +1098,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!shareEls || !target || !target.url) return;
 
         shareTarget = target;
+        track('share_open', target.listingId, target.source);
         shareEls.input.value = target.url;
         setShareNote('');
 
@@ -1279,8 +1322,15 @@ document.addEventListener('DOMContentLoaded', function () {
      * drifted between the index and map copies before.
      */
     function openSharedListing() {
-        var openId = parseInt((window.SUBLET_CONFIG || {}).openId, 10);
+        var config = window.SUBLET_CONFIG || {};
+        var openId = parseInt(config.openId, 10);
         if (!openId) return;
+
+        // s.php's sign-in link carries via=share; any other ?id= was typed or
+        // pasted. Logged before the card check: the arrival happened even if
+        // the listing has since been hidden.
+        var source = config.openSource === 'share-link' ? 'share-link' : 'deeplink';
+        track('share_arrival', openId, source);
 
         // This entry becomes plain Browse (the grid already is: ?id= drops the
         // filters), and the click below pushes the listing on top of it the
@@ -1292,7 +1342,7 @@ document.addEventListener('DOMContentLoaded', function () {
         var card = document.querySelector('.listing-card[data-id="' + openId + '"]');
         if (!card) return;
 
-        card.click();
+        openModalFromCard(card, source);
         card.scrollIntoView({ block: 'center' });
     }
 
@@ -1381,10 +1431,11 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    function openModalFromCard(card) {
+    function openModalFromCard(card, source) {
         var imgEl = card.querySelector('.card-image img');
         openModal({
             id: card.dataset.id,
+            source: source || 'browse',
             shareUrl: card.dataset.shareUrl || '',
             price: card.dataset.price,
             address: card.dataset.address,
@@ -1511,6 +1562,7 @@ document.addEventListener('DOMContentLoaded', function () {
             marker.bindPopup(popupHtml, { minWidth: 210, closeButton: true });
 
             marker.on('popupopen', function () {
+                track('map_pin_open', sublet.id, 'map');
                 var targets = document.querySelectorAll(
                     '.map-popup img[data-sublet-id="' + sublet.id + '"], ' +
                     '.map-popup .popup-btn[data-sublet-id="' + sublet.id + '"]'
@@ -1519,6 +1571,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     el.addEventListener('click', function () {
                         openModal({
                             id: sublet.id,
+                            source: 'map',
                             shareUrl: sublet.share_url || '',
                             price: sublet.price,
                             address: sublet.address,
@@ -1603,7 +1656,9 @@ document.addEventListener('DOMContentLoaded', function () {
             openShareSheet({
                 url: config.shareUrl || '',
                 price: config.sharePrice || '',
-                semester: config.shareSemester || ''
+                semester: config.shareSemester || '',
+                listingId: config.listingId,
+                source: 'post'
             });
         });
     }
@@ -2204,7 +2259,6 @@ document.addEventListener('DOMContentLoaded', function () {
         initPostManagement();
         initUserManagement();
         initEmailComposer();
-        initContactLog();
         initAllowlistManagement();
     }
 
@@ -2313,16 +2367,26 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    // The open tab is kept in the URL's hash, so a reload (or the Activity
+    // tab's range links, which reload the page) comes back to the same tab.
     function initAdminTabs() {
-        document.querySelectorAll('.admin-tab').forEach(function (tab) {
+        var tabs = document.querySelectorAll('.admin-tab');
+
+        function show(name) {
+            var panel = document.getElementById('tab-' + name);
+            if (!panel) return false;
+            tabs.forEach(function (t) { t.classList.toggle('active', t.dataset.tab === name); });
+            document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.toggle('active', p === panel); });
+            return true;
+        }
+
+        tabs.forEach(function (tab) {
             tab.addEventListener('click', function () {
-                document.querySelectorAll('.admin-tab').forEach(function (t) { t.classList.remove('active'); });
-                document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.remove('active'); });
-                tab.classList.add('active');
-                var panel = document.getElementById('tab-' + tab.dataset.tab);
-                if (panel) panel.classList.add('active');
+                if (show(tab.dataset.tab)) history.replaceState(null, '', '#' + tab.dataset.tab);
             });
         });
+
+        if (window.location.hash) show(window.location.hash.slice(1));
     }
 
     function initSemesterManagement() {
@@ -2667,68 +2731,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             });
         }
-    }
-
-    function initContactLog() {
-        var container = document.getElementById('contactLogContent');
-        if (!container) return;
-
-        function loadLogs(page) {
-            fetch('api/contact_log.php?page=' + (page || 1))
-                .then(function (r) { return r.json(); })
-                .then(function (data) {
-                    if (!data.logs || data.logs.length === 0) {
-                        container.innerHTML = '<p class="text-muted">No contact events logged yet.</p>';
-                        return;
-                    }
-                    var html = '<table class="admin-table"><thead><tr>' +
-                        '<th>Date</th><th>Contacted By</th><th>Poster</th><th>Address</th><th>Type</th>' +
-                        '</tr></thead><tbody>';
-                    data.logs.forEach(function (log) {
-                        var date = new Date(log.created_at);
-                        var dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
-                            ' ' + date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-                        var typeIcon = log.contact_type === 'email' ? '<i class="fa-solid fa-envelope"></i>' : '<i class="fa-solid fa-phone"></i>';
-                        html += '<tr>' +
-                            '<td>' + escapeHtml(dateStr) + '</td>' +
-                            '<td>' + escapeHtml(log.contacted_by) + '</td>' +
-                            '<td>' + escapeHtml(log.poster_username) + '</td>' +
-                            '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(log.address || '(deleted)') + '</td>' +
-                            '<td>' + typeIcon + ' ' + escapeHtml(log.contact_type) + '</td>' +
-                            '</tr>';
-                    });
-                    html += '</tbody></table>';
-                    container.innerHTML = html;
-
-                    // Pagination. Cleared unconditionally: leaving the old
-                    // buttons up when a reload drops to a single page left
-                    // controls pointing at pages that no longer exist.
-                    var pagDiv = document.getElementById('contactLogPagination');
-                    if (pagDiv) pagDiv.innerHTML = '';
-                    if (pagDiv && data.pages > 1) {
-                        for (var i = 1; i <= data.pages; i++) {
-                            var btn = document.createElement('button');
-                            btn.className = 'btn btn-sm ' + (i === data.page ? 'btn-primary' : 'btn-secondary');
-                            btn.textContent = i;
-                            btn.dataset.page = i;
-                            btn.addEventListener('click', function () {
-                                loadLogs(parseInt(this.dataset.page));
-                            });
-                            pagDiv.appendChild(btn);
-                        }
-                    }
-                })
-                .catch(function () {
-                    container.innerHTML = '<p class="text-muted">Failed to load contact logs.</p>';
-                });
-        }
-
-        // Load on tab click
-        document.querySelectorAll('.admin-tab').forEach(function (tab) {
-            if (tab.dataset.tab === 'contact-log') {
-                tab.addEventListener('click', function () { loadLogs(1); });
-            }
-        });
     }
 
     /* ======================================================================
