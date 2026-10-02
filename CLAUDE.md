@@ -281,7 +281,7 @@ Form-encoded POST in, JSON out — not REST. Endpoints dispatch on `$_POST['acti
 There is no schema/migration file in the tree; the shape below is what the queries imply.
 
 - **`sublets`** — effectively **one row per user**. `post.php` treats `username` as the key: it looks up the user's post to decide create-vs-edit, and updates with `WHERE username = ?`. Also holds `image_url`/`thumbnail_url`, `price`, `address`, `lat`/`lon`, `semester`, `posted_at`, contact fields, `utility_*`, and `amenity_*` flags.
-- **`sublet_images`** — `sublet_id`, `image_url`, `sort_order`; `sort_order = 0` is the thumbnail.
+- **`sublet_images`** — `sublet_id`, `image_url`, `sort_order`. The first image by `sort_order` is the card image (`sublets.image_url`). That is not always `sort_order = 0`: deleting the card image promotes the next one without renumbering, so test for "first", not for 0. Rows cascade-delete with their listing (`ON DELETE CASCADE`); the files do not.
 - **`semesters`** — `code`, `name`, `active`, `sort_order`. `code` joins to `sublets.semester`; queries `COALESCE(sem.name, s.semester)` so unmapped codes still render.
 - **`contact_logs`** — `post_id`, `poster_username`, `contacted_by`, `contact_type`, `created_at`.
 - **`allowed_users`** — `uid`, `kind` (`allow`/`block`), `note`, `added_by`, `added_at`. `UNIQUE` on `uid` alone, not `(uid, kind)`: a netid is on one list or the other, never both. Source of truth for the generated `Require` line — see "Access allowlist". The `note` column is the reason someone has access ("gap year, back Fall 2026") and stays in the database; it never reaches `app/.htaccess`, which is committed to a public repo.

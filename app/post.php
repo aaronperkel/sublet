@@ -405,13 +405,16 @@ if ($isEdit) {
                     <p class="form-note">The first photo is the cover on your card.</p>
                 </div>
                 <div class="image-previews" id="imagePreviews">
+                    <?php /* The cover is the first photo, not sort_order 0: deleting
+                             the cover promotes the next photo without renumbering,
+                             so a listing can have no 0 at all. */ ?>
                     <?php foreach ($existingImages as $n => $img): ?>
-                        <div class="image-preview <?= $img['sort_order'] === 0 ? 'is-thumbnail' : '' ?>" data-image-id="<?= $img['id'] ?>">
+                        <div class="image-preview <?= $n === 0 ? 'is-thumbnail' : '' ?>" data-image-id="<?= $img['id'] ?>">
                             <img src="<?= htmlspecialchars(display_src($img['image_url'])) ?>" alt="Photo <?= $n + 1 ?>" decoding="async">
                             <button type="button" class="remove-image" data-image-id="<?= $img['id'] ?>" aria-label="Delete photo <?= $n + 1 ?>">
                                 <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                             </button>
-                            <?php if ($img['sort_order'] === 0): ?>
+                            <?php if ($n === 0): ?>
                                 <span class="thumbnail-badge">Cover</span>
                             <?php endif; ?>
                         </div>
