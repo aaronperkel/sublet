@@ -212,8 +212,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$postTooLarge) {
                         continue;
                     }
                     $newOrder = $maxOrder + $i + 1;
-                    $filename = $username . '_' . time() . '_' . $newOrder . '.' . $ext;
-                    $fsTarget = $fs_dir . $filename;
+                    $fsTarget = $fs_dir . new_upload_name($ext);
                     if (move_uploaded_file($_FILES['images']['tmp_name'][$i], $fsTarget)) {
                         $fsTarget = ensure_browser_safe($fsTarget);
                         // No thumbnail here: only sublets.thumbnail_url (the
@@ -238,7 +237,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$postTooLarge) {
             // its name — public/images/ is web-served, so a .php upload there
             // would be executable.
             $ext = safe_image_extension($_FILES['images']['tmp_name'][0]);
-            $fsTarget = $ext === null ? '' : $fs_dir . $username . '_0.' . $ext;
+            $fsTarget = $ext === null ? '' : $fs_dir . new_upload_name($ext);
 
             if ($ext === null) {
                 $error_message = "That file isn't a supported image. Please upload a JPEG, PNG, GIF, WebP, or HEIC photo.";
@@ -274,8 +273,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$postTooLarge) {
                         $skippedUploads++;
                         continue;
                     }
-                    $fname = $username . '_' . $i . '.' . $ext;
-                    $fsT = $fs_dir . $fname;
+                    $fsT = $fs_dir . new_upload_name($ext);
                     if (move_uploaded_file($_FILES['images']['tmp_name'][$i], $fsT)) {
                         $fsT = ensure_browser_safe($fsT);
                         // See above: gallery images need no thumbnail, only

@@ -53,10 +53,12 @@ function resolve_path(string $path): string {
  * public (landing.php's photo strip loads from it without a sign-in).
  *
  * The URL carries ?v=<mtime>, like the stylesheet and script, because
- * public/.htaccess caches uploads as immutable. Upload names are not unique —
- * re-posting writes {username}_0.jpg again — so without the version a poster
- * would keep seeing their old photo. Every <img> on the site has to get its URL
- * from here (or display_src(), which calls it) for that caching to be safe.
+ * public/.htaccess caches uploads as immutable. Upload names are never reused,
+ * but a file can still change under its name — normalize_original() and the
+ * thumbnail/display writers rewrite in place — and without the version a
+ * browser would keep the old bytes for a year. Every <img> on the site has to
+ * get its URL from here (or display_src(), which calls it) for that caching to
+ * be safe.
  */
 function image_src(?string $path): string {
     if ($path === null || $path === '') {

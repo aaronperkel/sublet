@@ -41,7 +41,7 @@ Since this directory is the live docroot, a fatal parse error takes the site dow
 | `s.php` | Public interstitial a share link lands on, reached as `/s/<id>-<token>`. Self-contained like `landing.php`. See "Sharing a listing". | none |
 | `share-card.php` | Generates the preview image the share link unfurls into. | none |
 
-There used to be a read-only `demo/` mirror of `app/` on sample data. It was retired in October 2026 because it duplicated `index.php`, `map.php`, `post.php` and `includes/` while sharing `css/style.css` and `js/app.js`, so every markup change had to be made twice. `/demo` now 302s to the front page (a 302 rather than a 301 so the path can be reused). The `sublets_demo` / `sublet_images_demo` tables may still exist until they are dropped by hand in phpMyAdmin; nothing reads them.
+There used to be a read-only `demo/` mirror of `app/` on sample data. It was retired in October 2026 because it duplicated `index.php`, `map.php`, `post.php` and `includes/` while sharing `css/style.css` and `js/app.js`, so every markup change had to be made twice. `/demo` now 302s to the front page (a 302 rather than a 301 so the path can be reused). Its `sublets_demo` / `sublet_images_demo` tables have been dropped.
 
 ## The public link is go.uvm.edu/sublet
 
@@ -226,8 +226,10 @@ Auth is ambient (Apache/CAS via browser credentials), which shapes four rules:
 
 - **`require_same_origin()`** (`includes/auth.php`) guards every state-changing request. There is no PHP session, so it validates `Sec-Fetch-Site`, falling back to `Origin`/`Referer`. **Any new POST endpoint needs it** — without it, any site on the internet can make a signed-in user's browser perform admin actions. It is a no-op on GET, which is also why destructive actions must never be reachable by GET.
 - **Uploads are typed by their bytes, never their filename.** `safe_image_extension()` (`includes/thumbnail.php`) returns the extension to save under, or `null` to reject. `public/images/` is served by Apache, so trusting a client-supplied extension is a remote-code-execution path. `public/.htaccess` denies script extensions as a second layer.
-- **Uploads keep no metadata but ICC.** `public/images/` is served without auth at NetID-named URLs, and phone photos carry GPS. Anything that writes an image must go through `normalize_original()` / `make_display_image()` (both use `IMAGE_KEEP_ONLY_ICC`), never a bare `convert` or `-strip` — `-strip` also drops the Display P3 profile and washes iPhone photos out.
-- **Every image URL comes from `image_src()` or `display_src()`.** `public/.htaccess` caches uploads for a year as `immutable`, and upload names are reused on re-post; the `?v=<mtime>` those helpers append is the only thing that makes a replaced photo show up. The same holds for CSS/JS/woff2 via the root `.htaccess` — every `<link>`/`<script>` needs `?v=filemtime`.
+- **Upload names are random, and that is the access control.** `public/images/` is served without auth (the landing page's photo strip needs it), so `new_upload_name()` — 128 random bits — is what stops anyone from fetching a listing's photos by guessing. Uploads used to be `{netid}_0.jpg`. Never derive a filename from the username, the listing id or anything else guessable, and never add a page that lists the directory.
+- **Uploads keep no metadata but ICC.** Phone photos carry GPS. Anything that writes an image must go through `normalize_original()` / `make_display_image()` / `make_thumbnail()` (all use `IMAGE_KEEP_ONLY_ICC`), never a bare `convert` or `-strip` — `-strip` also drops the Display P3 profile and washes iPhone photos out.
+- **Every image URL comes from `image_src()` or `display_src()`.** `public/.htaccess` caches uploads for a year as `immutable`, and files are rewritten in place under the same name; the `?v=<mtime>` those helpers append is the only thing that makes the new bytes show up. The same holds for CSS/JS/woff2 via the root `.htaccess` — every `<link>`/`<script>` needs `?v=filemtime`.
+- **The docroot is also the git checkout, so the root `.htaccess` refuses what is only meant for disk**: any dot path segment except `.well-known/`, `includes/`, `vendor/`, `data/`, `*.md` and `composer.*` — all 403 via `RedirectMatch`, which (unlike `Require`) still applies under `app/`. A new top-level directory that should not be fetched needs adding there; one that should be fetched must not match those patterns.
 - **The public share surface is `share_card_lines()` and nothing else.** `s.php` and `share-card.php` sit outside `/app/` and are read by anyone, crawlers included. Adding a field there publishes it — see "Sharing a listing".
 - **`escapeHtml()` in `app.js` must escape quotes**, because its output is interpolated into `data-copy="..."` and `src="..."` attributes. The `textContent`→`innerHTML` idiom does *not* escape quotes and is unsafe here.
 
@@ -293,9 +295,9 @@ The rule also governs **who gets a broadcast email**: `$emailableUsers` in `app/
 
 ## Cleaning up public/images
 
-The database does **not** fully describe this directory, so never clean it from the DB alone. Any cleanup must union the DB references (`sublets` and `sublet_images` — both `image_url` *and* `thumbnail_url`) with a grep of the source tree, and protect the `_thumb.webp` and `_display.webp` siblings of everything it keeps. (The favicon used to live here and was the classic casualty of a DB-only scan; it is now `assets/favicon.svg`.)
+Every file here is an upload or one of its generated siblings, all named `<32 hex>.<ext>`, `<32 hex>_thumb.webp` or `<32 hex>_display.webp`. A file is an orphan when neither its own name nor (for a sibling) its original's name appears in `sublet_images.image_url`, `sublets.image_url` or `sublets.thumbnail_url`. Any cleanup must check all three columns and protect the `_thumb.webp` and `_display.webp` siblings of everything it keeps. (The favicon used to live here and was the classic casualty of a DB-only scan; it is now `assets/favicon.svg`.)
 
-Orphans accumulate mainly because uploads are keyed `{username}_{n}.{ext}`: re-posting with a different extension writes a new file instead of overwriting the old one.
+As of October 2026 there are none. Since names are never reused, orphans can only come from a request that dies between writing a file and inserting its row, or from code that unlinks a path without `delete_image_files()`.
 
 ## Things that are duplicated and drift easily
 
@@ -305,17 +307,17 @@ Orphans accumulate mainly because uploads are keyed `{username}_{n}.{ext}`: re-p
 
 ## Images
 
-Uploads land in `public/images/`, named `{username}_{n}.{ext}` on create and `{username}_{time}_{order}.{ext}` when added during an edit. Each one goes through `includes/thumbnail.php`:
+Uploads land in `public/images/` under `new_upload_name()`: 32 random hex characters plus the extension, with siblings named after the original (see "Security invariants" for why). Each one goes through `includes/thumbnail.php`:
 
 | File | Made by | What it is | Shown by |
 |---|---|---|---|
 | `x.jpg` (original) | `ensure_browser_safe()` → `normalize_original()` | HEIC→JPEG, upright, ≤3000px long edge, ICC only. Rewritten in place via a dotfile temp + `rename()`. | nothing in the UI any more |
 | `x_display.webp` | `make_display_image()` (ImageMagick) | ≤1600px, q80, ICC only, ~90–170 KB | modal gallery, map modal, admin image grid, post edit page — via `display_src()`, which falls back to the original |
-| `x_thumb.webp` | `make_thumbnail()` (GD) | 600px wide | listing cards, map popups, landing strip — via `sublets.thumbnail_url` |
+| `x_thumb.webp` | `make_thumbnail()` (ImageMagick) | 600px wide, q80, ICC only | listing cards, map popups, landing strip — via `sublets.thumbnail_url` |
 
-Every image gets a display copy. Only the card image gets a thumbnail: the first image of a new post, or the image promoted by `images.php` when the card image is deleted. GD needs the 3000px cap to stay inside `memory_limit`.
+Every image gets a display copy. Only the card image gets a thumbnail: the first image of a new post, or the image promoted by `images.php` when the card image is deleted. All three writers go through `convert_into_place()` (temp dotfile + `rename()`), so a request never reads half an image. Thumbnails were GD until October 2026, which dropped the ICC profile.
 
-`~/sublet-scripts/backfill_images.php` (outside the docroot) brought the existing files to this state in October 2026 and is idempotent if it ever needs re-running; the pre-backfill originals are in `~/sublet-image-backups/`.
+Two one-off scripts outside the docroot brought the existing files to this state in October 2026, and both are idempotent if they ever need re-running: `~/sublet-scripts/backfill_images.php` (normalize, display copies, thumbnails) and `~/sublet-scripts/migrate_random_names.php` (renames, with `rename-journal.json` mapping every old name to its new one). The pre-backfill originals, under their old `{netid}_…` names, are in `~/sublet-image-backups/`; the journal is how to find a given file there.
 
 ## Announcements
 

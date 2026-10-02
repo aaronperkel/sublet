@@ -83,9 +83,9 @@ filename. Both live in `includes/`; new POST endpoints need the former.
 
 ## A note on `public/images/`
 
-Listing photos are uploaded by real students and are named after their UVM
-netid, so `public/images/` is **git-ignored** and this repository contains none
-of them. A fresh clone will render listings without imagery until uploads
+Listing photos are uploaded by real students, so `public/images/` is
+**git-ignored** and this repository contains none of them. Uploads are stored
+under random names, because the directory is served without authentication. A fresh clone will render listings without imagery until uploads
 accumulate.
 
 ## License

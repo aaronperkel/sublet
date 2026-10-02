@@ -6,11 +6,12 @@
     Require all denied
 </FilesMatch>
 
-# Cache images for a year without revalidating. Upload names are reused — a
-# re-post writes {username}_0.jpg again — so this is safe only because every
-# URL the site emits for one comes from image_src() or display_src() in
-# includes/, which append ?v=<filemtime>. An <img> that builds its own URL
-# would show a replaced photo's old version for a year.
+# Cache images for a year without revalidating. Files can be rewritten in place
+# (normalize_original() and the thumbnail/display writers in
+# includes/thumbnail.php), so this is safe only because every URL the site
+# emits for one comes from image_src() or display_src() in includes/, which
+# append ?v=<filemtime>. An <img> that builds its own URL would show a
+# rewritten image's old version for a year.
 <IfModule mod_headers.c>
     <FilesMatch "\.(?i:jpe?g|png|gif|webp|bmp)$">
         Header set Cache-Control "public, max-age=31536000, immutable"

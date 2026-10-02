@@ -7,6 +7,26 @@ DirectoryIndex landing.php
     Require all denied
 </FilesMatch>
 
+# Refuse everything in the tree that is not meant to be fetched. The docroot is
+# also the git checkout, so it holds files that only make sense on disk:
+#
+#   - any path segment starting with a dot (.git/, .claude/, a stray .env),
+#     except .well-known/ — the FilesMatch above only sees file names, so it
+#     could not catch a dot-directory's contents
+#   - includes/ and vendor/, which PHP requires from disk; requested directly
+#     they would execute out of context
+#   - data/, read from disk by header.php and app/api/announcement.php
+#   - docs and Composer metadata (*.md, composer.json/lock)
+#
+# RedirectMatch rather than <If>/Require: Require is replaced, not merged, by a
+# subdirectory's own (app/.htaccess has one), whereas mod_alias rules from here
+# still apply under app/ and recover/. Nothing on the site links to any of
+# these paths, so a 403 is only ever seen by someone probing for them.
+RedirectMatch 403 "(^|/)\.(?!well-known(/|$))"
+RedirectMatch 403 "^/(includes|vendor|data)(/|$)"
+RedirectMatch 403 "(?i)\.md$"
+RedirectMatch 403 "(^|/)composer\.(json|lock|phar)$"
+
 # Baseline response headers.
 #
 # No Content-Security-Policy here on purpose: every page inlines a <script> for
