@@ -150,8 +150,27 @@ function listing_map_links(?string $address, $lat, $lon): array {
         $apple .= '&ll=' . (float)$lat . ',' . (float)$lon;
     }
 
+    // Addresses picked since the geocoder switch are stored short ("37 South
+    // Williams Street, Burlington"), and Google's link has no ll= to pin them,
+    // so "Burlington" could resolve to any of a dozen. Name the state, but only
+    // east of Lake Champlain: the 50-mile radius reaches Plattsburgh, and every
+    // New York shore town lies west of -73.35. West of that, add nothing
+    // rather than guess.
+    $google = $query;
+    $states = us_state_names();
+    $hasState = false;
+    foreach ($parts as $part) {
+        if (isset($states[strtolower($part)])) {
+            $hasState = true;
+            break;
+        }
+    }
+    if (!$hasState && is_numeric($lon) && (float)$lon > -73.35) {
+        $google .= ', VT';
+    }
+
     return [
-        'google' => 'https://www.google.com/maps/search/?api=1&query=' . rawurlencode($query),
+        'google' => 'https://www.google.com/maps/search/?api=1&query=' . rawurlencode($google),
         'apple'  => $apple,
     ];
 }
