@@ -105,6 +105,7 @@ foreach ($availableSemesters as $sem) {
         <?php foreach ($sublets as $cardIndex => $sublet): ?>
             <?php
                 $displayAddress = format_address($sublet['address']);
+                $mapLinks = listing_map_links($sublet['address'], $sublet['lat'], $sublet['lon']);
                 $sizeSummary = listing_size_summary($sublet);
                 $prefLabel = option_label(ROOMMATE_PREFERENCE_OPTIONS, $sublet['roommate_preference'] ?? null);
                 $cardTags = listing_card_tags($sublet, $amenityCounts);
@@ -144,6 +145,8 @@ foreach ($availableSemesters as $sem) {
                  data-contact-phone="<?= htmlspecialchars($sublet['contact_phone'] ?? '') ?>"
                  data-lat="<?= $sublet['lat'] ?>"
                  data-lon="<?= $sublet['lon'] ?>"
+                 data-maps-url="<?= htmlspecialchars($mapLinks['google']) ?>"
+                 data-apple-maps-url="<?= htmlspecialchars($mapLinks['apple']) ?>"
                  data-utility-electric="<?= htmlspecialchars($sublet['utility_electric'] ?? '') ?>"
                  data-utility-gas="<?= htmlspecialchars($sublet['utility_gas'] ?? '') ?>"
                  data-utility-water="<?= htmlspecialchars($sublet['utility_water'] ?? '') ?>"

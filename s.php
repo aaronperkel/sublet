@@ -236,7 +236,7 @@ if ($listing === null) {
             <?php if ($lines !== null): ?>
                 <h1>Someone shared a sublet with you</h1>
                 <p class="share-lede">Sign in to see the address, photos and how to get in touch.</p>
-                <a class="share-btn" href="<?= htmlspecialchars($appUrl) ?>">Sign in with your UVM NetID</a>
+                <a class="share-btn" id="signIn" href="<?= htmlspecialchars($appUrl) ?>">Sign in with your UVM NetID</a>
                 <p class="share-note">The address and contact details are only shown to signed-in UVM students.</p>
             <?php else: ?>
                 <h1>This listing isn&rsquo;t available</h1>
@@ -250,5 +250,19 @@ if ($listing === null) {
     </main>
 
     <p class="share-foot"><a href="<?= htmlspecialchars(SHARE_SHORT_URL) ?>">UVM Sublets</a> &middot; <a href="<?= htmlspecialchars(SOCIAL_INSTAGRAM_URL) ?>"><?= htmlspecialchars(SOCIAL_INSTAGRAM_HANDLE) ?></a><br>An independent student project, not affiliated with the University of Vermont.</p>
+    <?php /* Sign-in replaces this page in history instead of adding to it,
+             so Back from the listing it opens cannot land here again. A
+             modified click (new tab) and no-JS both get the plain link. */ ?>
+    <script>
+        (function () {
+            var link = document.getElementById('signIn');
+            if (!link) return;
+            link.addEventListener('click', function (e) {
+                if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                e.preventDefault();
+                window.location.replace(link.href);
+            });
+        })();
+    </script>
 </body>
 </html>

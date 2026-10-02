@@ -122,3 +122,36 @@ function short_address_from_details(array $result): string {
 
     return implode(', ', $parts);
 }
+
+/**
+ * "Open in Maps" links for a listing, built from the full stored address
+ * rather than format_address()'s short form, which drops the state and ZIP and
+ * so can match a street of the same name in another town.
+ *
+ * Both are built here so the listing view has a working Google link whatever
+ * the browser; app.js swaps in the Apple one on iPhone, iPad and Mac, where
+ * maps.apple.com opens the Maps app. ll pins Apple's search to the geocoded
+ * point when there is one.
+ */
+function listing_map_links(?string $address, $lat, $lon): array {
+    $parts = array_map('trim', explode(',', trim((string)$address)));
+    // "62, King Street" -> "62 King Street", as format_address() does.
+    if (count($parts) > 1 && preg_match('/^\d+[a-zA-Z]?$/', $parts[0])) {
+        $number = array_shift($parts);
+        $parts[0] = $number . ' ' . $parts[0];
+    }
+    $query = implode(', ', array_filter($parts, 'strlen'));
+    if ($query === '') {
+        return ['google' => '', 'apple' => ''];
+    }
+
+    $apple = 'https://maps.apple.com/?q=' . rawurlencode($query);
+    if (is_numeric($lat) && is_numeric($lon)) {
+        $apple .= '&ll=' . (float)$lat . ',' . (float)$lon;
+    }
+
+    return [
+        'google' => 'https://www.google.com/maps/search/?api=1&query=' . rawurlencode($query),
+        'apple'  => $apple,
+    ];
+}

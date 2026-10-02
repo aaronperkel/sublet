@@ -63,7 +63,7 @@
                         <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
                         <span>
                             <span id="modalAddress"></span>
-                            <a id="modalMapLink" class="modal-map-link" href="#" target="_blank" rel="noopener">Open in Maps</a>
+                            <a id="modalMapLink" class="modal-map-link" href="https://www.google.com/maps" target="_blank" rel="noopener">Open in Google Maps</a>
                         </span>
                     </div>
                     <div class="modal-field">

@@ -34,6 +34,10 @@ unset($sublet);
 // Roommate codes become labels here for the same reason — app.js should not
 // need its own copy of the vocabulary.
 foreach ($sublets as &$s) {
+    // Before the address is shortened: the maps links want all of it.
+    $mapLinks = listing_map_links($s['address'], $s['lat'], $s['lon']);
+    $s['maps_url'] = $mapLinks['google'];
+    $s['apple_maps_url'] = $mapLinks['apple'];
     $s['address'] = format_address($s['address']);
     $s['size_summary'] = listing_size_summary($s);
     $s['roommate_gender_label'] = option_label(ROOMMATE_GENDER_OPTIONS, $s['roommate_gender'] ?? null);

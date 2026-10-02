@@ -824,7 +824,18 @@ h3 { font-size: var(--text-lg); font-weight: 700; line-height: 1.3; }
     backdrop-filter: blur(4px);
     z-index: 2000;
     overflow-y: auto;
+    overscroll-behavior: none;
     padding: 2rem 1rem;
+}
+
+/* With a sheet or the listing view open, a drag that runs past its end must
+   not rubber-band the page behind it (iOS shows the page through the gap).
+   The root element's value is the one that governs the viewport. */
+html:has(> body.filter-sheet-open),
+html:has(> body.listing-open),
+body.filter-sheet-open,
+body.listing-open {
+    overscroll-behavior: none;
 }
 
 .modal-overlay.open {
@@ -1116,6 +1127,7 @@ h3 { font-size: var(--text-lg); font-weight: 700; line-height: 1.3; }
     height: 100%;
     padding: 1.5rem;
     overflow-y: auto;
+    overscroll-behavior: none;
     transition: transform 0.3s ease;
     box-sizing: border-box;
 }
@@ -2820,7 +2832,7 @@ h3 { font-size: var(--text-lg); font-weight: 700; line-height: 1.3; }
         max-height: 85vh;
         max-height: 85dvh;
         overflow-y: auto;
-        overscroll-behavior: contain;
+        overscroll-behavior: none;
         padding: 0 1.25rem;
         border-radius: var(--radius) var(--radius) 0 0;
         border: none;

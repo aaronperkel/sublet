@@ -739,13 +739,14 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         document.getElementById('modalAddress').textContent = data.address;
+        // Both links are built server-side from the full stored address; the
+        // Apple one opens the Maps app, so it is only offered where that is.
         var mapLink = document.getElementById('modalMapLink');
         if (mapLink) {
-            var lat = parseFloat(data.lat);
-            var lon = parseFloat(data.lon);
-            var where = (!isNaN(lat) && !isNaN(lon)) ? lat + ',' + lon : (data.address || '');
-            mapLink.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(where);
-            mapLink.hidden = where === '';
+            var useApple = prefersAppleMaps() && data.appleMapsUrl;
+            mapLink.href = (useApple ? data.appleMapsUrl : data.mapsUrl) || '';
+            mapLink.textContent = useApple ? 'Open in Maps' : 'Open in Google Maps';
+            mapLink.hidden = !data.mapsUrl;
         }
         document.getElementById('modalSemester').textContent = data.semesterName || data.semester;
         document.getElementById('modalDescription').textContent = data.description || 'No description provided.';
@@ -850,6 +851,7 @@ document.addEventListener('DOMContentLoaded', function () {
         overlay.classList.add('open');
         overlay.setAttribute('aria-hidden', 'false');
         document.body.style.overflow = 'hidden';
+        document.body.classList.add('listing-open');
 
         // A history entry for the open listing, so a phone's Back button closes
         // it instead of leaving the page. closeModal() steps back over it.
@@ -862,6 +864,13 @@ document.addEventListener('DOMContentLoaded', function () {
         lastFocused = document.activeElement;
         var closeBtn = document.getElementById('modalClose');
         if (closeBtn) closeBtn.focus();
+    }
+
+    // iPhone, iPad and Mac. iPadOS asks for desktop sites by default and then
+    // reports itself as a Mac (only maxTouchPoints tells it apart), but since a
+    // Mac gets the Apple link too, matching "Macintosh" covers the iPad as well.
+    function prefersAppleMaps() {
+        return /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent || '');
     }
 
     // Closing goes through history when opening added an entry, so the close
@@ -881,6 +890,7 @@ document.addEventListener('DOMContentLoaded', function () {
             overlay.classList.remove('open');
             overlay.setAttribute('aria-hidden', 'true');
             document.body.style.overflow = '';
+            document.body.classList.remove('listing-open');
         }
         if (lastFocused && typeof lastFocused.focus === 'function') {
             lastFocused.focus();
@@ -1242,6 +1252,13 @@ document.addEventListener('DOMContentLoaded', function () {
         var openId = parseInt((window.SUBLET_CONFIG || {}).openId, 10);
         if (!openId) return;
 
+        // This entry becomes plain Browse (the grid already is: ?id= drops the
+        // filters), and the click below pushes the listing on top of it the
+        // way a tapped card does, so Back closes the listing onto Browse.
+        // s.php replaces itself on the way here, so Back cannot reach the
+        // sign-in screen either.
+        history.replaceState(null, '', window.location.pathname.replace(/index\.php$/, ''));
+
         var card = document.querySelector('.listing-card[data-id="' + openId + '"]');
         if (!card) return;
 
@@ -1368,7 +1385,9 @@ document.addEventListener('DOMContentLoaded', function () {
             roommatePreference: card.dataset.roommatePreference || '',
             distance: card.dataset.distance || '',
             lat: card.dataset.lat || '',
-            lon: card.dataset.lon || ''
+            lon: card.dataset.lon || '',
+            mapsUrl: card.dataset.mapsUrl || '',
+            appleMapsUrl: card.dataset.appleMapsUrl || ''
         });
     }
 
@@ -1501,7 +1520,9 @@ document.addEventListener('DOMContentLoaded', function () {
                             roommatePreference: sublet.roommate_preference_label || '',
                             distance: sublet.distance_mi || '',
                             lat: sublet.lat,
-                            lon: sublet.lon
+                            lon: sublet.lon,
+                            mapsUrl: sublet.maps_url || '',
+                            appleMapsUrl: sublet.apple_maps_url || ''
                         });
                     });
                 });
