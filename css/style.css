@@ -17,7 +17,9 @@
     /* Functional Colors */
     --text: #00313C;
     --text-secondary: #4a5e63;
-    --text-muted: #7a8e93;
+    /* 4.99:1 on white, 4.66:1 on fog. It was #7a8e93 (3.43:1), below body-text
+       contrast, yet it carries distance, filter labels and field hints. */
+    --text-muted: #5f7378;
     --border: #dce1e3;
     --border-light: #eef1f2;
     --danger: #DC582A;
@@ -1127,6 +1129,14 @@ h3 { font-size: 1.125rem; font-weight: 600; line-height: 1.4; }
 .autocomplete-item i {
     color: var(--text-muted);
     margin-right: 0.5rem;
+}
+
+/* No match, or the lookup failed: a message in the dropdown, not a choice. */
+.autocomplete-empty {
+    padding: 0.75rem 0.875rem;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    color: var(--text-secondary);
 }
 
 /* Upload Zone */

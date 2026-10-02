@@ -1156,7 +1156,14 @@ document.addEventListener('DOMContentLoaded', function () {
         // attached to the new text, so the listing mapped to the previous
         // place. Track the last address the coordinates actually belong to and
         // block submission while the two disagree.
-        var acceptedAddress = input.value.trim();
+        //
+        // What post.php renders counts as accepted only when it came with
+        // coordinates: after a failed save the field can hold text the student
+        // typed but never picked, and that must not pass as a picked address.
+        var latInput = document.getElementById('lat');
+        var lonInput = document.getElementById('lon');
+        var acceptedAddress = (latInput && latInput.value && lonInput && lonInput.value)
+            ? input.value.trim() : '';
 
         function syncAddressValidity() {
             if (input.value.trim() === acceptedAddress) {
@@ -1177,12 +1184,21 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             debounceTimer = setTimeout(function () {
                 fetch('api/geocode.php?q=' + encodeURIComponent(query))
-                    .then(function (r) { return r.json(); })
+                    .then(function (r) {
+                        if (!r.ok) throw new Error('lookup failed');
+                        return r.json();
+                    })
                     .then(function (data) {
-                        renderAutocomplete(data);
+                        // A slower answer for an older query must not replace
+                        // the message for what is in the box now.
+                        if (input.value.trim() !== query) return;
+                        renderAutocomplete(Array.isArray(data) ? data : [], query);
                     })
                     .catch(function () {
-                        results.classList.remove('open');
+                        if (input.value.trim() !== query) return;
+                        showAutocompleteMessage(
+                            'Couldn\u2019t search addresses right now. Check your connection and try again in a moment.'
+                        );
                     });
             }, 350);
         });
@@ -1211,12 +1227,28 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
-        function renderAutocomplete(data) {
+        // Shown in the dropdown in place of suggestions. It is not an
+        // .autocomplete-item, so the arrow keys and Enter skip it.
+        function showAutocompleteMessage(text) {
+            results.innerHTML = '';
+            highlightedIndex = -1;
+            var div = document.createElement('div');
+            div.className = 'autocomplete-empty';
+            div.textContent = text;
+            results.appendChild(div);
+            results.classList.add('open');
+        }
+
+        function renderAutocomplete(data, query) {
             results.innerHTML = '';
             highlightedIndex = -1;
 
+            // Closing the dropdown on no match left the student with a field
+            // that refuses to submit and nothing saying why.
             if (!data.length) {
-                results.classList.remove('open');
+                showAutocompleteMessage(
+                    'No match for \u201c' + query + '\u201d. Try just the house number and street, like \u201c62 King St\u201d.'
+                );
                 return;
             }
 
@@ -1961,11 +1993,10 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Also handle modal image errors
-    var modalImg = document.getElementById('modalImage');
-    if (modalImg) {
-        modalImg.addEventListener('error', function () { imageFailed(modalImg); });
-    }
+    // #modalImage sits inside .modal-gallery, so the loop above already covers
+    // it. It used to get a second listener here as well, and on one error the
+    // second call found the first one's retry flag and showed "Image not
+    // available" before the retry could load.
 
     /* ======================================================================
        Place / Roommate Helpers

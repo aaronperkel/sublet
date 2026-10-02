@@ -124,7 +124,7 @@ function render_email_html(string $body, string $name): string {
     <div style="padding: 1.5rem; background: #ffffff; border: 1px solid #e0e4e5;">
         {$htmlBody}
     </div>
-    <div style="padding: 1rem 1.5rem; background: #F7F7F7; border-radius: 0 0 8px 8px; font-size: 0.85rem; color: #7a8e93; text-align: center;">
+    <div style="padding: 1rem 1.5rem; background: #F7F7F7; border-radius: 0 0 8px 8px; font-size: 0.85rem; color: #5f7378; text-align: center;">
         <p>This email was sent from <a href="https://go.uvm.edu/sublet" style="color: #154734;">UVM Sublets</a></p>
         <p>Questions or issues? DM <a href="https://www.instagram.com/uvmsublets/" style="color: #154734;">@uvmsublets</a> on Instagram.</p>
     </div>

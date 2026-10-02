@@ -317,6 +317,35 @@ if (!empty($existingPost['semester'])) {
     $shareSemesterName = $semesterNames[$existingPost['semester']] ?? $existingPost['semester'];
 }
 
+// What the form shows. After a failed save that is what the student just
+// submitted: rendering from the database instead (or from nothing, for a new
+// listing) threw away a whole form over one bad field. Otherwise it is the
+// saved listing when editing, and empty for a new one. Every value is escaped
+// where it is printed. Unchecked boxes are simply absent from $_POST, which is
+// why this replaces $existingPost rather than merging into it.
+$formFailed = $_SERVER['REQUEST_METHOD'] === 'POST' && !$postTooLarge && $error_message !== '';
+$form = $isEdit ? $existingPost : [];
+if ($formFailed) {
+    $form = array_map(static fn($v) => is_string($v) ? trim($v) : $v, $_POST);
+
+    // Coordinates go back only as numbers. They are what tells app.js the
+    // address was picked from the suggestions rather than typed.
+    foreach (['lat', 'lon'] as $coord) {
+        if (!is_numeric($form[$coord] ?? null) || (float)$form[$coord] === 0.0) {
+            $form['lat'] = $form['lon'] = '';
+            break;
+        }
+    }
+
+    // A browser cannot be handed files back, so say so rather than letting
+    // the student find out at the next submit.
+    if (!empty($_FILES['images']['name'][0])) {
+        $error_message .= ' Your photos weren\'t saved, so please add them again.';
+    }
+}
+$formHasLocation = is_numeric($form['lat'] ?? null) && is_numeric($form['lon'] ?? null)
+    && (float)$form['lat'] !== 0.0;
+
 // Get existing images for edit mode
 $existingImages = [];
 if ($isEdit) {
@@ -392,12 +421,12 @@ if ($isEdit) {
                 <div class="input-with-prefix">
                     <span class="input-prefix">$</span>
                     <input type="number" id="price" name="price" step="0.01" min="0"
-                           value="<?= $isEdit ? htmlspecialchars($existingPost['price']) : '' ?>" required>
+                           value="<?= htmlspecialchars((string)($form['price'] ?? '')) ?>" required>
                 </div>
                 <?php if (isset($subletColumns['price_negotiable'])): ?>
                     <label class="inline-checkbox">
                         <input type="checkbox" name="price_negotiable" value="1"
-                               <?= ($isEdit && !empty($existingPost['price_negotiable'])) ? 'checked' : '' ?>>
+                               <?= !empty($form['price_negotiable']) ? 'checked' : '' ?>>
                         <span>Price is negotiable — show an "or best offer" tag</span>
                     </label>
                 <?php endif; ?>
@@ -412,23 +441,23 @@ if ($isEdit) {
                 <label for="address">Address</label>
                 <div class="address-wrapper">
                     <input type="text" id="address" name="address" placeholder="Start typing an address..."
-                           value="<?= $isEdit ? htmlspecialchars(format_address($existingPost['address'])) : '' ?>"
+                           value="<?= htmlspecialchars(format_address($form['address'] ?? '')) ?>"
                            autocomplete="off" required>
                     <div class="autocomplete-results" id="addressResults"></div>
                 </div>
                 <p class="field-hint"><i class="fa-solid fa-circle-info"></i> Pick a suggestion from the dropdown so your listing lands in the right spot on the map.</p>
-                <input type="hidden" id="lat" name="lat" value="<?= $isEdit ? $existingPost['lat'] : '' ?>">
-                <input type="hidden" id="lon" name="lon" value="<?= $isEdit ? $existingPost['lon'] : '' ?>">
+                <input type="hidden" id="lat" name="lat" value="<?= $formHasLocation ? htmlspecialchars((string)$form['lat']) : '' ?>">
+                <input type="hidden" id="lon" name="lon" value="<?= $formHasLocation ? htmlspecialchars((string)$form['lon']) : '' ?>">
             </div>
 
             <!-- Semester -->
             <div class="form-group">
                 <label for="semester">Semester</label>
                 <select id="semester" name="semester" required>
-                    <option value="" disabled <?= !$isEdit ? 'selected' : '' ?>>Select semester</option>
+                    <option value="" disabled <?= empty($form['semester']) ? 'selected' : '' ?>>Select semester</option>
                     <?php foreach ($semesterOptions as $sem): ?>
                         <option value="<?= htmlspecialchars($sem['code']) ?>"
-                            <?= ($isEdit && $existingPost['semester'] === $sem['code']) ? 'selected' : '' ?>>
+                            <?= ($form['semester'] ?? null) === $sem['code'] ? 'selected' : '' ?>>
                             <?= htmlspecialchars($sem['name']) ?><?= !empty($sem['hidden']) ? ' (closed — listing hidden)' : '' ?>
                         </option>
                     <?php endforeach; ?>
@@ -437,10 +466,10 @@ if ($isEdit) {
 
             <?php if (isset($subletColumns['bedrooms'])): ?>
                 <?php
-                    $curBedrooms = $isEdit ? ($existingPost['bedrooms'] ?? '') : '';
-                    $curBathrooms = ($isEdit && ($existingPost['bathrooms'] ?? null) !== null)
-                        ? format_half((float)$existingPost['bathrooms']) : '';
-                    $curRoommates = $isEdit ? ($existingPost['roommates'] ?? '') : '';
+                    $curBedrooms = $form['bedrooms'] ?? '';
+                    $curBathrooms = is_numeric($form['bathrooms'] ?? null)
+                        ? format_half((float)$form['bathrooms']) : '';
+                    $curRoommates = $form['roommates'] ?? '';
                 ?>
                 <!-- Place & Roommates -->
                 <div class="form-group">
@@ -480,7 +509,7 @@ if ($isEdit) {
                             <select id="roommate_gender" name="roommate_gender">
                                 <?php foreach (ROOMMATE_GENDER_OPTIONS as $val => $label): ?>
                                     <option value="<?= htmlspecialchars($val) ?>"
-                                        <?= ($isEdit && ($existingPost['roommate_gender'] ?? '') === $val) ? 'selected' : '' ?>>
+                                        <?= ($form['roommate_gender'] ?? '') === $val ? 'selected' : '' ?>>
                                         <?= htmlspecialchars($label) ?>
                                     </option>
                                 <?php endforeach; ?>
@@ -491,7 +520,7 @@ if ($isEdit) {
                             <select id="roommate_preference" name="roommate_preference">
                                 <?php foreach (ROOMMATE_PREFERENCE_OPTIONS as $val => $label): ?>
                                     <option value="<?= htmlspecialchars($val) ?>"
-                                        <?= ($isEdit && ($existingPost['roommate_preference'] ?? '') === $val) ? 'selected' : '' ?>>
+                                        <?= ($form['roommate_preference'] ?? '') === $val ? 'selected' : '' ?>>
                                         <?= htmlspecialchars($label) ?>
                                     </option>
                                 <?php endforeach; ?>
@@ -509,7 +538,7 @@ if ($isEdit) {
             <div class="form-group">
                 <label for="description">Description</label>
                 <textarea id="description" name="description" rows="5"
-                          placeholder="Describe your place — bedrooms, bathrooms, amenities, parking, etc."><?= $isEdit ? htmlspecialchars($existingPost['description']) : '' ?></textarea>
+                          placeholder="Describe your place — bedrooms, bathrooms, amenities, parking, etc."><?= htmlspecialchars((string)($form['description'] ?? '')) ?></textarea>
             </div>
 
             <!-- Utilities & Amenities -->
@@ -528,32 +557,32 @@ if ($isEdit) {
                         <label><i class="fa-solid fa-bolt"></i> Electric</label>
                         <select name="utility_electric">
                             <option value="">Not specified</option>
-                            <option value="landlord" <?= ($isEdit && ($existingPost['utility_electric'] ?? '') === 'landlord') ? 'selected' : '' ?>>Included in rent</option>
-                            <option value="tenant" <?= ($isEdit && ($existingPost['utility_electric'] ?? '') === 'tenant') ? 'selected' : '' ?>>Tenant pays</option>
+                            <option value="landlord" <?= ($form['utility_electric'] ?? '') === 'landlord' ? 'selected' : '' ?>>Included in rent</option>
+                            <option value="tenant" <?= ($form['utility_electric'] ?? '') === 'tenant' ? 'selected' : '' ?>>Tenant pays</option>
                         </select>
                     </div>
                     <div class="utility-row">
                         <label><i class="fa-solid fa-fire-flame-simple"></i> Gas</label>
                         <select name="utility_gas">
                             <option value="">Not specified</option>
-                            <option value="landlord" <?= ($isEdit && ($existingPost['utility_gas'] ?? '') === 'landlord') ? 'selected' : '' ?>>Included in rent</option>
-                            <option value="tenant" <?= ($isEdit && ($existingPost['utility_gas'] ?? '') === 'tenant') ? 'selected' : '' ?>>Tenant pays</option>
+                            <option value="landlord" <?= ($form['utility_gas'] ?? '') === 'landlord' ? 'selected' : '' ?>>Included in rent</option>
+                            <option value="tenant" <?= ($form['utility_gas'] ?? '') === 'tenant' ? 'selected' : '' ?>>Tenant pays</option>
                         </select>
                     </div>
                     <div class="utility-row">
                         <label><i class="fa-solid fa-droplet"></i> Water</label>
                         <select name="utility_water">
                             <option value="">Not specified</option>
-                            <option value="landlord" <?= ($isEdit && ($existingPost['utility_water'] ?? '') === 'landlord') ? 'selected' : '' ?>>Included in rent</option>
-                            <option value="tenant" <?= ($isEdit && ($existingPost['utility_water'] ?? '') === 'tenant') ? 'selected' : '' ?>>Tenant pays</option>
+                            <option value="landlord" <?= ($form['utility_water'] ?? '') === 'landlord' ? 'selected' : '' ?>>Included in rent</option>
+                            <option value="tenant" <?= ($form['utility_water'] ?? '') === 'tenant' ? 'selected' : '' ?>>Tenant pays</option>
                         </select>
                     </div>
                     <div class="utility-row">
                         <label><i class="fa-solid fa-wifi"></i> Internet</label>
                         <select name="utility_internet">
                             <option value="">Not specified</option>
-                            <option value="landlord" <?= ($isEdit && ($existingPost['utility_internet'] ?? '') === 'landlord') ? 'selected' : '' ?>>Included in rent</option>
-                            <option value="tenant" <?= ($isEdit && ($existingPost['utility_internet'] ?? '') === 'tenant') ? 'selected' : '' ?>>Tenant pays</option>
+                            <option value="landlord" <?= ($form['utility_internet'] ?? '') === 'landlord' ? 'selected' : '' ?>>Included in rent</option>
+                            <option value="tenant" <?= ($form['utility_internet'] ?? '') === 'tenant' ? 'selected' : '' ?>>Tenant pays</option>
                         </select>
                     </div>
                 </div>
@@ -563,7 +592,7 @@ if ($isEdit) {
                     <div class="input-with-prefix">
                         <span class="input-prefix">$</span>
                         <input type="number" id="utility_cost" name="utility_cost" step="1" min="0"
-                               value="<?= $isEdit ? htmlspecialchars($existingPost['utility_cost'] ?? '') : '' ?>"
+                               value="<?= htmlspecialchars((string)($form['utility_cost'] ?? '')) ?>"
                                placeholder="e.g. 150">
                     </div>
                 </div>
@@ -574,42 +603,42 @@ if ($isEdit) {
                     </p>
                     <div class="amenity-checkboxes">
                         <label class="amenity-checkbox">
-                            <input type="checkbox" name="amenity_free_parking" value="1" <?= ($isEdit && ($existingPost['amenity_free_parking'] ?? 0)) ? 'checked' : '' ?>>
+                            <input type="checkbox" name="amenity_free_parking" value="1" <?= !empty($form['amenity_free_parking']) ? 'checked' : '' ?>>
                             <i class="fa-solid fa-square-parking"></i>
                             <span>Free Parking</span>
                         </label>
                         <label class="amenity-checkbox">
-                            <input type="checkbox" name="amenity_paid_parking" value="1" <?= ($isEdit && ($existingPost['amenity_paid_parking'] ?? 0)) ? 'checked' : '' ?>>
+                            <input type="checkbox" name="amenity_paid_parking" value="1" <?= !empty($form['amenity_paid_parking']) ? 'checked' : '' ?>>
                             <i class="fa-solid fa-square-parking"></i>
                             <span>Paid Parking</span>
                         </label>
                         <label class="amenity-checkbox">
-                            <input type="checkbox" name="amenity_laundry_free" value="1" <?= ($isEdit && ($existingPost['amenity_laundry_free'] ?? 0)) ? 'checked' : '' ?>>
+                            <input type="checkbox" name="amenity_laundry_free" value="1" <?= !empty($form['amenity_laundry_free']) ? 'checked' : '' ?>>
                             <i class="fa-solid fa-shirt"></i>
                             <span>In-Unit Laundry (Free)</span>
                         </label>
                         <label class="amenity-checkbox">
-                            <input type="checkbox" name="amenity_laundry_paid" value="1" <?= ($isEdit && ($existingPost['amenity_laundry_paid'] ?? 0)) ? 'checked' : '' ?>>
+                            <input type="checkbox" name="amenity_laundry_paid" value="1" <?= !empty($form['amenity_laundry_paid']) ? 'checked' : '' ?>>
                             <i class="fa-solid fa-shirt"></i>
                             <span>In-Unit Laundry (Paid)</span>
                         </label>
                         <label class="amenity-checkbox">
-                            <input type="checkbox" name="amenity_dishwasher" value="1" <?= ($isEdit && ($existingPost['amenity_dishwasher'] ?? 0)) ? 'checked' : '' ?>>
+                            <input type="checkbox" name="amenity_dishwasher" value="1" <?= !empty($form['amenity_dishwasher']) ? 'checked' : '' ?>>
                             <i class="fa-solid fa-sink"></i>
                             <span>Dishwasher</span>
                         </label>
                         <label class="amenity-checkbox">
-                            <input type="checkbox" name="amenity_air_conditioning" value="1" <?= ($isEdit && ($existingPost['amenity_air_conditioning'] ?? 0)) ? 'checked' : '' ?>>
+                            <input type="checkbox" name="amenity_air_conditioning" value="1" <?= !empty($form['amenity_air_conditioning']) ? 'checked' : '' ?>>
                             <i class="fa-solid fa-snowflake"></i>
                             <span>A/C</span>
                         </label>
                         <label class="amenity-checkbox">
-                            <input type="checkbox" name="amenity_pets_allowed" value="1" <?= ($isEdit && ($existingPost['amenity_pets_allowed'] ?? 0)) ? 'checked' : '' ?>>
+                            <input type="checkbox" name="amenity_pets_allowed" value="1" <?= !empty($form['amenity_pets_allowed']) ? 'checked' : '' ?>>
                             <i class="fa-solid fa-paw"></i>
                             <span>Pets Allowed</span>
                         </label>
                         <label class="amenity-checkbox">
-                            <input type="checkbox" name="amenity_furnished" value="1" <?= ($isEdit && ($existingPost['amenity_furnished'] ?? 0)) ? 'checked' : '' ?>>
+                            <input type="checkbox" name="amenity_furnished" value="1" <?= !empty($form['amenity_furnished']) ? 'checked' : '' ?>>
                             <i class="fa-solid fa-couch"></i>
                             <span>Furnished</span>
                         </label>
@@ -622,7 +651,7 @@ if ($isEdit) {
                 <div class="form-group">
                     <label for="display_name">Your Name <span class="text-muted" style="font-weight: 400; text-transform: none;">(optional)</span></label>
                     <input type="text" id="display_name" name="display_name" maxlength="60"
-                           value="<?= $isEdit ? htmlspecialchars($existingPost['display_name'] ?? '') : '' ?>"
+                           value="<?= htmlspecialchars((string)($form['display_name'] ?? '')) ?>"
                            placeholder="<?= htmlspecialchars($username) ?>">
                     <p class="field-hint">
                         <i class="fa-solid fa-circle-info"></i>
@@ -634,14 +663,14 @@ if ($isEdit) {
             <div class="form-group">
                 <label for="contact_email">Contact Email</label>
                 <input type="email" id="contact_email" name="contact_email"
-                       value="<?= $isEdit && !empty($existingPost['contact_email']) ? htmlspecialchars($existingPost['contact_email']) : htmlspecialchars($username) . '@uvm.edu' ?>"
+                       value="<?= htmlspecialchars(!empty($form['contact_email']) ? (string)$form['contact_email'] : $username . '@uvm.edu') ?>"
                        placeholder="your.email@uvm.edu" required>
             </div>
 
             <div class="form-group">
                 <label for="contact_phone">Phone Number <span class="text-muted" style="font-weight: 400; text-transform: none;">(optional)</span></label>
                 <input type="tel" id="contact_phone" name="contact_phone"
-                       value="<?= $isEdit && !empty($existingPost['contact_phone']) ? htmlspecialchars($existingPost['contact_phone']) : '' ?>"
+                       value="<?= htmlspecialchars((string)($form['contact_phone'] ?? '')) ?>"
                        placeholder="(802) 555-1234">
             </div>
 
@@ -683,8 +712,8 @@ if ($isEdit) {
 <script>
     window.POST_CONFIG = {
         isEdit: <?= $isEdit ? 'true' : 'false' ?>,
-        lat: <?= $isEdit ? $existingPost['lat'] : '44.477435' ?>,
-        lon: <?= $isEdit ? $existingPost['lon'] : '-73.195323' ?>,
+        lat: <?= $formHasLocation ? (float)$form['lat'] : CAMPUS_LAT ?>,
+        lon: <?= $formHasLocation ? (float)$form['lon'] : CAMPUS_LON ?>,
         shareUrl: <?= json_encode(!empty($existingPost['id']) ? share_url((int)$existingPost['id']) : '') ?>,
         sharePrice: <?= json_encode(!empty($existingPost['price']) ? '$' . number_format((float)$existingPost['price']) : '') ?>,
         shareSemester: <?= json_encode($shareSemesterName) ?>

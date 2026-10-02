@@ -12,7 +12,7 @@ colors:
   fog: "#F7F7F7"
   card-white: "#FFFFFF"
   text-secondary: "#4a5e63"
-  text-muted: "#7a8e93"
+  text-muted: "#5f7378"
   border: "#dce1e3"
   border-light: "#eef1f2"
   included-tint: "#e8f5e9"
@@ -187,7 +187,7 @@ A two-accent palette taken from UVM's colors: Catamount Green carries structure 
 ### Neutral
 - **Slate Ink** (#00313C): body text, and the tint behind every shadow and the dialog scrim. Never pure black.
 - **Text Secondary** (#4a5e63): labels, secondary copy, unselected chip text.
-- **Text Muted** (#7a8e93): meta lines and empty-state copy. At 3.43:1 on white it is below body-text contrast; keep it to non-essential text.
+- **Text Muted** (#5f7378): meta lines, filter labels, field hints and empty-state copy. 4.99:1 on white and 4.66:1 on Fog, so it passes body-text contrast (it was #7a8e93 at 3.43:1 until October 2026).
 - **Fog** (#F7F7F7): page background and the secondary button fill.
 - **Card White** (#FFFFFF): cards, panels, dialogs and inputs.
 - **Border** (#dce1e3) and **Border Light** (#eef1f2): field strokes and card outlines.
@@ -317,5 +317,5 @@ A grid of round icon tiles (Share to…, Instagram story, Snapchat, Copy link) a
 - **Don't** put Gold text on white or Fog (1.46:1), and don't fill large areas with Gold.
 - **Don't** use pure black for text or shadows.
 - **Don't** add new hard-coded hex values outside `:root`; the state tints listed under Colors are the existing exceptions, not a pattern to extend.
-- **Don't** set content text below 0.75rem or use Text Muted (#7a8e93) for anything a student needs to read to decide.
+- **Don't** set content text below 0.75rem, or lighten Text Muted (#5f7378) again; it is already the lightest gray that passes 4.5:1 on Fog.
 - **Don't** leave hover-only effects ungated; a tapped card on a phone must not stay lifted.

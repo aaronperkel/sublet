@@ -31,15 +31,15 @@ $context = stream_context_create([
     ]
 ]);
 
+// A lookup that failed is not the same answer as an address that matched
+// nothing: an empty list tells the student to try a different address, which
+// is the wrong advice while Nominatim is down. app.js shows its own message
+// for each.
 $response = @file_get_contents($url, false, $context);
-if ($response === false) {
-    echo json_encode([]);
-    exit;
-}
-
-$results = json_decode($response, true);
+$results = $response === false ? null : json_decode($response, true);
 if (!is_array($results)) {
-    echo json_encode([]);
+    http_response_code(502);
+    echo json_encode(['error' => 'lookup_failed']);
     exit;
 }
 

@@ -127,16 +127,16 @@
       "text-muted": {
         "role": "neutral",
         "displayName": "Text Muted",
-        "canonical": "oklch(63.3% 0.024 214.5)",
+        "canonical": "oklch(54.1% 0.025 214.6)",
         "tonalRamp": [
-          "oklch(15% 0.024 214.5)",
-          "oklch(26% 0.024 214.5)",
-          "oklch(37% 0.024 214.5)",
-          "oklch(48% 0.024 214.5)",
-          "oklch(60% 0.024 214.5)",
-          "oklch(72% 0.024 214.5)",
-          "oklch(84% 0.024 214.5)",
-          "oklch(95% 0.024 214.5)"
+          "oklch(15% 0.025 214.6)",
+          "oklch(26% 0.025 214.6)",
+          "oklch(37% 0.025 214.6)",
+          "oklch(48% 0.025 214.6)",
+          "oklch(60% 0.025 214.6)",
+          "oklch(72% 0.025 214.6)",
+          "oklch(84% 0.025 214.6)",
+          "oklch(95% 0.025 214.6)"
         ]
       },
       "fog": {
@@ -398,7 +398,7 @@
       "refersTo": "card-listing",
       "description": "The pinned index card: 3:2 photo with a green price badge and gold semester pin, then address, size, meta and tags.",
       "html": "<article class=\"ds-card\" tabindex=\"0\"><div class=\"ds-card-photo\"><span class=\"ds-price\">$850</span><span class=\"ds-sem\">Spring 2027</span></div><div class=\"ds-card-info\"><p class=\"ds-addr\">62 King Street, Downtown</p><p class=\"ds-size\">2 bd &middot; 1 ba &middot; 1 roommate</p><p class=\"ds-meta\">Posted by Sam &middot; 0.4 mi</p></div><div class=\"ds-card-tags\"><span class=\"ds-tag2\">Furnished</span><span class=\"ds-tag2\">Laundry</span></div></article>",
-      "css": ".ds-card{width:300px;background:#fff;border-radius:var(--radius,12px);overflow:hidden;border:1px solid var(--border-light,#eef1f2);box-shadow:0 1px 3px rgba(0,49,60,.06);cursor:pointer;transition:all .2s ease;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif} .ds-card:hover{box-shadow:0 4px 16px rgba(0,49,60,.10);transform:translateY(-2px)} .ds-card:focus-visible{outline:3px solid var(--sky,#489FDF);outline-offset:2px;} .ds-card-photo{position:relative;aspect-ratio:3/2;background:linear-gradient(135deg,#cfd8d4,#e9eeec)} .ds-price{position:absolute;left:.75rem;bottom:.75rem;background:var(--green,#154734);color:#fff;padding:.25rem .6rem;border-radius:6px;font-size:.85rem;font-weight:700;box-shadow:0 1px 3px rgba(0,49,60,.06)} .ds-sem{position:absolute;right:.75rem;top:.75rem;background:var(--gold,#FFD100);color:var(--green,#154734);padding:.2rem .5rem;border-radius:6px;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.02em} .ds-card-info{padding:.875rem 1rem} .ds-addr{margin:0 0 .25rem;font-size:.9rem;font-weight:500;color:var(--text,#00313C);white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .ds-size{margin:0 0 .25rem;font-size:.8rem;color:var(--text-secondary,#4a5e63)} .ds-meta{margin:0;font-size:.8rem;color:var(--text-muted,#7a8e93)} .ds-card-tags{display:flex;flex-wrap:wrap;gap:.3rem;padding:0 1rem .75rem} .ds-tag2{font-size:.7rem;font-weight:600;padding:.15rem .45rem;border-radius:6px;background:#e8f5e9;color:#1a6b4a;border:1px solid #c8e6c9}"
+      "css": ".ds-card{width:300px;background:#fff;border-radius:var(--radius,12px);overflow:hidden;border:1px solid var(--border-light,#eef1f2);box-shadow:0 1px 3px rgba(0,49,60,.06);cursor:pointer;transition:all .2s ease;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif} .ds-card:hover{box-shadow:0 4px 16px rgba(0,49,60,.10);transform:translateY(-2px)} .ds-card:focus-visible{outline:3px solid var(--sky,#489FDF);outline-offset:2px;} .ds-card-photo{position:relative;aspect-ratio:3/2;background:linear-gradient(135deg,#cfd8d4,#e9eeec)} .ds-price{position:absolute;left:.75rem;bottom:.75rem;background:var(--green,#154734);color:#fff;padding:.25rem .6rem;border-radius:6px;font-size:.85rem;font-weight:700;box-shadow:0 1px 3px rgba(0,49,60,.06)} .ds-sem{position:absolute;right:.75rem;top:.75rem;background:var(--gold,#FFD100);color:var(--green,#154734);padding:.2rem .5rem;border-radius:6px;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.02em} .ds-card-info{padding:.875rem 1rem} .ds-addr{margin:0 0 .25rem;font-size:.9rem;font-weight:500;color:var(--text,#00313C);white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .ds-size{margin:0 0 .25rem;font-size:.8rem;color:var(--text-secondary,#4a5e63)} .ds-meta{margin:0;font-size:.8rem;color:var(--text-muted,#5f7378)} .ds-card-tags{display:flex;flex-wrap:wrap;gap:.3rem;padding:0 1rem .75rem} .ds-tag2{font-size:.7rem;font-weight:600;padding:.15rem .45rem;border-radius:6px;background:#e8f5e9;color:#1a6b4a;border:1px solid #c8e6c9}"
     }
   ],
   "narrative": {
@@ -461,7 +461,7 @@
       "**Don't** put Gold text on white or Fog (1.46:1), and don't fill large areas with Gold.",
       "**Don't** use pure black for text or shadows.",
       "**Don't** add new hard-coded hex values outside `:root`; the state tints listed under Colors are the existing exceptions, not a pattern to extend.",
-      "**Don't** set content text below 0.75rem or use Text Muted (#7a8e93) for anything a student needs to read to decide.",
+      "**Don't** set content text below 0.75rem, or lighten Text Muted (#5f7378) again; it is already the lightest gray that passes 4.5:1 on Fog.",
       "**Don't** leave hover-only effects ungated; a tapped card on a phone must not stay lifted."
     ]
   }
