@@ -333,6 +333,7 @@ function archive_plan(PDO $pdo, string $code): array {
             'address' => format_address($row['address']),
             'username' => $row['username'],
             'price' => (float)$row['price'],
+            'status' => $row['status'] ?? 'open',
             'posted_at' => $row['posted_at'] ?? null,
             'photos' => count(array_filter($imageRows, static fn($r) => (int)$r['sublet_id'] === $id)),
             'files' => count($listingFiles),

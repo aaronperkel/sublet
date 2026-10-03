@@ -210,10 +210,10 @@ A two-accent palette taken from UVM's colors: Catamount Green carries structure 
 
 ### State tints
 Four sets, each a tint, an ink and a line, each drawn from the palette:
-- **Included** (green; tint #e8f5e9, ink #1a6b4a): amenities and utilities that come with the place, success alerts and banners.
+- **Included** (green; tint #e8f5e9, ink #1a6b4a): amenities and utilities that come with the place, success alerts and banners, and a taken listing's status panel.
 - **Tenant pays** (gold; tint #fff8e1, ink #7a6100): utilities the subletter pays, in the listing view, and warning alerts and banners. Not on cards: there, gold is the price, so paid parking and paid laundry use the plain tag.
 - **Error** (orange; tint #fce8e3, ink #b5401a): error alerts.
-- **Notice** (sky; tint #eaf3fb, ink #0b4f7d): info alerts and the default announcement banner.
+- **Notice** (sky; tint #eaf3fb, ink #0b4f7d): info alerts, the default announcement banner, and a paused listing's status panel.
 
 A roommate preference is not a state: its tag is white with a hairline border and a green icon, so it reads as a note, not a requirement.
 
@@ -338,6 +338,9 @@ At 600px and below the view is a full-screen sheet: a sticky top bar (close and 
 
 ### Post Form
 One white panel. The address field is a combobox: suggestions as a listbox the arrow keys move through, and "Searching…", "No match…" and lookup-failed messages in the same dropdown. Under it a lock-icon note says who sees the address. The map preview opens on campus with no pin until there is a place; picking a suggestion or tapping the map places the pin, and on a desktop the pin drags. On a desktop the map is sticky beside the form; at 768px and below it sits under the address field, where one finger scrolls the page past it and two fingers pan. Photos add up across picks; each has a 28px remove button that is always visible (a 44px target), and the first carries a Gold "Cover" label.
+
+### Listing Status (post form)
+One panel under the edit form's heading, below the poster's numbers: an icon and a bold state ("On the board", "Paused since Oct 3", "Taken since Oct 3"), one Secondary line saying what it means on Browse and for the share link, and small buttons for where it can go next (Mark as taken and Pause; Resume and Mark as taken; Put it back up). It is Fog while the listing is up, Notice while paused and Included once taken. While it is up both buttons are Secondary, so Update Listing stays the page's one primary; otherwise the way back up is Primary. Nothing asks for confirmation, since every step can be undone from the same panel. Each change lands back on the page with a success banner. A taken listing's share link shows the interstitial's white card with "This sublet has been taken" and a Browse sublets button, and no preview image. A followed link to a listing that is no longer up opens Browse with one Notice line above the cards. In the admin Posts tab the status is a select that saves on change and says "Saved" (or the error, putting the select back) under it; elsewhere in admin, paused and taken show as plain tags or meta words.
 
 ### Share Sheet (signature)
 A grid of round icon tiles (Share to…, Instagram story, Snapchat, Copy link) above a link field with a Copy button. It becomes a bottom sheet under 600px.

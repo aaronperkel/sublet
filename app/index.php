@@ -9,7 +9,8 @@ require_once '../includes/thumbnail.php';
 // for one listing rather than a filtered browse, and a price or semester left
 // in the querystring could otherwise hide the very card the link was sent to
 // open. Visibility is not dropped — build_listing_filters() applies that
-// unconditionally, so a listing hidden by a deactivated semester stays hidden.
+// unconditionally, so a listing hidden by a deactivated semester, or paused or
+// taken by its poster, stays hidden.
 $openId = isset($_GET['id']) && ctype_digit((string)$_GET['id']) ? (int)$_GET['id'] : 0;
 
 // Build filtered query. Listings in a deactivated semester are always excluded
@@ -33,6 +34,11 @@ $stmt->execute($filters['params']);
 $sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $hasActiveFilters = $filters['active'];
+
+// A link to a listing that is no longer on the board would otherwise open onto
+// Browse with no word about what happened to it. Why it is gone (taken,
+// paused, its semester closed, deleted) is not said: that is the poster's.
+$openMissing = $openId && !in_array($openId, array_map('intval', array_column($sublets, 'id')), true);
 
 // Every card carries its photo list, so the listing view opens with its
 // arrows and counter instead of fetching them (see listing_photos()).
@@ -86,6 +92,14 @@ foreach ($availableSemesters as $sem) {
 <?php /* data-count is read by the filter sheet's "Show N sublets" button after a
          live update. */ ?>
 <div class="listings-grid" id="listingsGrid" data-count="<?= count($sublets) ?>">
+    <?php /* Inside the grid so the first live filter change, which replaces
+             the grid's contents, also clears it. */ ?>
+    <?php if ($openMissing): ?>
+        <div class="alert alert-info listings-notice" role="status">
+            <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+            <span>The listing you followed isn&rsquo;t up any more. Here&rsquo;s everything that is.</span>
+        </div>
+    <?php endif; ?>
     <?php if (empty($sublets)): ?>
         <?php /* $availableSemesters is derived from visible listings only, so an
                  empty one means the site has nothing to show at all — a different

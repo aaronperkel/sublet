@@ -40,12 +40,13 @@ try {
     if ($id !== null) {
         // The same visibility rule the rest of the public site uses: a listing
         // hidden by a deactivated semester must stop resolving from old links
-        // too, not just disappear from Browse.
+        // too, not just disappear from Browse. A taken listing is fetched as
+        // well, but only to say so below; a paused one is not fetched at all.
         $stmt = $pdo->prepare(
             "SELECT s.*, COALESCE(sem.name, s.semester) AS semester_name, "
             . campus_distance_expr() . " AS distance_mi
                FROM sublets s " . VISIBLE_SEMESTER_JOIN . "
-              WHERE s.id = ? AND " . VISIBLE_SEMESTER_WHERE
+              WHERE s.id = ? AND " . VISIBLE_SEMESTER_WHERE . " AND s.status IN ('open', 'taken')"
         );
         $stmt->execute([$id]);
         $listing = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
@@ -54,10 +55,23 @@ try {
     $listing = null;
 }
 
-// A bad token, an unknown id, a hidden listing and a database outage all render
-// the same page. Distinguishing them would turn this into an oracle for which
-// listing ids exist and which tokens are genuine.
-if ($listing === null) {
+// A bad token, an unknown id, a hidden or paused listing and a database outage
+// all render the same page. Distinguishing them would turn this into an oracle
+// for which listing ids exist and which tokens are genuine. A taken listing is
+// the one exception: only a genuine token reaches that branch, so it tells
+// someone guessing ids nothing, and it answers the question the person who was
+// sent the link actually has. Nothing about the listing itself is printed, not
+// even the card's lines.
+$taken = $listing !== null && ($listing['status'] ?? 'open') === 'taken';
+
+if ($taken) {
+    $lines = null;
+    $canonical = SHARE_SHORT_URL;
+    $pageTitle = 'This sublet has been taken — UVM Sublets';
+    $pageDesc = 'Whoever posted it has found someone. Other UVM sublets are still up on the site.';
+    $cardImage = SHARE_ORIGIN . '/assets/social/link-preview.png';
+    $appUrl = SHARE_ORIGIN . '/app/';
+} elseif ($listing === null) {
     http_response_code(404);
     $lines = null;
     $canonical = SHARE_SHORT_URL;
@@ -241,6 +255,12 @@ if ($listing === null) {
                 <p class="share-lede">Sign in to see the address, photos and how to get in touch.</p>
                 <a class="share-btn" id="signIn" href="<?= htmlspecialchars($appUrl) ?>">Sign in with your UVM NetID</a>
                 <p class="share-note">The address and contact details are only shown to signed-in UVM students.</p>
+            <?php elseif ($taken): ?>
+                <h1>This sublet has been taken</h1>
+                <p class="share-lede">
+                    Whoever posted it has found someone. Other sublets are still up on the site.
+                </p>
+                <a class="share-btn" href="<?= htmlspecialchars($appUrl) ?>">Browse sublets</a>
             <?php else: ?>
                 <h1>This listing isn&rsquo;t available</h1>
                 <p class="share-lede">

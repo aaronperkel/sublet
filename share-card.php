@@ -424,12 +424,13 @@ if ($id === null) {
 
 try {
     // Same visibility rule as the rest of the public site: a listing hidden by
-    // a deactivated semester must not keep unfurling from an old link.
+    // a deactivated semester, paused or taken must not keep unfurling from an
+    // old link.
     $stmt = $pdo->prepare(
         "SELECT s.*, COALESCE(sem.name, s.semester) AS semester_name, "
         . campus_distance_expr() . " AS distance_mi
            FROM sublets s " . VISIBLE_SEMESTER_JOIN . "
-          WHERE s.id = ? AND " . VISIBLE_SEMESTER_WHERE
+          WHERE s.id = ? AND " . PUBLIC_LISTING_WHERE
     );
     $stmt->execute([$id]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;

@@ -68,7 +68,7 @@ $carrySuffix = $carryQuery !== '' ? '?' . $carryQuery : '';
                     </option>
                 <?php endforeach; ?>
                 <?php foreach ($emptySemesters as $sem): ?>
-                    <option value="<?= htmlspecialchars($sem['code']) ?>" disabled><?= htmlspecialchars($sem['name']) ?> (none yet)</option>
+                    <option value="<?= htmlspecialchars($sem['code']) ?>" disabled><?= htmlspecialchars($sem['name']) ?> (<?= !empty($sem['has_listings']) ? 'none up now' : 'none yet' ?>)</option>
                 <?php endforeach; ?>
             </select>
         </div>

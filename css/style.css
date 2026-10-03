@@ -789,6 +789,13 @@ h3 { font-size: var(--text-lg); font-weight: 700; line-height: 1.3; }
     font-variant-numeric: tabular-nums;
 }
 
+/* "The listing you followed isn't up any more", above the cards of a
+   ?id= link whose listing has gone. */
+.listings-notice {
+    grid-column: 1 / -1;
+    margin-bottom: 0;
+}
+
 .listings-empty {
     grid-column: 1 / -1;
     text-align: center;
@@ -1315,6 +1322,70 @@ body.listing-open {
     margin-top: 0.3rem;
     font-size: var(--text-sm);
     color: var(--text-secondary);
+}
+
+/* Where the listing stands, with Pause / Mark as taken / Put it back up.
+   Neutral while it is up; Notice while paused; Included once taken. Each
+   button is its own small form, so none of them saves the listing form. */
+.listing-status {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+    margin: 0 0 1.5rem;
+    padding: 0.85rem 1rem;
+    background: var(--fog);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+}
+
+.listing-status.is-paused {
+    background: var(--notice-tint);
+    border-color: var(--notice-line);
+}
+
+.listing-status.is-taken {
+    background: var(--included-tint);
+    border-color: var(--included-line);
+}
+
+.listing-status-text {
+    flex: 1 1 16rem;
+    min-width: 0;
+}
+
+.listing-status-heading {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    font-size: var(--text-md);
+    color: var(--text);
+}
+
+.listing-status-heading i {
+    color: var(--green);
+}
+
+.listing-status.is-paused .listing-status-heading i {
+    color: var(--notice-ink);
+}
+
+.listing-status-since {
+    font-weight: 400;
+    color: var(--text-secondary);
+}
+
+.listing-status-note {
+    margin-top: 0.2rem;
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+}
+
+.listing-status-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
 }
 
 .form-group {
@@ -2291,6 +2362,18 @@ body.listing-open {
     color: var(--error-ink);
 }
 
+/* Posts tab: "Saved" or the error, under the status select. */
+.post-status-msg {
+    display: block;
+    min-height: 1.25rem;
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+}
+
+.post-status-msg.is-error {
+    color: var(--error-ink);
+}
+
 /* Add semester form */
 .add-form {
     display: flex;
@@ -2408,7 +2491,8 @@ button.activity-range-link.active {
     color: var(--text-secondary);
 }
 
-.images-filter select {
+.images-filter select,
+.post-status-select {
     font-size: var(--text-md);
     padding: 0.5rem 0.75rem;
     border: 1px solid var(--border);

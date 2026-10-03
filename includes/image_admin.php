@@ -129,7 +129,7 @@ function photo_details(string $stored): array {
  */
 function image_inventory(PDO $pdo): array {
     $listings = $pdo->query(
-        'SELECT s.id, s.username, s.address, s.semester, s.image_url, s.thumbnail_url, s.posted_at,
+        'SELECT s.id, s.username, s.address, s.semester, s.image_url, s.thumbnail_url, s.posted_at, s.status,
                 COALESCE(sem.name, s.semester) AS semester_name,
                 NOT (' . VISIBLE_SEMESTER_WHERE . ') AS is_hidden
          FROM sublets s ' . VISIBLE_SEMESTER_JOIN . '
@@ -173,6 +173,7 @@ function image_inventory(PDO $pdo): array {
             'semester' => $code,
             'semester_name' => $listing['semester_name'],
             'hidden' => (bool)$listing['is_hidden'],
+            'status' => $listing['status'],
             'photos' => $photos,
             'bytes' => $bytes,
             // The card image should be the first photo. Listings where it is

@@ -5,8 +5,9 @@
  * is best-effort. If webdb is unreachable the page still renders, just without
  * the photo strip and the live counts.
  *
- * Only listings the signed-in site would show are used (visibility.php), and
- * only their photos — no address, price, or username leaves the app.
+ * Only listings the signed-in site would show are used (PUBLIC_LISTING_WHERE in
+ * visibility.php: open listings in open semesters), and only their photos — no
+ * address, price, or username leaves the app.
  */
 $showcaseImages = [];
 $liveCount = null;
@@ -18,7 +19,7 @@ try {
     $stmt = $pdo->query(
         "SELECT COALESCE(NULLIF(s.thumbnail_url, ''), s.image_url) AS img
          FROM sublets s " . VISIBLE_SEMESTER_JOIN . "
-         WHERE " . VISIBLE_SEMESTER_WHERE . "
+         WHERE " . PUBLIC_LISTING_WHERE . "
          ORDER BY s.id DESC
          LIMIT 12"
     );
@@ -42,14 +43,14 @@ try {
     }
 
     $stmtCount = $pdo->query(
-        "SELECT COUNT(*) FROM sublets s " . VISIBLE_SEMESTER_JOIN . " WHERE " . VISIBLE_SEMESTER_WHERE
+        "SELECT COUNT(*) FROM sublets s " . VISIBLE_SEMESTER_JOIN . " WHERE " . PUBLIC_LISTING_WHERE
     );
     $liveCount = (int)$stmtCount->fetchColumn();
 
     $stmtSem = $pdo->query(
         "SELECT DISTINCT COALESCE(sem.name, s.semester) AS name
          FROM sublets s " . VISIBLE_SEMESTER_JOIN . "
-         WHERE " . VISIBLE_SEMESTER_WHERE . "
+         WHERE " . PUBLIC_LISTING_WHERE . "
          ORDER BY name"
     );
     $liveSemesters = $stmtSem->fetchAll(PDO::FETCH_COLUMN);

@@ -8,8 +8,9 @@
  * copy-pasted between them, which is also how the campus coordinates ended up
  * written out four times.
  *
- * Deactivated semesters are excluded here unconditionally (see visibility.php),
- * so no caller can forget.
+ * Deactivated semesters, and paused or taken listings, are excluded here
+ * unconditionally (PUBLIC_LISTING_WHERE, see visibility.php), so no caller can
+ * forget.
  */
 require_once __DIR__ . '/visibility.php';
 require_once __DIR__ . '/listing_fields.php';
@@ -47,7 +48,7 @@ function campus_distance_expr(string $alias = 's'): string {
  * boxes on render.
  */
 function build_listing_filters(array $query, array $columns): array {
-    $where = [VISIBLE_SEMESTER_WHERE];
+    $where = [PUBLIC_LISTING_WHERE];
     $params = [];
 
     if (isset($query['min_price'], $query['max_price'])

@@ -2616,6 +2616,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     : 'There are no photo files to save, so no tarball is written.') + '</p>';
 
                 html += '<p class="admin-note">The archive keeps: ' + t.listings + ' listing' + (t.listings === 1 ? '' : 's')
+                    + (t.taken ? ' (' + t.taken + ' marked taken)' : '')
                     + (t.price_median !== null ? ', median $' + Math.round(t.price_median).toLocaleString()
                         + ' ($' + Math.round(t.price_min).toLocaleString() + '&ndash;$' + Math.round(t.price_max).toLocaleString() + ')' : '')
                     + ', ' + t.views + ' viewed, ' + t.contacts + ' got in touch, ' + t.shares + ' shares, '
@@ -2626,7 +2627,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         + '<th>Listing</th><th>Posted by</th><th class="num">Price</th><th class="num">Photos</th><th class="num">Files</th><th class="num">Size</th>'
                         + '</tr></thead><tbody>';
                     plan.listings.forEach(function (l) {
-                        html += '<tr><td>' + escapeHtml(l.address) + '</td><td>' + escapeHtml(l.username) + '</td>'
+                        html += '<tr><td>' + escapeHtml(l.address)
+                            + (l.status === 'taken' ? ' <span class="semester-meta">Taken</span>' : l.status === 'paused' ? ' <span class="semester-meta">Paused</span>' : '')
+                            + '</td><td>' + escapeHtml(l.username) + '</td>'
                             + '<td class="num">$' + Math.round(l.price).toLocaleString() + '</td>'
                             + '<td class="num">' + l.photos + '</td><td class="num">' + l.files + '</td>'
                             + '<td class="num">' + formatBytes(l.bytes) + '</td></tr>';
@@ -2880,7 +2883,7 @@ document.addEventListener('DOMContentLoaded', function () {
             var listings = inventory.listings.filter(function (l) {
                 if (onlyListing !== null) return l.id === onlyListing;
                 if (semSelect.value && l.semester !== semSelect.value) return false;
-                if (hiddenBox.checked && !l.hidden) return false;
+                if (hiddenBox.checked && !l.hidden && l.status === 'open') return false;
                 return true;
             });
             only.hidden = onlyListing === null;
@@ -2903,7 +2906,9 @@ document.addEventListener('DOMContentLoaded', function () {
             var html = '<section class="image-group" data-listing="' + l.id + '">'
                 + '<header class="image-group-head"><h4>' + escapeHtml(l.address) + '</h4>'
                 + '<p class="semester-meta">' + escapeHtml(l.username) + ' &middot; ' + escapeHtml(l.semester_name)
-                + (l.hidden ? ' &middot; Hidden' : '') + ' &middot; ' + n + ' photo' + (n === 1 ? '' : 's') + ' &middot; ' + formatBytes(l.bytes) + '</p>'
+                + (l.hidden ? ' &middot; Hidden' : '')
+                + (l.status === 'paused' ? ' &middot; Paused' : l.status === 'taken' ? ' &middot; Taken' : '')
+                + ' &middot; ' + n + ' photo' + (n === 1 ? '' : 's') + ' &middot; ' + formatBytes(l.bytes) + '</p>'
                 + (l.cover_out_of_step ? '<p class="images-warning">The card shows a different photo from the first one. Moving or deleting any photo puts them back in step.</p>' : '')
                 + '</header><div class="image-group-status" role="alert"></div><ol class="image-tiles">';
             l.photos.forEach(function (p, i) {
@@ -3238,6 +3243,37 @@ document.addEventListener('DOMContentLoaded', function () {
                     var msg = err instanceof SyntaxError ? 'Could not delete it.' : err.message;
                     btn.insertAdjacentHTML('afterend', '<span class="archive-inline-error" role="alert">' + escapeHtml(msg) + '</span>');
                 });
+            });
+        });
+
+        // Open / Paused / Taken, saved as soon as it changes. A failure puts
+        // the select back, so it never shows a status that was not saved.
+        document.querySelectorAll('.post-status-select').forEach(function (select) {
+            var saved = select.value;
+            var msg = select.parentNode.querySelector('.post-status-msg');
+            select.addEventListener('change', function () {
+                var wanted = select.value;
+                select.disabled = true;
+                if (msg) { msg.className = 'post-status-msg'; msg.textContent = 'Saving…'; }
+                fetch('api/posts.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'action=set_status&id=' + encodeURIComponent(select.dataset.postId) + '&status=' + encodeURIComponent(wanted)
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (!data.success) throw new Error(data.error || 'Not saved.');
+                    saved = wanted;
+                    if (msg) msg.textContent = 'Saved';
+                })
+                .catch(function (err) {
+                    select.value = saved;
+                    if (msg) {
+                        msg.className = 'post-status-msg is-error';
+                        msg.textContent = err instanceof SyntaxError ? 'Not saved.' : err.message;
+                    }
+                })
+                .then(function () { select.disabled = false; });
             });
         });
 

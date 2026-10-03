@@ -57,6 +57,25 @@ if ($isEdit && !in_array($existingPost['semester'], array_column($semesterOption
     array_unshift($semesterOptions, $currentSem);
 }
 
+// Pause, resume or mark taken. Each is a small form of its own above the
+// listing form, posting action=status. POST only and same-origin for the
+// reason Delete is below. It redirects back, so a reload cannot post it again
+// and the banner comes from the status as saved.
+$postAction = (string)($_POST['action'] ?? '');
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $postAction === 'status') {
+    require_same_origin();
+    $newStatus = (string)($_POST['status'] ?? '');
+    $oldStatus = (string)($existingPost['status'] ?? 'open');
+    if ($isEdit && set_listing_status($pdo, (int)$existingPost['id'], $newStatus)) {
+        if ($newStatus !== $oldStatus) {
+            mail('aperkel@uvm.edu', 'Sublet Post Status', "User $username changed their sublet post from $oldStatus to $newStatus.");
+        }
+        header('Location: post.php?status=' . rawurlencode($newStatus), true, 303);
+        exit;
+    }
+    $error_message = 'That change could not be made. Reload the page and try again.';
+}
+
 // Handle delete action. POST only, and same-origin: as a GET this could be
 // triggered by any other site simply embedding <img src=".../post.php?action=
 // delete">, silently destroying a signed-in user's listing.
@@ -99,8 +118,9 @@ if ($postTooLarge) {
         . '. Try adding a few at a time, or resizing them first. Nothing was changed.';
 }
 
-// Handle form submission
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$postTooLarge) {
+// Handle form submission. A status change is handled above, and must not fall
+// through here: this would save the listing from a form that has no fields.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$postTooLarge && $postAction !== 'status') {
     require_same_origin();
 
     $price = $_POST['price'] ?? '';
@@ -234,6 +254,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$postTooLarge) {
             // Refresh post data
             $stmtCheck->execute([$username]);
             $existingPost = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+
+            // Saving does not change the status, so say so: someone who edits a
+            // paused listing may expect the save to put it back up.
+            $savedStatus = $existingPost['status'] ?? 'open';
+            if ($savedStatus === 'paused') {
+                $success_message .= ' It\'s still paused, so it stays off Browse until you resume it.';
+            } elseif ($savedStatus === 'taken') {
+                $success_message .= ' It\'s still marked taken, so it stays off Browse.';
+            }
         } else {
             // Create new post. Extension comes from the file's own bytes, never
             // its name — public/images/ is web-served, so a .php upload there
@@ -359,6 +388,43 @@ if ($isEdit && !empty($existingPost['id']) && table_exists($pdo, 'listing_events
     $myStats = ($mine[(int)$existingPost['id']] ?? ['views' => 0, 'contacts' => 0, 'shares' => 0]) + ['since' => $statsSince];
 }
 
+// Where the listing stands: open, paused or taken (see visibility.php), and
+// what the status panel above the form offers from there. The panel's buttons
+// are separate forms, so none of them saves the listing form's fields.
+$listingStatus = $isEdit ? (string)($existingPost['status'] ?? 'open') : 'open';
+$statusPanel = [
+    'open' => [
+        'icon' => 'fa-circle-check',
+        'heading' => 'On the board',
+        'note' => 'Students can find it on Browse and Map. Found someone? Mark it taken and it comes down.',
+        'actions' => [['taken', 'Mark as taken', 'fa-handshake'], ['paused', 'Pause', 'fa-circle-pause']],
+    ],
+    'paused' => [
+        'icon' => 'fa-circle-pause',
+        'heading' => 'Paused',
+        'note' => 'Off Browse and Map until you resume it. Anyone who opens its share link is told it isn\'t available.',
+        'actions' => [['open', 'Resume', 'fa-circle-play'], ['taken', 'Mark as taken', 'fa-handshake']],
+    ],
+    'taken' => [
+        'icon' => 'fa-handshake',
+        'heading' => 'Taken',
+        'note' => 'Off Browse and Map, and its share link says it has been taken. If it falls through, put it back up.',
+        'actions' => [['open', 'Put it back up', 'fa-rotate-left']],
+    ],
+][$listingStatus] ?? null;
+$statusSince = !empty($existingPost['status_changed_at']) && $listingStatus !== 'open'
+    ? date('M j', strtotime($existingPost['status_changed_at'])) : '';
+
+// The banner after a status change, chosen from the saved status rather than
+// echoed from the URL.
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && $isEdit && ($_GET['status'] ?? '') === $listingStatus) {
+    $success_message = [
+        'open' => 'Your listing is back up on Browse and Map.',
+        'paused' => 'Your listing is paused. It\'s off Browse and Map until you resume it.',
+        'taken' => 'Marked as taken. Congratulations! Your listing is off Browse and Map.',
+    ][$listingStatus] ?? '';
+}
+
 // Get existing images for edit mode
 $existingImages = [];
 if ($isEdit) {
@@ -375,8 +441,10 @@ if ($isEdit) {
     <div class="alert alert-success" role="status"><i class="fa-solid fa-check"></i> <?= htmlspecialchars($success_message) ?></div>
     <?php /* Straight after a save is when someone actually wants to post their
              listing to a story or drop it in a group chat, so the link is
-             offered here rather than only from the modal on Browse. */ ?>
-    <?php if (!empty($existingPost['id'])): ?>
+             offered here rather than only from the modal on Browse. Only
+             for a listing that is up: a paused or taken one's link says it
+             isn't available. */ ?>
+    <?php if (!empty($existingPost['id']) && $listingStatus === 'open' && !$listingHidden): ?>
         <div class="post-share-row">
             <button type="button" class="btn btn-primary" id="postShareBtn">
                 <i class="fa-solid fa-arrow-up-from-bracket"></i> Share your listing
@@ -415,6 +483,29 @@ if ($isEdit) {
                 </p>
                 <p class="listing-stats-note">Views and contact taps are counted. You and the admin see totals, never who.</p>
             </div>
+        <?php endif; ?>
+
+        <?php if ($isEdit && $statusPanel): ?>
+            <section class="listing-status is-<?= htmlspecialchars($listingStatus) ?>" aria-labelledby="listingStatusHeading">
+                <div class="listing-status-text">
+                    <h2 class="listing-status-heading" id="listingStatusHeading">
+                        <i class="fa-solid <?= $statusPanel['icon'] ?>" aria-hidden="true"></i>
+                        <?= htmlspecialchars($statusPanel['heading']) ?><?= $statusSince !== '' ? ' <span class="listing-status-since">since ' . htmlspecialchars($statusSince) . '</span>' : '' ?>
+                    </h2>
+                    <p class="listing-status-note"><?= htmlspecialchars($statusPanel['note']) ?></p>
+                </div>
+                <div class="listing-status-actions">
+                    <?php foreach ($statusPanel['actions'] as $n => [$to, $label, $icon]): ?>
+                        <form method="post" action="post.php">
+                            <input type="hidden" name="action" value="status">
+                            <input type="hidden" name="status" value="<?= htmlspecialchars($to) ?>">
+                            <button type="submit" class="btn btn-sm <?= $n === 0 && $listingStatus !== 'open' ? 'btn-primary' : 'btn-secondary' ?>">
+                                <i class="fa-solid <?= $icon ?>" aria-hidden="true"></i> <?= htmlspecialchars($label) ?>
+                            </button>
+                        </form>
+                    <?php endforeach; ?>
+                </div>
+            </section>
         <?php endif; ?>
 
         <form method="post" action="post.php" enctype="multipart/form-data" id="postForm">

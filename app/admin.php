@@ -19,10 +19,11 @@ $totalImages = $pdo->query("SELECT COUNT(*) FROM sublet_images")->fetchColumn();
 $imageDisk = image_folder_usage();
 
 // Recipients for a bulk "all users" email. Deliberately narrower than
-// $totalUsers: someone whose only listing sits in a deactivated semester is not
-// currently on the site, so they should not be swept into a broadcast. Must
-// stay in step with the type=all query in api/email.php or the count lies.
-$emailableUsers = (int)$pdo->query("SELECT COUNT(DISTINCT s.username) FROM sublets s " . VISIBLE_SEMESTER_JOIN . " WHERE " . VISIBLE_SEMESTER_WHERE)->fetchColumn();
+// $totalUsers: someone whose only listing sits in a deactivated semester, or
+// is paused or taken, is not currently on the site, so they should not be
+// swept into a broadcast. Must stay in step with the type=all query in
+// api/email.php or the count lies.
+$emailableUsers = (int)$pdo->query("SELECT COUNT(DISTINCT s.username) FROM sublets s " . VISIBLE_SEMESTER_JOIN . " WHERE " . PUBLIC_LISTING_WHERE)->fetchColumn();
 
 // All semesters
 $allSemesters = $pdo->query("SELECT s.*, (SELECT COUNT(*) FROM sublets WHERE semester = s.code) as post_count FROM semesters s ORDER BY s.sort_order, s.code")->fetchAll(PDO::FETCH_ASSOC);
@@ -32,6 +33,9 @@ $allSemesters = $pdo->query("SELECT s.*, (SELECT COUNT(*) FROM sublets WHERE sem
 $allPosts = $pdo->query("SELECT s.*, COALESCE(sem.name, s.semester) as semester_name, NOT (" . VISIBLE_SEMESTER_WHERE . ") as is_hidden, (SELECT COUNT(*) FROM sublet_images WHERE sublet_id = s.id) as image_count FROM sublets s " . VISIBLE_SEMESTER_JOIN . " ORDER BY s.posted_at DESC")->fetchAll(PDO::FETCH_ASSOC);
 
 $hiddenCount = count(array_filter($allPosts, fn($p) => $p['is_hidden']));
+// Listings their posters took off the board (visibility.php). Taken is the
+// outcome the site exists for, so it gets a number of its own.
+$takenCount = count(array_filter($allPosts, fn($p) => ($p['status'] ?? 'open') === 'taken'));
 
 // All users. display_name may not exist yet (see table_columns in db.php), so
 // select it only when it does — MAX() picks the single row per user, since
@@ -59,10 +63,13 @@ if ($activityReady) {
 
     // Every listing on the site shows up, with zeros, so a listing nobody is
     // opening is visible too; listings since deleted show up only if counted.
+    // Paused and taken listings stay in with what they were counted while they
+    // were up, labelled: a taken listing is where the conversions are, and
+    // dropping it would make the totals fall the moment a poster succeeds.
     $postsById = array_column($allPosts, null, 'id');
     $zero = ['views' => 0, 'contacts' => 0, 'converted' => 0, 'shares' => 0, 'arrivals' => 0];
     foreach ($allPosts as $post) {
-        if (!$post['is_hidden'] && !isset($activity[(int)$post['id']])) {
+        if (!$post['is_hidden'] && ($post['status'] ?? 'open') === 'open' && !isset($activity[(int)$post['id']])) {
             $activity[(int)$post['id']] = $zero;
         }
     }
@@ -73,6 +80,7 @@ if ($activityReady) {
             'label' => $post ? format_address($post['address']) : 'Deleted listing',
             'semester' => $post['semester_name'] ?? '',
             'hidden' => $post ? (bool)$post['is_hidden'] : false,
+            'status' => $post['status'] ?? 'open',
         ];
         foreach ($activityTotals as $k => $v) {
             $activityTotals[$k] += $counts[$k];
@@ -154,6 +162,12 @@ if ($allowlistReady && $parsedUids !== null) {
                 <div class="stat-card stat-card-muted" title="In a deactivated semester — not visible on Browse or Map, and excluded from an 'all users' email.">
                     <div class="stat-number"><?= $hiddenCount ?></div>
                     <div class="stat-label">Hidden</div>
+                </div>
+            <?php endif; ?>
+            <?php if ($takenCount > 0): ?>
+                <div class="stat-card" title="Marked taken by their posters: off Browse and Map until put back up.">
+                    <div class="stat-number"><?= $takenCount ?></div>
+                    <div class="stat-label">Taken</div>
                 </div>
             <?php endif; ?>
         </div>
@@ -324,7 +338,7 @@ if ($allowlistReady && $parsedUids !== null) {
                                 <tr>
                                     <td><?= htmlspecialchars($a['semester_name']) ?> <span class="semester-meta"><?= htmlspecialchars($a['semester_code']) ?></span></td>
                                     <td><?= htmlspecialchars(date('M j, Y', strtotime($a['archived_at']))) ?></td>
-                                    <td class="num"><?= (int)$a['listings'] ?></td>
+                                    <td class="num"><?= (int)$a['listings'] ?><?= (int)$a['taken'] > 0 ? ' <span class="semester-meta">' . (int)$a['taken'] . ' taken</span>' : '' ?></td>
                                     <td class="num"><?= $a['price_median'] !== null
                                         ? '$' . number_format((float)$a['price_median']) . ' <span class="semester-meta">$' . number_format((float)$a['price_min']) . '&ndash;$' . number_format((float)$a['price_max']) . '</span>'
                                         : '&mdash;' ?></td>
@@ -419,6 +433,7 @@ if ($allowlistReady && $parsedUids !== null) {
                             <th>Address</th>
                             <th>Price</th>
                             <th>Semester</th>
+                            <th>Status</th>
                             <th>Images</th>
                             <th>Actions</th>
                         </tr>
@@ -439,6 +454,17 @@ if ($allowlistReady && $parsedUids !== null) {
                                             <i class="fa-solid fa-eye-slash"></i> Hidden
                                         </span>
                                     <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php /* The poster sets this on post.php; the admin can too,
+                                             for a poster who asks on Instagram. Saved on change
+                                             through api/posts.php. */ ?>
+                                    <select class="post-status-select" data-post-id="<?= $post['id'] ?>" aria-label="Status of the listing at <?= htmlspecialchars(format_address($post['address'])) ?>">
+                                        <?php foreach (LISTING_STATUSES as $value => $label): ?>
+                                            <option value="<?= $value ?>" <?= ($post['status'] ?? 'open') === $value ? 'selected' : '' ?>><?= $label ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <span class="post-status-msg" role="status"></span>
                                 </td>
                                 <td>
                                     <?php /* Opens this listing in the Images tab. */ ?>
@@ -485,7 +511,7 @@ if ($allowlistReady && $parsedUids !== null) {
                         <select id="imagesSemester"><option value="">All semesters</option></select>
                     </label>
                     <label class="images-check">
-                        <input type="checkbox" id="imagesHidden"> Hidden listings only
+                        <input type="checkbox" id="imagesHidden"> Off the board only <span class="label-aside">(hidden, paused or taken)</span>
                     </label>
                     <p class="images-only" id="imagesOnly" hidden>
                         <span id="imagesOnlyLabel"></span>
@@ -694,6 +720,7 @@ if ($allowlistReady && $parsedUids !== null) {
                                     <td>
                                         <?= htmlspecialchars($row['semester']) ?>
                                         <?php if ($row['hidden']): ?><span class="utility-tag"><i class="fa-solid fa-eye-slash" aria-hidden="true"></i> Hidden</span><?php endif; ?>
+                                        <?php if ($row['status'] !== 'open'): ?><span class="utility-tag"><?= htmlspecialchars(LISTING_STATUSES[$row['status']] ?? $row['status']) ?></span><?php endif; ?>
                                     </td>
                                     <td class="num"><?= $row['views'] ?></td>
                                     <td class="num"><?= $row['contacts'] ?></td>
@@ -723,11 +750,11 @@ if ($allowlistReady && $parsedUids !== null) {
                     <div class="recipient-selector">
                         <label class="recipient-option">
                             <input type="radio" name="recipientType" value="all" checked>
-                            <span>All users with visible listings (<?= $emailableUsers ?>)</span>
+                            <span>All users with listings on the board (<?= $emailableUsers ?>) <span class="label-aside">&middot; not hidden, paused or taken ones</span></span>
                         </label>
                         <label class="recipient-option">
                             <input type="radio" name="recipientType" value="semester">
-                            <span>Users posting in a specific semester</span>
+                            <span>Users posting in a specific semester <span class="label-aside">&middot; everyone in it</span></span>
                         </label>
                         <label class="recipient-option">
                             <input type="radio" name="recipientType" value="individual">

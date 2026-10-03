@@ -28,8 +28,9 @@ if (is_logged_in()) {
 }
 
 // Get dynamic data for filters — bounds are derived only from listings the
-// public can actually see, so a deactivated semester can't stretch a slider.
-$stmtPrice = $pdo->query("SELECT MIN(s.price) as min_price, MAX(s.price) as max_price FROM sublets s " . VISIBLE_SEMESTER_JOIN . " WHERE " . VISIBLE_SEMESTER_WHERE);
+// public can actually see, so a deactivated semester or a listing that is
+// paused or taken can't stretch a slider.
+$stmtPrice = $pdo->query("SELECT MIN(s.price) as min_price, MAX(s.price) as max_price FROM sublets s " . VISIBLE_SEMESTER_JOIN . " WHERE " . PUBLIC_LISTING_WHERE);
 $priceRange = $stmtPrice->fetch(PDO::FETCH_ASSOC) ?: [];
 $maxPrice = $priceRange['max_price'] ?? 3000;
 $maxPriceRounded = max(ceil($maxPrice / 50) * 50, 100);
@@ -37,19 +38,21 @@ $maxPriceRounded = max(ceil($maxPrice / 50) * 50, 100);
 // length is spent on prices that exist (it used to be 60% empty track).
 $minPriceRounded = (int)min(floor(($priceRange['min_price'] ?? 0) / 50) * 50, $maxPriceRounded - 50);
 
-$stmtMaxDist = $pdo->query("SELECT MAX(" . campus_distance_expr() . ") as max_distance FROM sublets s " . VISIBLE_SEMESTER_JOIN . " WHERE " . VISIBLE_SEMESTER_WHERE);
+$stmtMaxDist = $pdo->query("SELECT MAX(" . campus_distance_expr() . ") as max_distance FROM sublets s " . VISIBLE_SEMESTER_JOIN . " WHERE " . PUBLIC_LISTING_WHERE);
 $maxDistance = $stmtMaxDist->fetch(PDO::FETCH_ASSOC)['max_distance'] ?? 20;
 $maxDistanceRounded = max(ceil($maxDistance * 2) / 2, 1);
 
-$stmtSemesters = $pdo->query("SELECT DISTINCT s.semester, COALESCE(sem.name, s.semester) as name FROM sublets s " . VISIBLE_SEMESTER_JOIN . " WHERE " . VISIBLE_SEMESTER_WHERE . " ORDER BY s.semester");
+$stmtSemesters = $pdo->query("SELECT DISTINCT s.semester, COALESCE(sem.name, s.semester) as name FROM sublets s " . VISIBLE_SEMESTER_JOIN . " WHERE " . PUBLIC_LISTING_WHERE . " ORDER BY s.semester");
 $availableSemesters = $stmtSemesters->fetchAll(PDO::FETCH_ASSOC);
 
-// Open semesters nobody has posted for yet. The filter lists them as "none
+// Open semesters with nothing on the board. The filter lists them as "none
 // yet" rather than leaving them out, so someone looking for summer learns
 // there is nothing rather than wondering whether summer is covered at all.
+// One whose listings have all been paused or taken says "none up now"
+// instead, since people did post for it.
 $listedCodes = array_column($availableSemesters, 'semester');
 $emptySemesters = array_values(array_filter(
-    $pdo->query("SELECT code, name FROM semesters WHERE active = 1 ORDER BY sort_order, code")->fetchAll(PDO::FETCH_ASSOC),
+    $pdo->query("SELECT code, name, EXISTS(SELECT 1 FROM sublets x WHERE x.semester = semesters.code) AS has_listings FROM semesters WHERE active = 1 ORDER BY sort_order, code")->fetchAll(PDO::FETCH_ASSOC),
     static fn($sem) => !in_array($sem['code'], $listedCodes, true)
 ));
 ?>

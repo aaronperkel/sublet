@@ -123,8 +123,12 @@ round throws for want of a key on every request.
 preview, and the listing then unfurls into nothing for everyone. `share-card.php`
 falls back to `assets/social/link-preview.png` (or `story-find-a-sublet.png`) on
 any failure; `s.php` renders one shared "isn't available" page for a bad token,
-an unknown id, a hidden listing *and* a database outage, so it cannot be used as
-an oracle for which ids exist.
+an unknown id, a hidden or paused listing *and* a database outage, so it cannot
+be used as an oracle for which ids exist. The one exception is a **taken**
+listing behind a genuine token: that gets "This sublet has been taken", with the
+generic preview image and nothing from the listing, not even its card lines.
+Only a valid token reaches that branch, so it reveals nothing to someone
+guessing ids.
 
 Both formats put the photo in a **near-square panel** — 552x630 on the og card,
 1080x1150 on the story — rather than bleeding it across the frame. Listings are
@@ -156,7 +160,9 @@ Listings carry their link as `data-share-url` on each card in `index.php` and as
 reaches the client. `app/index.php` accepts `?id=<n>`, which is how a share link
 returns from CAS; it **drops the other filters** for that request, so a stale
 price or semester in the URL cannot hide the card the link was sent to open.
-Visibility still applies.
+Visibility still applies, and when it hides the listing, Browse says "The
+listing you followed isn't up any more" above the cards (inside
+`#listingsGrid`, so the first filter change clears it) without saying why.
 
 ## Access allowlist (who can reach `/app/`)
 
@@ -255,7 +261,7 @@ Adding a page means adding both an `init<Page>()` branch in `app.js` and the mat
 
 **The listing view uses history.** `openModal()` pushes a `{listing: id}` state so a phone's Back closes it; `closeModal()` steps back over that entry and the `popstate` handler calls `hideModal()`. Close through `closeModal()`, never by hiding the overlay directly, or the extra entry is left behind.
 
-**The post form.** The address field is an ARIA combobox (`initAddressAutocomplete()`), and lat/lon come from either picking a suggestion or tapping the map (`initPostMap()`), which is the fallback when Nominatim cannot find an address. A picked address stays valid only while its text is unchanged; a hand-placed pin stays valid whatever the text says, since the pin is the location and the text is the student's label. On phones the map is moved into `#postMapSlot` under the address field and one-finger dragging is off, so the page scrolls past it. Photos accumulate across picks: `initImageUpload()` keeps the chosen `File`s and writes them back into the input through a `DataTransfer`, and caps them at `max_file_uploads` (PHP drops the rest silently). The submit button shows what is happening and ignores further presses, but is never `disabled`: a disabled submitter is left out of the form data, and Delete is recognised by its `name="action" value="delete"`.
+**The post form.** The address field is an ARIA combobox (`initAddressAutocomplete()`), and lat/lon come from either picking a suggestion or tapping the map (`initPostMap()`), which is the fallback when Nominatim cannot find an address. A picked address stays valid only while its text is unchanged; a hand-placed pin stays valid whatever the text says, since the pin is the location and the text is the student's label. On phones the map is moved into `#postMapSlot` under the address field and one-finger dragging is off, so the page scrolls past it. Photos accumulate across picks: `initImageUpload()` keeps the chosen `File`s and writes them back into the input through a `DataTransfer`, and caps them at `max_file_uploads` (PHP drops the rest silently). The submit button shows what is happening and ignores further presses, but is never `disabled`: a disabled submitter is left out of the form data, and Delete is recognised by its `name="action" value="delete"`. The status panel above the form (Pause, Resume, Mark as taken, Put it back up) is a row of separate one-button forms posting `action=status`, which redirect back with a 303; the listing form's own handler skips any `action=status` request, since it would otherwise save a listing from a form with no fields.
 
 Everything lives in one closure, so **module state read during init must be declared above the dispatch block**. Function declarations hoist; `var` assignments do not. `SHARE_TILES` declared next to `initShare()` was still `undefined` when the dispatch called it, and the resulting throw landed after `shareEls` was assigned but before any listener was attached — the sheet opened, showed no tiles, and could not be closed or copied from, and the abort took the `?id=` deep link with it.
 
@@ -271,7 +277,7 @@ Form-encoded POST in, JSON out — not REST. Endpoints dispatch on `$_POST['acti
 
 | File | Notes |
 |---|---|
-| `posts.php` | admin-only delete of a post or of all posts by a user |
+| `posts.php` | admin-only delete of a post or of all posts by a user, and `set_status` (open / paused / taken; the Posts tab's select) |
 | `semesters.php` | admin-only add/toggle/delete; refuses to delete a semester that has posts, and to reactivate one that is archived |
 | `archive.php` | admin-only. GET `action=preview` is the dry run; POST `action=archive` (`code`, `confirm` = the code typed back) archives a hidden semester; POST `action=delete_tarball`. See "Semester archive" |
 | `images.php` | GET `sublet_id` lists a listing's photos (the listing view's fallback, ordered like `listing_photos()`; returns `display_url` and `thumb_url`). Admin **or** post owner: delete (`_method=DELETE`), `set_cover`, `move`. Admin only: GET `action=inventory` and `action=orphans` (the Images tab), POST `bulk_delete`, `delete_orphans`, `make_thumbs`. Every change renumbers and re-covers the listing (see "Images") |
@@ -285,7 +291,7 @@ Form-encoded POST in, JSON out — not REST. Endpoints dispatch on `$_POST['acti
 
 There is no schema/migration file in the tree; the shape below is what the queries imply.
 
-- **`sublets`** — effectively **one row per user**. `post.php` treats `username` as the key: it looks up the user's post to decide create-vs-edit, and updates with `WHERE username = ?`. Also holds `image_url`/`thumbnail_url`, `price`, `address`, `lat`/`lon`, `semester`, `posted_at`, contact fields, `utility_*`, and `amenity_*` flags.
+- **`sublets`** — effectively **one row per user**. `post.php` treats `username` as the key: it looks up the user's post to decide create-vs-edit, and updates with `WHERE username = ?`. Also holds `image_url`/`thumbnail_url`, `price`, `address`, `lat`/`lon`, `semester`, `posted_at`, contact fields, `utility_*`, and `amenity_*` flags, plus `status` (`open`/`paused`/`taken`, default `open`, indexed) and `status_changed_at` (NULL until the first change), added by hand in October 2026. See "Listing visibility".
 - **`sublet_images`** — `sublet_id`, `image_url`, `sort_order`. The first image by `sort_order` is the card image (`sublets.image_url`). Since October 2026 every change (`images.php`) renumbers a listing's photos 0..n-1 through `renumber_listing_photos()`, which also moves the card image to the first one; before that, deleting the cover promoted the next photo without renumbering, and listings untouched since may still have no 0. Test for "first", not for 0. Rows cascade-delete with their listing (`ON DELETE CASCADE`); the files do not.
 - **`semesters`** — `code`, `name`, `active`, `sort_order`, `archived_at` (NULL until archived). `code` joins to `sublets.semester`; queries `COALESCE(sem.name, s.semester)` so unmapped codes still render.
 - **`semester_archives`** — one row per archived semester (`UNIQUE` on `semester_code`): `semester_name`, `archived_at`, `archived_by`, `listings`, `taken`, `price_median`/`price_min`/`price_max`, `views`, `contacts`, `shares`, `share_arrivals`, `bytes`, `tarball`, and optionally `photos`. Totals only, never who. See "Semester archive".
@@ -305,30 +311,45 @@ There is no schema/migration file in the tree; the shape below is what the queri
 - **Whitelists:** types are `EVENT_TYPES` (with `CONTACT_EVENT_TYPES` and `SHARE_EVENT_TYPES` as groupings), sources are `EVENT_SOURCES` and share targets are `SHARE_TARGETS`. The columns are VARCHAR, so adding one needs no DDL.
 - **Arrivals:** `s.php` logs nothing, because crawlers read it. Its sign-in link adds `via=share`, which `index.php` passes on as `SUBLET_CONFIG.openSource`, so `openSharedListing()` logs `share_arrival` as `share-link` rather than `deeplink`.
 
-The readers are `listing_activity()` (people who viewed, got in touch, or did both, which is conversion; plus share taps and arrivals), `share_target_counts()`, `view_source_counts()` and `daily_activity()`. They feed the admin **Activity** tab (whose ranges reload the page as `?range=open|30d|all#activity`) and the poster's line on `post.php`. The poster's line counts from `max(LISTING_EVENTS_SINCE, posted_at)`, since nothing but contacts was recorded before the log began. The footer discloses that views and contact taps are counted.
+The readers are `listing_activity()` (people who viewed, got in touch, or did both, which is conversion; plus share taps and arrivals), `share_target_counts()`, `view_source_counts()` and `daily_activity()`. They feed the admin **Activity** tab (whose ranges reload the page as `?range=open|30d|all#activity`; open listings show with zeros, paused and taken ones only once counted, tagged) and the poster's line on `post.php`. The poster's line counts from `max(LISTING_EVENTS_SINCE, posted_at)`, since nothing but contacts was recorded before the log began. The footer discloses that views and contact taps are counted.
 
-## Listing visibility (semester deactivation)
+## Listing visibility (semester and status)
 
-Deactivating a semester in the admin portal hides all of its listings from the public site. The rule lives in one place — `includes/visibility.php`, required by both `db.php` files — as two constants used to build queries:
+A listing is on the board when its semester is visible **and** its poster has not taken it down. Deactivating a semester in the admin portal hides all of its listings; a poster can pause their own listing or mark it taken. The rule lives in one place — `includes/visibility.php`, required by `db.php` — as constants used to build queries:
 
 ```php
 VISIBLE_SEMESTER_JOIN    // LEFT JOIN semesters sem ON s.semester = sem.code
 VISIBLE_SEMESTER_WHERE   // (sem.code IS NULL OR sem.active = 1)
+PUBLIC_LISTING_WHERE     // (VISIBLE_SEMESTER_WHERE AND s.status = 'open')
 ```
+
+**Every query that shows listings to students uses `PUBLIC_LISTING_WHERE`.** `VISIBLE_SEMESTER_WHERE` on its own is for places that ask about semesters alone: the admin's "Hidden" flag and the Images tab. `s.php` is the one public reader that looks past status, and only to tell a taken listing apart (see "Sharing a listing").
+
+**Status** (`LISTING_STATUSES`, set only through `set_listing_status()`, which lets MySQL fill `status_changed_at`):
+
+| | Browse, Map, landing, slider bounds | Share link (`s.php`) | Who sets it |
+|---|---|---|---|
+| `open` | shown | the normal interstitial | default; Resume / Put it back up |
+| `paused` | hidden | the one "isn't available" page | the poster on `post.php`, or the admin's Posts tab |
+| `taken` | hidden | "This sublet has been taken" | the same |
+
+Saving the listing form never changes the status; the success banner says when the listing is still paused or taken. Nothing is deleted, and the poster still sees and edits their listing. Archiving counts `taken` listings into `semester_archives.taken`.
+
+Two decisions made with the status, October 2026: a **broadcast "all"** email goes only to posters whose listing is on the board (paused and taken posters are left out; picking a semester still reaches everyone in it), and the **Activity tab** keeps paused and taken listings, labelled, with the counts from while they were up, because a taken listing is where the conversions are.
 
 The `sem.code IS NULL` half is load-bearing, not defensive padding: listings whose semester code has no row in `semesters` must stay visible. Hiding a listing takes an explicit deactivation; a code that is merely missing from the table (a legacy code, or one an admin has not added yet) must fail open, not silently blank those listings. A naive `sem.active = 1` would do exactly that.
 
-Applied in `includes/header.php` (dropdown + both slider bounds), in `build_listing_filters()` (`includes/listing_query.php`, shared by `app/index.php` and `app/map.php`), and in `landing.php`'s photo strip and counts. **Any new query that lists sublets to the public needs it too.** `app/admin.php` deliberately does *not* filter — it shows every listing and flags the hidden ones via a `NOT (VISIBLE_SEMESTER_WHERE) as is_hidden` column.
+`PUBLIC_LISTING_WHERE` is applied in `includes/header.php` (dropdown + both slider bounds), in `build_listing_filters()` (`includes/listing_query.php`, shared by `app/index.php` and `app/map.php`, and so the photo lists and `MAP_SUBLETS`), in `landing.php`'s photo strip and counts, and in `share-card.php`. **Any new query that lists sublets to the public needs it too.** `app/admin.php` deliberately does *not* filter — it shows every listing, flags the hidden ones via a `NOT (VISIBLE_SEMESTER_WHERE) as is_hidden` column, and gives each a status select in the Posts tab.
 
 Deactivation is reversible and deletes nothing; archiving, the step after it, is what deletes (see "Semester archive"). `app/post.php` keeps a deactivated semester selectable for the user who is already in it (otherwise the `<select>` would silently reassign their listing to the first option on save) and shows them an explanatory notice.
 
-The rule also governs **who gets a broadcast email**: `$emailableUsers` in `app/admin.php` and the `type=all` query in `app/api/email.php` both filter by it, so nobody whose listing is hidden is swept into a mass mail. Those two must change together or the count in the UI stops matching what is actually sent. Picking a specific semester is exempt — that is an explicit choice, deactivated or not.
+The rule also governs **who gets a broadcast email**: `$emailableUsers` in `app/admin.php` and the `type=all` query in `app/api/email.php` both filter by `PUBLIC_LISTING_WHERE`, so nobody whose listing is hidden, paused or taken is swept into a mass mail. Those two must change together or the count in the UI stops matching what is actually sent. Picking a specific semester is exempt — that is an explicit choice, deactivated or not.
 
 ## Semester archive
 
 A semester goes **active → hidden → archived**. Hiding (`active = 0`) is the reversible step above. Archiving is the last one and removes the semester's listings for good. It lives in `includes/archive.php`, is reached through `app/api/archive.php`, and the admin's **Semesters** tab drives it.
 
-1. **Dry run.** `archive_plan()` lists exactly what would go: listings, photo rows, every file on disk (originals with their `_thumb`/`_display` copies, found from all three image columns), bytes, events and cached share cards. It refuses an active semester, an archived one, a code with no row, a file shared with a listing in another semester, and a schema that lacks a column it writes. Read-only.
+1. **Dry run.** `archive_plan()` lists exactly what would go: listings (with their status; the taken ones are counted into the archive row), photo rows, every file on disk (originals with their `_thumb`/`_display` copies, found from all three image columns), bytes, events and cached share cards. It refuses an active semester, an archived one, a code with no row, a file shared with a listing in another semester, and a schema that lacks a column it writes. Read-only.
 2. **Confirmation.** The semester code, typed back. Nothing else is accepted.
 3. **Backup.** A tarball to `~/sublet-image-backups/semester-<code>-<UTC>.tar.gz` (mode 0600, outside the docroot). It holds the files under their own names plus `manifest.json`, which maps listing ids to file names and carries no personal details. It is read back with `tar -tvzf` and must match the plan exactly, names and sizes, or nothing else happens.
 4. **Database.** `archive_commit()` runs one transaction. It re-reads the semester, its listings and their photo paths `FOR UPDATE` and refuses if anything changed since the plan; otherwise it inserts the `semester_archives` row (totals only), deletes the semester's `listing_events`, deletes the listings (photo rows cascade) and sets `semesters.archived_at`. On any failure it rolls back and deletes the tarball, since nothing was removed.

@@ -41,13 +41,15 @@ $recipients = [];
 
 if ($type === 'all') {
     // Only users with a listing that is actually on the site. Someone whose
-    // semester was deactivated is not visible to anyone, so a broadcast should
-    // skip them. Mirrors $emailableUsers in admin.php — keep the two in step.
-    $stmt = $pdo->query("SELECT DISTINCT s.username FROM sublets s " . VISIBLE_SEMESTER_JOIN . " WHERE " . VISIBLE_SEMESTER_WHERE);
+    // semester was deactivated, or who has paused their listing or marked it
+    // taken, is not visible to anyone, so a broadcast should skip them. Mirrors
+    // $emailableUsers in admin.php — keep the two in step.
+    $stmt = $pdo->query("SELECT DISTINCT s.username FROM sublets s " . VISIBLE_SEMESTER_JOIN . " WHERE " . PUBLIC_LISTING_WHERE);
     $recipients = $stmt->fetchAll(PDO::FETCH_COLUMN);
 } elseif ($type === 'semester') {
     // No visibility filter here: picking a specific semester is an explicit
-    // choice, including a deactivated one.
+    // choice, including a deactivated one, and it reaches paused and taken
+    // listings too.
     $semester = $_POST['semester'] ?? '';
     if (empty($semester)) {
         http_response_code(400);

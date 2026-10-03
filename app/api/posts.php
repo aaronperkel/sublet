@@ -3,6 +3,8 @@
  * Post management API (admin only).
  * POST action=delete   &id=N        → delete a post
  * POST action=delete_user &username=X → delete all posts by user
+ * POST action=set_status &id=N &status=open|paused|taken → what the poster
+ *      can do on post.php, for a poster who asks the admin instead
  */
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
@@ -13,6 +15,25 @@ require_same_origin();
 require_admin();
 
 $action = $_POST['action'] ?? '';
+
+if ($action === 'set_status') {
+    $id = (int)($_POST['id'] ?? 0);
+    $status = (string)($_POST['status'] ?? '');
+    $stmt = $pdo->prepare('SELECT id FROM sublets WHERE id = ?');
+    $stmt->execute([$id]);
+    if (!$stmt->fetchColumn()) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Post not found']);
+        exit;
+    }
+    if (!set_listing_status($pdo, $id, $status)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Unknown status']);
+        exit;
+    }
+    echo json_encode(['success' => true, 'status' => $status]);
+    exit;
+}
 
 if ($action === 'delete') {
     $id = $_POST['id'] ?? '';
