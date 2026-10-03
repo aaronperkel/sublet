@@ -185,6 +185,60 @@ function display_src(?string $stored): string {
 }
 
 /**
+ * The URLs the listing view needs for one stored photo: `display`, from
+ * display_src(), and `thumb`, its `_thumb.webp`, or null where none has been
+ * made (only card images have one). Both carry ?v= like every image URL.
+ */
+function photo_urls(string $stored): array {
+    $thumb = image_variant_path($stored, IMAGE_THUMB_SUFFIX);
+
+    return [
+        'display' => display_src($stored),
+        'thumb' => ($thumb !== null && is_file(resolve_path($thumb))) ? image_src($thumb) : null,
+    ];
+}
+
+/**
+ * Every listing's photos, in gallery order, keyed by listing id: one query for
+ * the whole page.
+ *
+ * Browse and Map hand these out with each listing (data-photos on a card,
+ * `photos` in MAP_SUBLETS), so opening one knows how many photos it has and
+ * where they are without asking images.php first. The view used to open on
+ * the card image alone and fetch the list, and its arrows and "1 / N" counter
+ * waited that whole round trip. images.php stays as the fallback.
+ *
+ * A listing with no sublet_images rows falls back to its card image.
+ *
+ * @param array $listings rows with at least `id` and the stored `image_url`
+ */
+function listing_photos(PDO $pdo, array $listings): array {
+    $ids = array_values(array_unique(array_map(static fn($row) => (int)$row['id'], $listings)));
+    $photos = array_fill_keys($ids, []);
+
+    if ($ids) {
+        $stmt = $pdo->prepare(
+            'SELECT sublet_id, image_url FROM sublet_images WHERE sublet_id IN ('
+            . implode(',', array_fill(0, count($ids), '?'))
+            . ') ORDER BY sublet_id, sort_order, id'
+        );
+        $stmt->execute($ids);
+        foreach ($stmt as $row) {
+            $photos[(int)$row['sublet_id']][] = photo_urls($row['image_url']);
+        }
+    }
+
+    foreach ($listings as $row) {
+        $id = (int)$row['id'];
+        if (!$photos[$id] && !empty($row['image_url'])) {
+            $photos[$id][] = photo_urls($row['image_url']);
+        }
+    }
+
+    return $photos;
+}
+
+/**
  * Delete an image referenced by a DB-stored path, together with the
  * `_thumb.webp` and `_display.webp` generated next to it.
  *

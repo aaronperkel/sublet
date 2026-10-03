@@ -24,7 +24,11 @@
         <?php /* touch-action: pan-y (CSS) leaves vertical scrolling to the
                  browser and horizontal swipes to app.js. */ ?>
         <div class="modal-gallery" id="modalGallery">
-            <img id="modalImage" alt="">
+            <?php /* The photo's thumbnail sits under it while the full-size
+                     copy loads, then the photo fades in over it; see
+                     renderGallery() in app.js. */ ?>
+            <img id="modalImageUnder" class="gallery-under" alt="" aria-hidden="true" hidden>
+            <img id="modalImage" class="gallery-photo" alt="">
             <button type="button" class="gallery-nav prev" id="galleryPrev" aria-label="Previous photo"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
             <button type="button" class="gallery-nav next" id="galleryNext" aria-label="Next photo"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
             <div class="gallery-dots" id="galleryDots"></div>

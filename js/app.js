@@ -73,6 +73,12 @@ document.addEventListener('DOMContentLoaded', function () {
     // browse, map, share-link or deeplink.
     var currentSource = null;
     var lastFocused = null;
+    // Display images already requested, by URL, so each is fetched once however
+    // often it is preloaded (a finger on a card, a photo's neighbours).
+    var photoCache = {};
+    // Bumped on every open, so a slow images.php answer for one listing cannot
+    // fill the gallery of the next one.
+    var galleryRequest = 0;
 
     // The tiles, in order. `when` decides whether a tile is worth showing on
     // this device: "Share to…" in a browser with no navigator.share is a dead
@@ -602,6 +608,19 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
+        // The photo fades in once loaded (renderGallery() holds it
+        // transparent until then). Errors go through imageFailed(), below.
+        var modalImg = document.getElementById('modalImage');
+        if (modalImg) {
+            modalImg.addEventListener('load', function () { modalImg.classList.remove('is-loading'); });
+        }
+        // The thumbnail under it is only a stand-in: if it fails, drop it
+        // rather than putting "Image not available" over the real photo.
+        var modalUnder = document.getElementById('modalImageUnder');
+        if (modalUnder) {
+            modalUnder.addEventListener('error', function () { modalUnder.hidden = true; });
+        }
+
         var prevBtn = document.getElementById('galleryPrev');
         var nextBtn = document.getElementById('galleryNext');
         if (prevBtn) prevBtn.addEventListener('click', function () { navigateGallery(-1); });
@@ -896,25 +915,34 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
-        // Load images
-        modalImages = [data.image_url || data.imageUrl];
+        // The photo list comes with the listing (data-photos on a card,
+        // `photos` on a map pin), so the arrows and "1 / N" are drawn now.
+        // They used to wait for a round trip to images.php, which is now only
+        // the fallback for a listing that arrives without a list.
+        var photos = parsePhotos(data.photos);
+        var request = ++galleryRequest;
+        modalImages = photos.length ? photos : [{ display: data.image_url || data.imageUrl || '', thumb: null }];
         modalIndex = 0;
         renderGallery();
 
-        // Fetch all images
-        fetch('api/images.php?sublet_id=' + data.id)
-            .then(function (r) { return r.json(); })
-            .then(function (images) {
-                if (Array.isArray(images) && images.length > 0) {
+        if (!photos.length) {
+            fetch('api/images.php?sublet_id=' + encodeURIComponent(data.id))
+                .then(function (r) { return r.json(); })
+                .then(function (images) {
+                    if (request !== galleryRequest || !Array.isArray(images)) return;
                     // The display-size copy, not the original upload, which
                     // can run to 20 MB. display_url falls back to the original
                     // server-side when no copy exists.
-                    modalImages = images.map(function (img) { return img.display_url || img.image_url; });
+                    var list = parsePhotos(images.map(function (img) {
+                        return { display: img.display_url || img.image_url, thumb: img.thumb_url };
+                    }));
+                    if (!list.length) return;
+                    modalImages = list;
                     modalIndex = 0;
                     renderGallery();
-                }
-            })
-            .catch(function () {});
+                })
+                .catch(function () {});
+        }
 
         overlay.classList.add('open');
         overlay.setAttribute('aria-hidden', 'false');
@@ -972,10 +1000,15 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    // Draws the gallery for modalImages[modalIndex]. The arrows, counter and
+    // dots depend only on the list, so they are right the moment the view
+    // opens; the photo itself fades in when it has loaded.
     function renderGallery() {
         var count = modalImages.length;
         var img = document.getElementById('modalImage');
+        var under = document.getElementById('modalImageUnder');
         if (img && count > 0) {
+            var photo = modalImages[modalIndex];
             // Reset broken state. imgRetried has to go too: this one element is
             // reused for every image in the gallery, so leaving it set would
             // deny the next image its retry.
@@ -986,14 +1019,33 @@ document.addEventListener('DOMContentLoaded', function () {
             delete img.dataset.imgError;
             var oldPlaceholder = img.parentNode.querySelector('.img-broken-placeholder');
             if (oldPlaceholder) oldPlaceholder.remove();
-            img.src = modalImages[modalIndex];
+
+            // Under the photo, its thumbnail where it has one. For the first
+            // photo that is the card's own image, already loaded, so the view
+            // opens on a picture rather than an empty frame.
+            if (under) {
+                if (photo.thumb) {
+                    if (under.getAttribute('src') !== photo.thumb) under.src = photo.thumb;
+                    under.hidden = false;
+                } else {
+                    under.hidden = true;
+                    under.removeAttribute('src');
+                }
+            }
+
+            // Held transparent until it has loaded (the load listener in
+            // initModal() lifts that), so the previous photo never shows
+            // under the new counter. One the cache already has shows at once.
+            if (img.getAttribute('src') !== photo.display) {
+                img.classList.add('is-loading');
+                img.src = photo.display;
+            }
+            if (img.complete && img.naturalWidth > 0) img.classList.remove('is-loading');
             img.alt = 'Photo ' + (modalIndex + 1) + ' of ' + count;
 
-            // Fetch the next photo now, so a swipe shows it at once.
-            if (modalIndex + 1 < count) {
-                var next = new Image();
-                next.src = modalImages[modalIndex + 1];
-            }
+            // Both neighbours, so a swipe either way shows its photo at once.
+            if (modalIndex + 1 < count) preloadPhoto(modalImages[modalIndex + 1].display);
+            if (modalIndex > 0) preloadPhoto(modalImages[modalIndex - 1].display);
         }
 
         var prevBtn = document.getElementById('galleryPrev');
@@ -1034,6 +1086,35 @@ document.addEventListener('DOMContentLoaded', function () {
             modalIndex = newIndex;
             renderGallery();
         }
+    }
+
+    // A listing's photo list: data-photos (a JSON string) or a map pin's
+    // `photos`, as [{display, thumb}, ...] with thumb null where there is
+    // none. Malformed entries are dropped; an unreadable list comes back
+    // empty, which sends openModal() to images.php instead.
+    function parsePhotos(raw) {
+        var list = raw;
+        if (typeof raw === 'string') {
+            try { list = JSON.parse(raw); } catch (e) { return []; }
+        }
+        if (!Array.isArray(list)) return [];
+        return list.filter(function (p) {
+            return p && typeof p.display === 'string' && p.display !== '';
+        }).map(function (p) {
+            return { display: p.display, thumb: (typeof p.thumb === 'string' && p.thumb !== '') ? p.thumb : null };
+        });
+    }
+
+    // Start a display image downloading without showing it. It lands in the
+    // cache the gallery's <img> reads from, so by the time it is shown it is
+    // there, or on its way. A failed one is forgotten so it can be tried again.
+    function preloadPhoto(url) {
+        if (!url || photoCache[url]) return;
+        var img = new Image();
+        img.decoding = 'async';
+        img.onerror = function () { delete photoCache[url]; };
+        img.src = url;
+        photoCache[url] = img;
     }
 
     // Expose for map popups
@@ -1360,6 +1441,18 @@ document.addEventListener('DOMContentLoaded', function () {
             if (card && grid.contains(card)) openModalFromCard(card);
         });
 
+        // A finger (or button) going down on a card is the earliest sign it is
+        // about to open, about 100 ms before the click: start its first photo
+        // downloading then. touchstart too, for browsers without pointer events.
+        function warmCard(e) {
+            var card = e.target.closest ? e.target.closest('.listing-card') : null;
+            if (!card || !grid.contains(card)) return;
+            var photos = parsePhotos(card.dataset.photos);
+            if (photos.length) preloadPhoto(photos[0].display);
+        }
+        grid.addEventListener('pointerdown', warmCard, { passive: true });
+        grid.addEventListener('touchstart', warmCard, { passive: true });
+
         // The card carries role="button", so it has to answer Enter and Space
         // the way a real button would.
         grid.addEventListener('keydown', function (e) {
@@ -1469,7 +1562,8 @@ document.addEventListener('DOMContentLoaded', function () {
             lat: card.dataset.lat || '',
             lon: card.dataset.lon || '',
             mapsUrl: card.dataset.mapsUrl || '',
-            appleMapsUrl: card.dataset.appleMapsUrl || ''
+            appleMapsUrl: card.dataset.appleMapsUrl || '',
+            photos: card.dataset.photos || ''
         });
     }
 
@@ -1563,6 +1657,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
             marker.on('popupopen', function () {
                 track('map_pin_open', sublet.id, 'map');
+                // An open popup is a listing about to be opened: start its
+                // first photo now, as a finger on a Browse card does.
+                var pinPhotos = parsePhotos(sublet.photos);
+                if (pinPhotos.length) preloadPhoto(pinPhotos[0].display);
                 var targets = document.querySelectorAll(
                     '.map-popup img[data-sublet-id="' + sublet.id + '"], ' +
                     '.map-popup .popup-btn[data-sublet-id="' + sublet.id + '"]'
@@ -1607,7 +1705,8 @@ document.addEventListener('DOMContentLoaded', function () {
                             lat: sublet.lat,
                             lon: sublet.lon,
                             mapsUrl: sublet.maps_url || '',
-                            appleMapsUrl: sublet.apple_maps_url || ''
+                            appleMapsUrl: sublet.apple_maps_url || '',
+                            photos: sublet.photos || []
                         });
                     });
                 });
@@ -2771,12 +2870,14 @@ document.addEventListener('DOMContentLoaded', function () {
         // browser treats as new.
         var retried = src.split('#')[0];
         retried += (retried.indexOf('?') === -1 ? '?' : '&') + '_retry=' + Date.now();
-        setTimeout(function () { img.src = retried; }, 150);
+        // Only if the element still wants this image: the gallery reuses one
+        // <img>, and a swipe in the meantime must not get the old photo back.
+        setTimeout(function () { if (img.getAttribute('src') === src) img.src = retried; }, 150);
     }
 
     // Attach to the images present on page load. Card images are handled on
     // the grid instead (initIndex), because live filtering replaces them.
-    document.querySelectorAll('.modal-gallery img, .map-popup img').forEach(function (img) {
+    document.querySelectorAll('.modal-gallery img:not(.gallery-under), .map-popup img').forEach(function (img) {
         img.addEventListener('error', function () { imageFailed(img); });
         // A load that failed before this file ran fires no event left to catch.
         // The markup records those with onerror="this.dataset.imgError='1'" -- an

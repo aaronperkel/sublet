@@ -259,7 +259,9 @@ Adding a page means adding both an `init<Page>()` branch in `app.js` and the mat
 
 Everything lives in one closure, so **module state read during init must be declared above the dispatch block**. Function declarations hoist; `var` assignments do not. `SHARE_TILES` declared next to `initShare()` was still `undefined` when the dispatch called it, and the resulting throw landed after `shareEls` was assigned but before any listener was attached — the sheet opened, showed no tiles, and could not be closed or copied from, and the abort took the `?id=` deep link with it.
 
-The listing view's state (`modalImages`, `currentPostId`, `currentSource`, `lastFocused`) is also declared above the dispatch, because `openSharedListing()` opens a listing during init. While it was declared further down, the deep-linked view lost its `currentPostId` and the admin's Delete button did nothing.
+The listing view's state (`modalImages`, `currentPostId`, `currentSource`, `lastFocused`, `photoCache`, `galleryRequest`) is also declared above the dispatch, because `openSharedListing()` opens a listing during init. While it was declared further down, the deep-linked view lost its `currentPostId` and the admin's Delete button did nothing.
+
+**The listing view's photos come with the listing.** Each Browse card carries `data-photos` and each `MAP_SUBLETS` row a `photos` array: `[{display, thumb}, …]` in gallery order, built by `listing_photos()` (`includes/thumbnail.php`, one query per page) with `?v=` on every URL and `thumb` null where no `_thumb.webp` exists. `openModal()` therefore knows the count and the URLs without a request, and `renderGallery()` draws the arrows, dots and "1 / N" in the same frame the view opens. Until October 2026 the view opened on the card image alone and fetched `api/images.php`, so the controls waited that round trip (1–2 s on a phone). `images.php` is now only the fallback for a listing that arrives without a list, and `galleryRequest` stops a late answer from filling the next listing's gallery. The photo is held transparent (`.is-loading`) until it loads and then fades in over `#modalImageUnder`, its thumbnail, so a previous photo never shows under the new counter; `#modalImageUnder` is excluded from the broken-image handler, since a missing stand-in must not cover the real photo. `preloadPhoto()` fetches each display image once: both neighbours of the current photo, a card's first photo on `pointerdown`/`touchstart` (delegated on `#listingsGrid`, about 100 ms before the click), and a pin's first photo when its popup opens.
 
 `copyToClipboard()` / `flashCopied()` are shared by the contact panel and the share sheet. They exist because `navigator.clipboard` is undefined on insecure origins and rejects when the document is not focused — hence the `execCommand` fallback and the visible failure state.
 
@@ -271,7 +273,7 @@ Form-encoded POST in, JSON out — not REST. Endpoints dispatch on `$_POST['acti
 |---|---|
 | `posts.php` | admin-only delete of a post or of all posts by a user |
 | `semesters.php` | admin-only add/toggle/delete; refuses to delete a semester that has posts |
-| `images.php` | list by `sublet_id`; delete allowed for admin **or** post owner; promotes the next image to thumbnail if the thumbnail was deleted |
+| `images.php` | list by `sublet_id` (the listing view's fallback, ordered like `listing_photos()`; returns `display_url` and `thumb_url`); delete allowed for admin **or** post owner; promotes the next image to thumbnail if the thumbnail was deleted |
 | `announcement.php` | GET public, POST admin-only |
 | `email.php` | admin-only bulk `mail()` to `{username}@uvm.edu` |
 | `events.php` | the activity beacon: POST from `track()` in app.js, `require_same_origin()`, always 204 (429 when rate-limited); see "Activity log" |
@@ -340,7 +342,7 @@ Uploads land in `public/images/` under `new_upload_name()`: 32 random hex charac
 |---|---|---|---|
 | `x.jpg` (original) | `ensure_browser_safe()` → `normalize_original()` | HEIC→JPEG, upright, ≤3000px long edge, ICC only. Rewritten in place via a dotfile temp + `rename()`. | nothing in the UI any more |
 | `x_display.webp` | `make_display_image()` (ImageMagick) | ≤1600px, q80, ICC only, ~90–170 KB | modal gallery, map modal, admin image grid, post edit page — via `display_src()`, which falls back to the original |
-| `x_thumb.webp` | `make_thumbnail()` (ImageMagick) | 600px wide, q80, ICC only | listing cards, map popups, landing strip — via `sublets.thumbnail_url` |
+| `x_thumb.webp` | `make_thumbnail()` (ImageMagick) | 600px wide, q80, ICC only | listing cards, map popups, landing strip — via `sublets.thumbnail_url`; under the gallery photo while it loads — via `listing_photos()` |
 
 Every image gets a display copy. Only the card image gets a thumbnail: the first image of a new post, or the image promoted by `images.php` when the card image is deleted. All three writers go through `convert_into_place()` (temp dotfile + `rename()`), so a request never reads half an image. Thumbnails were GD until October 2026, which dropped the ICC profile.
 

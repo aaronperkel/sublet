@@ -941,6 +941,19 @@ body.listing-open {
     object-fit: contain;
 }
 
+/* The photo is held transparent until it has loaded, then fades in over its
+   thumbnail (or the slate ground, for a photo without one). The arrows and
+   counter never wait for it. Hiding is instant so the previous photo never
+   shows under the next one's counter. */
+.modal-gallery .gallery-photo {
+    transition: opacity var(--transition);
+}
+
+.modal-gallery .gallery-photo.is-loading {
+    opacity: 0;
+    transition: none;
+}
+
 .gallery-nav {
     position: absolute;
     top: 50%;

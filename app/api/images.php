@@ -19,7 +19,9 @@ if ($method === 'GET') {
         exit;
     }
 
-    $stmt = $pdo->prepare("SELECT id, image_url, sort_order FROM sublet_images WHERE sublet_id = ? ORDER BY sort_order");
+    // The same order as listing_photos(), which the listing view uses first;
+    // this is its fallback and has to agree with it.
+    $stmt = $pdo->prepare("SELECT id, image_url, sort_order FROM sublet_images WHERE sublet_id = ? ORDER BY sort_order, id");
     $stmt->execute([$subletId]);
     $images = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -27,7 +29,9 @@ if ($method === 'GET') {
     // page-relative stored paths — see image_src() in includes/db.php.
     // display_url is what the gallery shows; image_url stays the original.
     foreach ($images as &$image) {
-        $image['display_url'] = display_src($image['image_url']);
+        $urls = photo_urls($image['image_url']);
+        $image['display_url'] = $urls['display'];
+        $image['thumb_url'] = $urls['thumb'];
         $image['image_url'] = image_src($image['image_url']);
     }
     unset($image);

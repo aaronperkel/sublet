@@ -2,6 +2,7 @@
 $basePath = '../';
 require_once '../includes/header.php';
 require_once '../includes/share.php';
+require_once '../includes/thumbnail.php';
 
 // A share link comes back from CAS as ?id=<n>, and the modal for that listing
 // opens on load. Filters are deliberately dropped for such a request: it asks
@@ -32,6 +33,10 @@ $stmt->execute($filters['params']);
 $sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $hasActiveFilters = $filters['active'];
+
+// Every card carries its photo list, so the listing view opens with its
+// arrows and counter instead of fetching them (see listing_photos()).
+$photosById = listing_photos($pdo, $sublets);
 
 // The heading names the semester most of these listings are for, and only
 // the cards for any other semester carry a badge. A badge on every card was the
@@ -165,7 +170,10 @@ foreach ($availableSemesters as $sem) {
                  data-negotiable="<?= !empty($sublet['price_negotiable']) ? 1 : 0 ?>"
                  data-size-summary="<?= htmlspecialchars($sizeSummary) ?>"
                  data-roommate-gender="<?= htmlspecialchars(option_label(ROOMMATE_GENDER_OPTIONS, $sublet['roommate_gender'] ?? null)) ?>"
-                 data-roommate-preference="<?= htmlspecialchars($prefLabel) ?>">
+                 data-roommate-preference="<?= htmlspecialchars($prefLabel) ?>"
+                 <?php /* [{display, thumb}, ...] in gallery order, thumb null where
+                          none exists. Read by openModalFromCard(). */ ?>
+                 data-photos="<?= htmlspecialchars(json_encode($photosById[(int)$sublet['id']] ?? [], JSON_UNESCAPED_SLASHES)) ?>">
                 <div class="card-image">
                     <?php /* The first row is what the page opens on, so those load
                              straight away; lazy-loading them would only delay the

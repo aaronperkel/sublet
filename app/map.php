@@ -18,6 +18,10 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute($filters['params']);
 $sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// Each pin's photo list, so the listing view opens with its arrows and counter
+// (see listing_photos()). Before image_url is turned into a URL below.
+$photosById = listing_photos($pdo, $sublets);
+
 // app.js builds the popup and modal image tags straight out of these values, and a
 // page-relative path would resolve against /app/ and get gated on CAS. Hand it
 // root-relative URLs instead — see image_src() in includes/db.php. The modal
@@ -26,6 +30,7 @@ foreach ($sublets as &$sublet) {
     $sublet['display_url'] = display_src($sublet['image_url'] ?? null);
     $sublet['image_url'] = image_src($sublet['image_url'] ?? null);
     $sublet['thumbnail_url'] = image_src($sublet['thumbnail_url'] ?? null);
+    $sublet['photos'] = $photosById[(int)$sublet['id']] ?? [];
 }
 unset($sublet);
 
