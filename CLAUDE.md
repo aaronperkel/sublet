@@ -272,8 +272,9 @@ Form-encoded POST in, JSON out — not REST. Endpoints dispatch on `$_POST['acti
 | File | Notes |
 |---|---|
 | `posts.php` | admin-only delete of a post or of all posts by a user |
-| `semesters.php` | admin-only add/toggle/delete; refuses to delete a semester that has posts |
-| `images.php` | list by `sublet_id` (the listing view's fallback, ordered like `listing_photos()`; returns `display_url` and `thumb_url`); delete allowed for admin **or** post owner; promotes the next image to thumbnail if the thumbnail was deleted |
+| `semesters.php` | admin-only add/toggle/delete; refuses to delete a semester that has posts, and to reactivate one that is archived |
+| `archive.php` | admin-only. GET `action=preview` is the dry run; POST `action=archive` (`code`, `confirm` = the code typed back) archives a hidden semester; POST `action=delete_tarball`. See "Semester archive" |
+| `images.php` | GET `sublet_id` lists a listing's photos (the listing view's fallback, ordered like `listing_photos()`; returns `display_url` and `thumb_url`). Admin **or** post owner: delete (`_method=DELETE`), `set_cover`, `move`. Admin only: GET `action=inventory` and `action=orphans` (the Images tab), POST `bulk_delete`, `delete_orphans`, `make_thumbs`. Every change renumbers and re-covers the listing (see "Images") |
 | `announcement.php` | GET public, POST admin-only |
 | `email.php` | admin-only bulk `mail()` to `{username}@uvm.edu` |
 | `events.php` | the activity beacon: POST from `track()` in app.js, `require_same_origin()`, always 204 (429 when rate-limited); see "Activity log" |
@@ -285,8 +286,9 @@ Form-encoded POST in, JSON out — not REST. Endpoints dispatch on `$_POST['acti
 There is no schema/migration file in the tree; the shape below is what the queries imply.
 
 - **`sublets`** — effectively **one row per user**. `post.php` treats `username` as the key: it looks up the user's post to decide create-vs-edit, and updates with `WHERE username = ?`. Also holds `image_url`/`thumbnail_url`, `price`, `address`, `lat`/`lon`, `semester`, `posted_at`, contact fields, `utility_*`, and `amenity_*` flags.
-- **`sublet_images`** — `sublet_id`, `image_url`, `sort_order`. The first image by `sort_order` is the card image (`sublets.image_url`). That is not always `sort_order = 0`: deleting the card image promotes the next one without renumbering, so test for "first", not for 0. Rows cascade-delete with their listing (`ON DELETE CASCADE`); the files do not.
-- **`semesters`** — `code`, `name`, `active`, `sort_order`. `code` joins to `sublets.semester`; queries `COALESCE(sem.name, s.semester)` so unmapped codes still render.
+- **`sublet_images`** — `sublet_id`, `image_url`, `sort_order`. The first image by `sort_order` is the card image (`sublets.image_url`). Since October 2026 every change (`images.php`) renumbers a listing's photos 0..n-1 through `renumber_listing_photos()`, which also moves the card image to the first one; before that, deleting the cover promoted the next photo without renumbering, and listings untouched since may still have no 0. Test for "first", not for 0. Rows cascade-delete with their listing (`ON DELETE CASCADE`); the files do not.
+- **`semesters`** — `code`, `name`, `active`, `sort_order`, `archived_at` (NULL until archived). `code` joins to `sublets.semester`; queries `COALESCE(sem.name, s.semester)` so unmapped codes still render.
+- **`semester_archives`** — one row per archived semester (`UNIQUE` on `semester_code`): `semester_name`, `archived_at`, `archived_by`, `listings`, `taken`, `price_median`/`price_min`/`price_max`, `views`, `contacts`, `shares`, `share_arrivals`, `bytes`, `tarball`, and optionally `photos`. Totals only, never who. See "Semester archive".
 - **`listing_events`** — the activity log: `listing_id`, `poster_username`, `actor_key`, `semester`, `type`, `source`, `target`, `dedupe_key` (UNIQUE), `created_at`. No foreign key to `sublets`, on purpose. See "Activity log".
 - **`contact_logs`** — retired in October 2026. It logged only Email/Call taps, by NetID; its rows were copied into `listing_events` by `~/sublet-scripts/migrate_contact_logs.php` and nothing writes to it. It is to be dropped after the first semester archive.
 - **`allowed_users`** — `uid`, `kind` (`allow`/`block`), `note`, `added_by`, `added_at`. `UNIQUE` on `uid` alone, not `(uid, kind)`: a netid is on one list or the other, never both. Source of truth for the generated `Require` line — see "Access allowlist". The `note` column is the reason someone has access ("gap year, back Fall 2026") and stays in the database; it never reaches `app/.htaccess`, which is committed to a public repo.
@@ -318,13 +320,29 @@ The `sem.code IS NULL` half is load-bearing, not defensive padding: listings who
 
 Applied in `includes/header.php` (dropdown + both slider bounds), in `build_listing_filters()` (`includes/listing_query.php`, shared by `app/index.php` and `app/map.php`), and in `landing.php`'s photo strip and counts. **Any new query that lists sublets to the public needs it too.** `app/admin.php` deliberately does *not* filter — it shows every listing and flags the hidden ones via a `NOT (VISIBLE_SEMESTER_WHERE) as is_hidden` column.
 
-Deactivation is reversible and deletes nothing. `app/post.php` keeps a deactivated semester selectable for the user who is already in it (otherwise the `<select>` would silently reassign their listing to the first option on save) and shows them an explanatory notice.
+Deactivation is reversible and deletes nothing; archiving, the step after it, is what deletes (see "Semester archive"). `app/post.php` keeps a deactivated semester selectable for the user who is already in it (otherwise the `<select>` would silently reassign their listing to the first option on save) and shows them an explanatory notice.
 
 The rule also governs **who gets a broadcast email**: `$emailableUsers` in `app/admin.php` and the `type=all` query in `app/api/email.php` both filter by it, so nobody whose listing is hidden is swept into a mass mail. Those two must change together or the count in the UI stops matching what is actually sent. Picking a specific semester is exempt — that is an explicit choice, deactivated or not.
+
+## Semester archive
+
+A semester goes **active → hidden → archived**. Hiding (`active = 0`) is the reversible step above. Archiving is the last one and removes the semester's listings for good. It lives in `includes/archive.php`, is reached through `app/api/archive.php`, and the admin's **Semesters** tab drives it.
+
+1. **Dry run.** `archive_plan()` lists exactly what would go: listings, photo rows, every file on disk (originals with their `_thumb`/`_display` copies, found from all three image columns), bytes, events and cached share cards. It refuses an active semester, an archived one, a code with no row, a file shared with a listing in another semester, and a schema that lacks a column it writes. Read-only.
+2. **Confirmation.** The semester code, typed back. Nothing else is accepted.
+3. **Backup.** A tarball to `~/sublet-image-backups/semester-<code>-<UTC>.tar.gz` (mode 0600, outside the docroot). It holds the files under their own names plus `manifest.json`, which maps listing ids to file names and carries no personal details. It is read back with `tar -tvzf` and must match the plan exactly, names and sizes, or nothing else happens.
+4. **Database.** `archive_commit()` runs one transaction. It re-reads the semester, its listings and their photo paths `FOR UPDATE` and refuses if anything changed since the plan; otherwise it inserts the `semester_archives` row (totals only), deletes the semester's `listing_events`, deletes the listings (photo rows cascade) and sets `semesters.archived_at`. On any failure it rolls back and deletes the tarball, since nothing was removed.
+5. **Files.** Only after the commit: `delete_image_files()` on every stored path, and the listings' share cards from `public/share/`. A file that will not delete becomes an orphan for the Images tab, never a row pointing at nothing.
+
+The request is POST-only, admin-only and `require_same_origin()`-checked, ignores a closed tab (`ignore_user_abort`) and holds a lock file so a double click cannot run two archives. The Semesters tab lists past archives and the tarballs; only names matching `ARCHIVE_TARBALL_PATTERN` are listed or deletable, so the pre-backfill backup in the same folder cannot be removed from the web.
+
+`semesters.archived_at` and `semester_archives` were created by hand. `archive_schema_report()` compares them column by column with the planned DDL (`ARCHIVE_TABLE_COLUMNS`), and the tab shows the result. `photos` was in the planned DDL but is optional: the row is written without it when the column is absent.
 
 ## Cleaning up public/images
 
 Every file here is an upload or one of its generated siblings, all named `<32 hex>.<ext>`, `<32 hex>_thumb.webp` or `<32 hex>_display.webp`. A file is an orphan when neither its own name nor (for a sibling) its original's name appears in `sublet_images.image_url`, `sublets.image_url` or `sublets.thumbnail_url`. Any cleanup must check all three columns and protect the `_thumb.webp` and `_display.webp` siblings of everything it keeps. (The favicon used to live here and was the classic casualty of a DB-only scan; it is now `assets/favicon.svg`.)
+
+The admin **Images** tab's "Orphans & missing" view does this (`image_orphans()` in `includes/image_admin.php`). It also keeps any file the source code names as `public/images/<name>`, skips dotfiles (writes in progress), and lists rows whose file is missing. Deleting takes the number of files typed back, and `delete_orphans()` re-runs the sweep and deletes only names that are still orphans.
 
 As of October 2026 there are none. Since names are never reused, orphans can only come from a request that dies between writing a file and inserting its row, or from code that unlinks a path without `delete_image_files()`.
 
@@ -341,10 +359,10 @@ Uploads land in `public/images/` under `new_upload_name()`: 32 random hex charac
 | File | Made by | What it is | Shown by |
 |---|---|---|---|
 | `x.jpg` (original) | `ensure_browser_safe()` → `normalize_original()` | HEIC→JPEG, upright, ≤3000px long edge, ICC only. Rewritten in place via a dotfile temp + `rename()`. | nothing in the UI any more |
-| `x_display.webp` | `make_display_image()` (ImageMagick) | ≤1600px, q80, ICC only, ~90–170 KB | modal gallery, map modal, admin image grid, post edit page — via `display_src()`, which falls back to the original |
-| `x_thumb.webp` | `make_thumbnail()` (ImageMagick) | 600px wide, q80, ICC only | listing cards, map popups, landing strip — via `sublets.thumbnail_url`; under the gallery photo while it loads — via `listing_photos()` |
+| `x_display.webp` | `make_display_image()` (ImageMagick) | ≤1600px, q80, ICC only, ~90–170 KB | modal gallery, map modal, post edit page — via `display_src()`, which falls back to the original |
+| `x_thumb.webp` | `make_thumbnail()` (ImageMagick) | 600px wide, q80, ICC only | listing cards, map popups, landing strip — via `sublets.thumbnail_url`; under the gallery photo while it loads — via `listing_photos()`; the admin Images tab |
 
-Every image gets a display copy. Only the card image gets a thumbnail: the first image of a new post, or the image promoted by `images.php` when the card image is deleted. All three writers go through `convert_into_place()` (temp dotfile + `rename()`), so a request never reads half an image. Thumbnails were GD until October 2026, which dropped the ICC profile.
+Every image gets a display copy and, since October 2026, a thumbnail: `post.php` makes both for every upload, and `sync_listing_cover()` makes one on demand for a photo that becomes the cover. Older photos that only had a display copy get theirs from the Images tab's **Make thumbnails** button (`make_missing_thumbnails()`, a batch per request). Until then the tab, and the gallery's placeholder, fall back to the display copy. All three writers go through `convert_into_place()` (temp dotfile + `rename()`), so a request never reads half an image. Thumbnails were GD until October 2026, which dropped the ICC profile.
 
 Two one-off scripts outside the docroot brought the existing files to this state in October 2026, and both are idempotent if they ever need re-running: `~/sublet-scripts/backfill_images.php` (normalize, display copies, thumbnails) and `~/sublet-scripts/migrate_random_names.php` (renames, with `rename-journal.json` mapping every old name to its new one). The pre-backfill originals, under their old `{netid}_…` names, are in `~/sublet-image-backups/`; the journal is how to find a given file there.
 

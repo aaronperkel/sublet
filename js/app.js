@@ -79,6 +79,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // Bumped on every open, so a slow images.php answer for one listing cannot
     // fill the gallery of the next one.
     var galleryRequest = 0;
+    // Set by initImagesTab() during the admin init, called by the Posts tab's
+    // photo buttons; up here so a later `var` line cannot reset it.
+    var showListingImages = null;
 
     // The tiles, in order. `when` decides whether a tile is worth showing on
     // this device: "Share to…" in a browser with no navigator.share is a dead
@@ -2354,6 +2357,8 @@ document.addEventListener('DOMContentLoaded', function () {
     function initAdmin() {
         initAdminTabs();
         initSemesterManagement();
+        initArchive();
+        initImagesTab();
         initAnnouncementManagement();
         initPostManagement();
         initUserManagement();
@@ -2556,6 +2561,561 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // "Archive a semester" (Semesters tab). Archive… on a hidden semester
+    // loads the dry run from api/archive.php into #archivePanel; archiving
+    // takes the semester code typed back, and nothing else, as confirmation.
+    // The server re-checks everything, so this only decides what to show.
+    function initArchive() {
+        var panel = document.getElementById('archivePanel');
+        if (!panel) return;
+        var opener = null;
+
+        document.querySelectorAll('.archive-semester').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                opener = btn;
+                loadPreview(btn.dataset.code, btn.dataset.name);
+            });
+        });
+
+        function loadPreview(code, name) {
+            panel.hidden = false;
+            panel.innerHTML = '<p class="admin-note" role="status">Working out what archiving ' + escapeHtml(name) + ' would remove&hellip;</p>';
+            panel.scrollIntoView({ block: 'start', behavior: 'smooth' });
+            fetch('api/archive.php?action=preview&code=' + encodeURIComponent(code))
+                .then(function (r) { return r.json(); })
+                .then(function (plan) { renderPreview(plan, code, name); })
+                .catch(function () {
+                    panel.innerHTML = '<div class="alert alert-error" role="alert">Could not load the preview. Reload the page and try again.</div>';
+                });
+        }
+
+        function renderPreview(plan, code, name) {
+            var t = plan.totals || {};
+            var html = '<h4 class="admin-subhead">Archive ' + escapeHtml(name) + ': dry run</h4>'
+                + '<p class="admin-note">Nothing has changed yet. This is everything archiving would remove.</p>';
+
+            if (plan.blocking && plan.blocking.length) {
+                html += '<div class="alert alert-error" role="alert"><i class="fa-solid fa-ban" aria-hidden="true"></i><span>Can\'t archive it: '
+                    + plan.blocking.map(escapeHtml).join(' ') + '</span></div>';
+            }
+            (plan.warnings || []).forEach(function (w) {
+                html += '<div class="alert alert-warning"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span>' + escapeHtml(w) + '</span></div>';
+            });
+
+            if (plan.semester) {
+                html += '<dl class="archive-facts">'
+                    + fact('Listings', t.listings)
+                    + fact('Photos', t.photos + ' (' + t.files + ' files with their copies)')
+                    + fact('On disk', formatBytes(t.bytes))
+                    + fact('Activity events', (plan.events && plan.events.rows) || 0)
+                    + fact('Share cards', t.share_cards)
+                    + '</dl>';
+
+                html += '<p class="admin-note">' + (plan.tarball
+                    ? 'The photos are saved first, to <code>' + escapeHtml(plan.tarball) + '</code> in <code>' + escapeHtml(plan.backup_dir) + '</code>, and the tarball is checked against this list before anything is deleted.'
+                    : 'There are no photo files to save, so no tarball is written.') + '</p>';
+
+                html += '<p class="admin-note">The archive keeps: ' + t.listings + ' listing' + (t.listings === 1 ? '' : 's')
+                    + (t.price_median !== null ? ', median $' + Math.round(t.price_median).toLocaleString()
+                        + ' ($' + Math.round(t.price_min).toLocaleString() + '&ndash;$' + Math.round(t.price_max).toLocaleString() + ')' : '')
+                    + ', ' + t.views + ' viewed, ' + t.contacts + ' got in touch, ' + t.shares + ' shares, '
+                    + t.share_arrivals + ' arrivals from share links.</p>';
+
+                if (plan.listings && plan.listings.length) {
+                    html += '<div class="table-scroll"><table class="admin-table"><thead><tr>'
+                        + '<th>Listing</th><th>Posted by</th><th class="num">Price</th><th class="num">Photos</th><th class="num">Files</th><th class="num">Size</th>'
+                        + '</tr></thead><tbody>';
+                    plan.listings.forEach(function (l) {
+                        html += '<tr><td>' + escapeHtml(l.address) + '</td><td>' + escapeHtml(l.username) + '</td>'
+                            + '<td class="num">$' + Math.round(l.price).toLocaleString() + '</td>'
+                            + '<td class="num">' + l.photos + '</td><td class="num">' + l.files + '</td>'
+                            + '<td class="num">' + formatBytes(l.bytes) + '</td></tr>';
+                    });
+                    html += '</tbody></table></div>';
+                }
+            }
+
+            if (!plan.blocking || !plan.blocking.length) {
+                html += '<div class="archive-confirm">'
+                    + '<label for="archiveConfirm">To archive ' + escapeHtml(name) + ', type its code, <code>' + escapeHtml(code) + '</code></label>'
+                    + '<input type="text" id="archiveConfirm" autocomplete="off" autocapitalize="off" spellcheck="false">'
+                    + '<div class="archive-confirm-actions">'
+                    + '<button type="button" class="btn btn-danger btn-sm" id="archiveRun" disabled>Archive ' + escapeHtml(name) + '</button>'
+                    + '<button type="button" class="btn btn-secondary btn-sm" id="archiveCancel">Cancel</button>'
+                    + '</div></div>';
+            } else {
+                html += '<div class="archive-confirm-actions"><button type="button" class="btn btn-secondary btn-sm" id="archiveCancel">Close</button></div>';
+            }
+            html += '<div id="archiveResult" role="status"></div>';
+            panel.innerHTML = html;
+
+            var cancel = document.getElementById('archiveCancel');
+            if (cancel) cancel.addEventListener('click', closePanel);
+            var input = document.getElementById('archiveConfirm');
+            var run = document.getElementById('archiveRun');
+            if (input && run) {
+                input.addEventListener('input', function () { run.disabled = input.value.trim() !== code; });
+                input.focus();
+                run.addEventListener('click', function () {
+                    if (input.value.trim() !== code) return;
+                    run.disabled = true;
+                    input.disabled = true;
+                    if (cancel) cancel.disabled = true;
+                    run.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Saving ' + t.files + ' files and archiving&hellip;';
+                    var body = new URLSearchParams({ action: 'archive', code: code, confirm: input.value.trim() });
+                    fetch('api/archive.php', { method: 'POST', body: body })
+                        .then(function (r) { return r.json(); })
+                        .then(function (res) { showResult(res); })
+                        .catch(function () {
+                            showResult({ error: 'No answer from the server. Reload the page to see whether it finished before trying again.' });
+                        });
+                });
+            }
+        }
+
+        function showResult(res) {
+            var out = document.getElementById('archiveResult');
+            if (res.success) {
+                panel.innerHTML = '<div class="alert alert-success" role="status"><i class="fa-solid fa-circle-check" aria-hidden="true"></i><span>'
+                    + escapeHtml(res.semester) + ' is archived: ' + res.listings + ' listing' + (res.listings === 1 ? '' : 's') + ', '
+                    + res.photos + ' photos (' + res.files_deleted + ' files, ' + formatBytes(res.bytes) + ') and '
+                    + res.events_deleted + ' events removed'
+                    + (res.tarball ? '. Photos saved to ' + escapeHtml(res.tarball) + ' (' + formatBytes(res.tarball_bytes) + ').' : '.')
+                    + '</span></div>'
+                    + (res.files_left && res.files_left.length
+                        ? '<div class="alert alert-warning"><span>' + res.files_left.length + ' file(s) could not be deleted and will show as orphans in the Images tab: '
+                            + res.files_left.map(escapeHtml).join(', ') + '</span></div>'
+                        : '')
+                    + '<div class="archive-confirm-actions"><a class="btn btn-secondary btn-sm" href="admin.php#semesters">Refresh the page</a></div>';
+                panel.focus();
+                return;
+            }
+            var run = document.getElementById('archiveRun');
+            var input = document.getElementById('archiveConfirm');
+            var cancel = document.getElementById('archiveCancel');
+            if (out) out.innerHTML = '<div class="alert alert-error" role="alert"><span>' + escapeHtml(res.error || 'Archiving failed.') + '</span></div>';
+            if (input) input.disabled = false;
+            if (cancel) cancel.disabled = false;
+            if (run) {
+                run.innerHTML = 'Try again';
+                run.disabled = !input || input.value.trim() === '';
+            }
+        }
+
+        function closePanel() {
+            panel.hidden = true;
+            panel.innerHTML = '';
+            if (opener) opener.focus();
+        }
+
+        function fact(label, value) {
+            return '<div><dt>' + escapeHtml(label) + '</dt><dd>' + escapeHtml(value) + '</dd></div>';
+        }
+
+        // Deleting a backup is two presses: the first arms the button for a
+        // few seconds and says what the second one does.
+        document.querySelectorAll('.delete-tarball').forEach(function (btn) {
+            var timer = null;
+            btn.addEventListener('click', function () {
+                if (!btn.classList.contains('is-armed')) {
+                    btn.classList.add('is-armed', 'btn-danger');
+                    btn.classList.remove('btn-secondary');
+                    btn.textContent = 'Delete this backup';
+                    timer = setTimeout(disarm, 4000);
+                    return;
+                }
+                clearTimeout(timer);
+                btn.disabled = true;
+                fetch('api/archive.php', { method: 'POST', body: new URLSearchParams({ action: 'delete_tarball', name: btn.dataset.name }) })
+                    .then(function (r) { return r.json(); })
+                    .then(function (res) {
+                        if (res.success) {
+                            var li = btn.closest('li');
+                            li.textContent = btn.dataset.name + ' deleted.';
+                            li.classList.add('semester-meta');
+                        } else {
+                            btn.disabled = false;
+                            disarm();
+                            btn.insertAdjacentHTML('afterend', '<span class="archive-inline-error" role="alert">' + escapeHtml(res.error || 'Could not delete it.') + '</span>');
+                        }
+                    });
+            });
+            function disarm() {
+                btn.classList.remove('is-armed', 'btn-danger');
+                btn.classList.add('btn-secondary');
+                btn.textContent = 'Delete';
+            }
+        });
+    }
+
+    // Images tab: every listing's photos, storage per semester, and the orphan
+    // sweep, drawn from api/images.php?action=inventory the first time the tab
+    // opens (it reads every file's size and dimensions, so not on page load).
+    // Every change goes to the server and the tab is redrawn from a fresh
+    // inventory, so what is shown is always what is stored.
+    function initImagesTab() {
+        var list = document.getElementById('imagesList');
+        if (!list) return;
+        var tabBtn = document.querySelector('.admin-tab[data-tab="images"]');
+        var summary = document.getElementById('imagesSummary');
+        var storage = document.getElementById('imagesStorage');
+        var thumbsBox = document.getElementById('imagesThumbs');
+        var semSelect = document.getElementById('imagesSemester');
+        var hiddenBox = document.getElementById('imagesHidden');
+        var only = document.getElementById('imagesOnly');
+        var onlyLabel = document.getElementById('imagesOnlyLabel');
+        var listingsView = document.getElementById('imagesListingsView');
+        var orphansView = document.getElementById('imagesOrphansView');
+        var bulk = document.getElementById('imagesBulk');
+        var bulkCount = document.getElementById('imagesBulkCount');
+        var bulkDelete = document.getElementById('imagesBulkDelete');
+
+        var inventory = null;
+        var loading = null;
+        var onlyListing = null;
+        var selected = {};
+        var view = 'listings';
+
+        function post(params) {
+            var body = new URLSearchParams();
+            Object.keys(params).forEach(function (k) {
+                var v = params[k];
+                if (Array.isArray(v)) v.forEach(function (x) { body.append(k + '[]', x); });
+                else body.append(k, v);
+            });
+            return fetch('api/images.php', { method: 'POST', body: body }).then(function (r) {
+                return r.json().then(function (data) {
+                    if (!r.ok || data.error) throw new Error(data.error || 'That did not work.');
+                    return data;
+                });
+            });
+        }
+
+        function load() {
+            if (loading) return loading;
+            loading = fetch('api/images.php?action=inventory')
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    inventory = data;
+                    loading = null;
+                    render();
+                })
+                .catch(function () {
+                    loading = null;
+                    summary.textContent = 'Could not load the photos. Reload the page to try again.';
+                });
+            return loading;
+        }
+
+        if (tabBtn) tabBtn.addEventListener('click', function () { if (!inventory) load(); });
+        if (window.location.hash === '#images') load();
+
+        // From the Posts tab: one listing's photos.
+        showListingImages = function (id) {
+            onlyListing = id;
+            if (tabBtn) tabBtn.click();
+            setView('listings');
+            (inventory ? Promise.resolve() : load()).then(function () {
+                render();
+                var group = list.querySelector('[data-listing="' + id + '"]');
+                if (group) group.scrollIntoView({ block: 'start' });
+            });
+        };
+        document.getElementById('imagesShowAll').addEventListener('click', function () {
+            onlyListing = null;
+            render();
+        });
+        semSelect.addEventListener('change', render);
+        hiddenBox.addEventListener('change', render);
+
+        document.querySelectorAll('[data-images-view]').forEach(function (btn) {
+            btn.addEventListener('click', function () { setView(btn.dataset.imagesView); });
+        });
+        function setView(v) {
+            view = v;
+            document.querySelectorAll('[data-images-view]').forEach(function (b) {
+                var on = b.dataset.imagesView === v;
+                b.classList.toggle('active', on);
+                b.setAttribute('aria-pressed', on ? 'true' : 'false');
+            });
+            listingsView.hidden = v !== 'listings';
+            orphansView.hidden = v !== 'orphans';
+            if (v === 'orphans') loadOrphans();
+            updateBulk();
+        }
+
+        function render() {
+            if (!inventory) return;
+            var t = inventory.totals;
+            summary.textContent = t.photos + ' photos on ' + t.listings + ' listings, ' + formatBytes(t.bytes_used)
+                + ' with their copies. The folder holds ' + t.files_on_disk + ' files, ' + formatBytes(t.bytes_on_disk) + '.';
+
+            // Storage per semester.
+            var html = '<div class="table-scroll"><table class="admin-table images-storage"><thead><tr><th>Semester</th><th class="num">Listings</th><th class="num">Photos</th><th class="num">On disk</th></tr></thead><tbody>';
+            inventory.semesters.forEach(function (sem) {
+                html += '<tr><td>' + escapeHtml(sem.name) + (sem.hidden ? ' <span class="semester-meta">Hidden</span>' : '') + '</td>'
+                    + '<td class="num">' + sem.listings + '</td><td class="num">' + sem.photos + '</td><td class="num">' + formatBytes(sem.bytes) + '</td></tr>';
+            });
+            storage.innerHTML = html + '</tbody></table></div>';
+
+            // Thumbnails the older photos never got.
+            if (t.missing_thumbs > 0) {
+                thumbsBox.hidden = false;
+                thumbsBox.innerHTML = '<div class="alert alert-info"><span>' + t.missing_thumbs + ' photo' + (t.missing_thumbs === 1 ? ' has' : 's have')
+                    + ' no thumbnail yet; they are shown here at display size until made.</span>'
+                    + '<button type="button" class="btn btn-sm btn-secondary" id="imagesMakeThumbs">Make ' + t.missing_thumbs + ' thumbnail' + (t.missing_thumbs === 1 ? '' : 's') + '</button></div>';
+                document.getElementById('imagesMakeThumbs').addEventListener('click', makeThumbs);
+            } else {
+                thumbsBox.hidden = true;
+                thumbsBox.innerHTML = '';
+            }
+
+            // The semester filter, rebuilt from what exists.
+            var keep = semSelect.value;
+            semSelect.innerHTML = '<option value="">All semesters</option>' + inventory.semesters.map(function (sem) {
+                return '<option value="' + escapeHtml(sem.code) + '">' + escapeHtml(sem.name) + '</option>';
+            }).join('');
+            semSelect.value = keep;
+
+            var listings = inventory.listings.filter(function (l) {
+                if (onlyListing !== null) return l.id === onlyListing;
+                if (semSelect.value && l.semester !== semSelect.value) return false;
+                if (hiddenBox.checked && !l.hidden) return false;
+                return true;
+            });
+            only.hidden = onlyListing === null;
+            if (onlyListing !== null) {
+                var one = listings[0];
+                onlyLabel.textContent = one ? 'Showing ' + one.address + ' only.' : 'That listing has no photos.';
+            }
+
+            // Drop selections that are no longer on the page.
+            var visible = {};
+            listings.forEach(function (l) { l.photos.forEach(function (p) { visible[p.id] = true; }); });
+            Object.keys(selected).forEach(function (id) { if (!visible[id]) delete selected[id]; });
+
+            list.innerHTML = listings.length ? listings.map(groupHtml).join('') : '<p class="text-muted">No listings match.</p>';
+            updateBulk();
+        }
+
+        function groupHtml(l) {
+            var n = l.photos.length;
+            var html = '<section class="image-group" data-listing="' + l.id + '">'
+                + '<header class="image-group-head"><h4>' + escapeHtml(l.address) + '</h4>'
+                + '<p class="semester-meta">' + escapeHtml(l.username) + ' &middot; ' + escapeHtml(l.semester_name)
+                + (l.hidden ? ' &middot; Hidden' : '') + ' &middot; ' + n + ' photo' + (n === 1 ? '' : 's') + ' &middot; ' + formatBytes(l.bytes) + '</p>'
+                + (l.cover_out_of_step ? '<p class="images-warning">The card shows a different photo from the first one. Moving or deleting any photo puts them back in step.</p>' : '')
+                + '</header><div class="image-group-status" role="alert"></div><ol class="image-tiles">';
+            l.photos.forEach(function (p, i) {
+                var label = 'photo ' + (i + 1) + ' of ' + n;
+                var src = p.thumb || p.display;
+                html += '<li class="image-tile' + (selected[p.id] ? ' is-selected' : '') + '" data-id="' + p.id + '">'
+                    + '<div class="image-frame">'
+                    + (p.missing
+                        ? '<div class="image-missing"><i class="fa-solid fa-image" aria-hidden="true"></i><span>File missing</span></div>'
+                        : '<a href="' + escapeHtml(p.display) + '" target="_blank" rel="noopener"><img src="' + escapeHtml(src) + '" alt="' + escapeHtml(l.address + ', ' + label) + '" loading="lazy" decoding="async"></a>')
+                    + (p.cover ? '<span class="image-cover">Cover</span>' : '')
+                    + '<label class="image-select"><input type="checkbox" data-select="' + p.id + '"' + (selected[p.id] ? ' checked' : '') + '><span class="sr-only">Select ' + label + '</span></label>'
+                    + '</div>'
+                    + '<p class="image-meta">' + (p.missing ? escapeHtml(p.name)
+                        : ((p.width ? p.width + '&times;' + p.height + ' &middot; ' + escapeHtml(p.format) : 'unreadable image') + ' &middot; ' + formatBytes(p.bytes)))
+                    + (p.thumb || p.missing ? '' : ' &middot; no thumbnail') + '</p>'
+                    + '<div class="image-actions">'
+                    + '<button type="button" class="image-btn" data-act="move" data-dir="-1" aria-label="Move ' + label + ' earlier"' + (i === 0 ? ' disabled' : '') + '><i class="fa-solid fa-arrow-left" aria-hidden="true"></i></button>'
+                    + '<button type="button" class="image-btn" data-act="move" data-dir="1" aria-label="Move ' + label + ' later"' + (i === n - 1 ? ' disabled' : '') + '><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>'
+                    + (p.cover ? '' : '<button type="button" class="image-btn image-btn-text" data-act="set_cover" aria-label="Make ' + label + ' the cover">Make cover</button>')
+                    + '<button type="button" class="image-btn image-btn-text image-btn-delete" data-act="delete" aria-label="Delete ' + label + '"' + (n === 1 ? ' disabled title="A listing needs at least one photo"' : '') + '>Delete</button>'
+                    + '</div></li>';
+            });
+            return html + '</ol></section>';
+        }
+
+        list.addEventListener('change', function (e) {
+            var id = e.target.dataset ? e.target.dataset.select : null;
+            if (!id) return;
+            if (e.target.checked) selected[id] = true; else delete selected[id];
+            var tile = e.target.closest('.image-tile');
+            if (tile) tile.classList.toggle('is-selected', e.target.checked);
+            updateBulk();
+        });
+
+        list.addEventListener('click', function (e) {
+            var btn = e.target.closest('button[data-act]');
+            if (!btn || btn.disabled) return;
+            var tile = btn.closest('.image-tile');
+            var group = btn.closest('.image-group');
+            var act = btn.dataset.act;
+            // Delete is two presses: the first arms it and says so.
+            if (act === 'delete' && !btn.classList.contains('is-armed')) {
+                btn.classList.add('is-armed');
+                btn.textContent = 'Delete?';
+                setTimeout(function () {
+                    if (btn.isConnected) { btn.classList.remove('is-armed'); btn.textContent = 'Delete'; }
+                }, 4000);
+                return;
+            }
+            var params = act === 'delete' ? { _method: 'DELETE', id: tile.dataset.id } : { action: act, id: tile.dataset.id };
+            if (act === 'move') params.dir = btn.dataset.dir;
+            group.classList.add('is-busy');
+            post(params)
+                .then(function () { return reloadKeepingPlace(group.dataset.listing); })
+                .catch(function (err) {
+                    group.classList.remove('is-busy');
+                    var status = group.querySelector('.image-group-status');
+                    if (status) status.textContent = err.message;
+                });
+        });
+
+        // Redraw from the server, keeping the edited listing where it was on
+        // screen and focus on the same control where possible.
+        function reloadKeepingPlace(listingId) {
+            var group = list.querySelector('[data-listing="' + listingId + '"]');
+            var top = group ? group.getBoundingClientRect().top : null;
+            return fetch('api/images.php?action=inventory').then(function (r) { return r.json(); }).then(function (data) {
+                inventory = data;
+                render();
+                var again = list.querySelector('[data-listing="' + listingId + '"]');
+                if (again && top !== null) window.scrollBy(0, again.getBoundingClientRect().top - top);
+                if (again) {
+                    var status = again.querySelector('.image-group-status');
+                    if (status) status.textContent = '';
+                }
+            });
+        }
+
+        function updateBulk() {
+            var n = Object.keys(selected).length;
+            bulk.hidden = view !== 'listings' || n === 0;
+            bulkCount.textContent = n + ' photo' + (n === 1 ? '' : 's') + ' selected';
+            bulkDelete.classList.remove('is-armed');
+            bulkDelete.textContent = 'Delete selected';
+        }
+
+        document.getElementById('imagesBulkClear').addEventListener('click', function () {
+            selected = {};
+            render();
+        });
+
+        bulkDelete.addEventListener('click', function () {
+            var ids = Object.keys(selected);
+            if (!ids.length) return;
+            if (!bulkDelete.classList.contains('is-armed')) {
+                bulkDelete.classList.add('is-armed');
+                bulkDelete.textContent = 'Delete ' + ids.length + ' photo' + (ids.length === 1 ? '' : 's') + '?';
+                return;
+            }
+            bulkDelete.disabled = true;
+            post({ action: 'bulk_delete', ids: ids })
+                .then(function (res) {
+                    selected = {};
+                    bulkDelete.disabled = false;
+                    return load().then(function () {
+                        summary.textContent = 'Deleted ' + res.deleted + ' photo' + (res.deleted === 1 ? '' : 's') + '.'
+                            + (res.kept.length ? ' Kept the cover of ' + res.kept.length + ' listing' + (res.kept.length === 1 ? '' : 's') + ' that would otherwise have had no photo.' : '')
+                            + ' ' + summary.textContent;
+                    });
+                })
+                .catch(function (err) {
+                    bulkDelete.disabled = false;
+                    bulkCount.textContent = err.message;
+                });
+        });
+
+        // Thumbnails, a batch per request until none are left. Ones that fail
+        // are skipped, so the loop always ends.
+        function makeThumbs() {
+            var btn = document.getElementById('imagesMakeThumbs');
+            var skip = [];
+            var made = 0;
+            btn.disabled = true;
+            (function next() {
+                post({ action: 'make_thumbs', skip: skip }).then(function (res) {
+                    made += res.made;
+                    skip = skip.concat(res.failed);
+                    btn.textContent = 'Made ' + made + '; ' + res.remaining + ' to go';
+                    if (res.remaining > 0 && (res.made > 0 || res.failed.length > 0)) return next();
+                    return load().then(function () {
+                        if (skip.length) summary.textContent = skip.length + ' thumbnail(s) could not be made: ' + skip.join(', ') + '. ' + summary.textContent;
+                    });
+                }).catch(function (err) {
+                    btn.disabled = false;
+                    btn.textContent = 'Try again';
+                    summary.textContent = err.message;
+                });
+            })();
+        }
+
+        // Orphans: files nothing uses, and rows pointing at files that are gone.
+        function loadOrphans() {
+            orphansView.innerHTML = '<p class="admin-note" role="status">Checking every file against the database and the source code&hellip;</p>';
+            fetch('api/images.php?action=orphans').then(function (r) { return r.json(); }).then(renderOrphans).catch(function () {
+                orphansView.innerHTML = '<div class="alert alert-error" role="alert">Could not run the check.</div>';
+            });
+        }
+
+        function renderOrphans(data) {
+            var n = data.orphans.length;
+            var html = '<h4 class="admin-subhead">Files nothing uses</h4>'
+                + '<p class="admin-note">A file is in use when the database stores its name (a listing\'s photos, its card image or its thumbnail), when it is a thumbnail or display copy of one that is, or when the code names it. '
+                + (data.protected.length ? data.protected.length + ' file(s) are kept because the code names them: ' + data.protected.map(escapeHtml).join(', ') + '. ' : '')
+                + '</p>';
+            if (!n) {
+                html += '<p class="archive-schema archive-schema-ok"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> No orphans.</p>';
+            } else {
+                html += '<p>' + n + ' file' + (n === 1 ? '' : 's') + ', ' + formatBytes(data.bytes) + ':</p><ul class="orphan-list">';
+                data.orphans.forEach(function (o) {
+                    html += '<li><img src="' + escapeHtml(o.url) + '" alt="" loading="lazy" decoding="async"><span><code>' + escapeHtml(o.name) + '</code><br>'
+                        + '<span class="semester-meta">' + escapeHtml(o.kind) + ' &middot; ' + formatBytes(o.bytes) + ' &middot; ' + new Date(o.mtime * 1000).toLocaleDateString() + '</span></span></li>';
+                });
+                html += '</ul><div class="archive-confirm"><label for="orphanConfirm">To delete ' + (n === 1 ? 'this file' : 'these ' + n + ' files') + ', type ' + n + '</label>'
+                    + '<input type="text" id="orphanConfirm" inputmode="numeric" autocomplete="off">'
+                    + '<div class="archive-confirm-actions"><button type="button" class="btn btn-danger btn-sm" id="orphanDelete" disabled>Delete ' + n + ' file' + (n === 1 ? '' : 's') + '</button></div>'
+                    + '<div id="orphanResult" role="status"></div></div>';
+            }
+            html += '<h4 class="admin-subhead">Photos whose file is missing</h4>';
+            if (!data.missing.length) {
+                html += '<p class="text-muted">None.</p>';
+            } else {
+                html += '<div class="table-scroll"><table class="admin-table"><thead><tr><th>Listing</th><th>Stored in</th><th>File</th></tr></thead><tbody>'
+                    + data.missing.map(function (m) {
+                        return '<tr><td>' + escapeHtml(m.address || 'Deleted listing') + '</td><td><code>' + escapeHtml(m.column) + '</code></td><td><code>' + escapeHtml(m.name) + '</code></td></tr>';
+                    }).join('') + '</tbody></table></div>';
+            }
+            orphansView.innerHTML = html;
+
+            var input = document.getElementById('orphanConfirm');
+            var del = document.getElementById('orphanDelete');
+            if (!input || !del) return;
+            input.addEventListener('input', function () { del.disabled = input.value.trim() !== String(n); });
+            del.addEventListener('click', function () {
+                del.disabled = true;
+                post({ action: 'delete_orphans', names: data.orphans.map(function (o) { return o.name; }), confirm: input.value.trim() })
+                    .then(function (res) {
+                        var note = 'Deleted ' + res.deleted + ' orphan file' + (res.deleted === 1 ? '' : 's')
+                            + (res.kept.length ? '; kept ' + res.kept.length + ' that came into use since the check.' : '.');
+                        loadOrphans();
+                        // After the redraw, which rewrites the summary line.
+                        load().then(function () { summary.textContent = note + ' ' + summary.textContent; });
+                    })
+                    .catch(function (err) {
+                        del.disabled = false;
+                        document.getElementById('orphanResult').textContent = err.message;
+                    });
+            });
+        }
+    }
+
+    // "820 KB", "12.4 MB": format_bytes() in includes/format.php.
+    function formatBytes(bytes) {
+        bytes = Number(bytes) || 0;
+        if (bytes < 1024) return bytes + ' B';
+        var units = ['KB', 'MB', 'GB', 'TB'];
+        var v = bytes / 1024;
+        var i = 0;
+        while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+        return (v >= 100 || i === 0 ? Math.round(v).toLocaleString() : v.toFixed(1)) + ' ' + units[i];
+    }
+
     function initAnnouncementManagement() {
         var msgInput = document.getElementById('announcementMessage');
         var styleSelect = document.getElementById('announcementStyle');
@@ -2669,75 +3229,24 @@ document.addEventListener('DOMContentLoaded', function () {
                 .then(function (data) {
                     if (data.success) {
                         btn.closest('tr').remove();
+                        return;
                     }
+                    throw new Error(data.error || 'Could not delete it.');
+                })
+                .catch(function (err) {
+                    // It used to fail without a word.
+                    var msg = err instanceof SyntaxError ? 'Could not delete it.' : err.message;
+                    btn.insertAdjacentHTML('afterend', '<span class="archive-inline-error" role="alert">' + escapeHtml(msg) + '</span>');
                 });
             });
         });
 
-        // Manage images
-        document.querySelectorAll('.manage-images-btn').forEach(function (btn) {
+        // A listing's photo count opens it in the Images tab.
+        document.querySelectorAll('.show-listing-images').forEach(function (btn) {
             btn.addEventListener('click', function () {
-                var postId = btn.dataset.postId;
-                var modal = document.getElementById('imageModal');
-                var grid = document.getElementById('adminImageGrid');
-
-                grid.innerHTML = '<div class="spinner"></div>';
-                modal.classList.add('open');
-                document.body.style.overflow = 'hidden';
-
-                fetch('api/images.php?sublet_id=' + postId)
-                    .then(function (r) { return r.json(); })
-                    .then(function (images) {
-                        grid.innerHTML = '';
-                        if (images.length === 0) {
-                            grid.innerHTML = '<p class="text-muted">No images</p>';
-                            return;
-                        }
-                        images.forEach(function (img) {
-                            var div = document.createElement('div');
-                            div.className = 'admin-image';
-                            div.innerHTML = '<img src="' + escapeHtml(img.display_url || img.image_url) + '" alt="Image">' +
-                                '<button class="delete-image-btn" data-image-id="' + img.id + '"><i class="fa-solid fa-trash"></i></button>';
-                            div.querySelector('.delete-image-btn').addEventListener('click', function () {
-                                if (!confirm('Delete this image?')) return;
-                                fetch('api/images.php', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                                    body: '_method=DELETE&id=' + img.id
-                                })
-                                .then(function (r) { return r.json(); })
-                                .then(function (data) {
-                                    // Surface the reason: the endpoint refuses
-                                    // to remove a listing's last photo, and
-                                    // silently doing nothing looked like a bug.
-                                    if (data.success) div.remove();
-                                    else alert(data.error || 'Failed to delete image');
-                                });
-                            });
-                            grid.appendChild(div);
-                        });
-                    });
+                if (showListingImages) showListingImages(parseInt(btn.dataset.postId, 10));
             });
         });
-
-        // Close image modal
-        var imageModalClose = document.getElementById('imageModalClose');
-        if (imageModalClose) {
-            imageModalClose.addEventListener('click', function () {
-                document.getElementById('imageModal').classList.remove('open');
-                document.body.style.overflow = '';
-            });
-        }
-
-        var imageModal = document.getElementById('imageModal');
-        if (imageModal) {
-            imageModal.addEventListener('click', function (e) {
-                if (e.target === imageModal) {
-                    imageModal.classList.remove('open');
-                    document.body.style.overflow = '';
-                }
-            });
-        }
     }
 
     function initUserManagement() {

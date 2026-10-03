@@ -2,7 +2,7 @@
 /**
  * Semester management API (admin only).
  * POST action=add     → add new semester
- * POST action=toggle  → toggle active status
+ * POST action=toggle  → toggle active status (refused once archived)
  * POST action=delete  → delete semester (only if no posts)
  */
 require_once __DIR__ . '/../../includes/db.php';
@@ -58,6 +58,19 @@ if ($action === 'toggle') {
         http_response_code(400);
         echo json_encode(['error' => 'Missing semester ID']);
         exit;
+    }
+
+    // An archived semester stays off: its listings are gone, and switching it
+    // back on would offer it on the post form under an archive that says
+    // the semester is over.
+    if (isset(table_columns($pdo, 'semesters')['archived_at'])) {
+        $stmt = $pdo->prepare("SELECT archived_at FROM semesters WHERE id = ?");
+        $stmt->execute([$id]);
+        if ($stmt->fetchColumn()) {
+            http_response_code(409);
+            echo json_encode(['error' => 'This semester is archived and cannot be reactivated.']);
+            exit;
+        }
     }
 
     $pdo->prepare("UPDATE semesters SET active = NOT active WHERE id = ?")->execute([$id]);

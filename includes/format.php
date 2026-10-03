@@ -209,3 +209,18 @@ function posted_ago(?string $postedAt, ?int $now = null): string {
     }
     return date('Y', $ts) === date('Y', $now) ? date('M j', $ts) : date('M j, Y', $ts);
 }
+
+/** A byte count for people: "820 KB", "12.4 MB", "1.2 GB". */
+function format_bytes(int $bytes): string {
+    if ($bytes < 1024) {
+        return $bytes . ' B';
+    }
+    $units = ['KB', 'MB', 'GB', 'TB'];
+    $value = $bytes / 1024;
+    $i = 0;
+    while ($value >= 1024 && $i < count($units) - 1) {
+        $value /= 1024;
+        $i++;
+    }
+    return ($value >= 100 || $i === 0 ? number_format($value) : number_format($value, 1)) . ' ' . $units[$i];
+}

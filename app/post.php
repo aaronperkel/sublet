@@ -216,11 +216,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$postTooLarge) {
                     $fsTarget = $fs_dir . new_upload_name($ext);
                     if (move_uploaded_file($_FILES['images']['tmp_name'][$i], $fsTarget)) {
                         $fsTarget = ensure_browser_safe($fsTarget);
-                        // No thumbnail here: only sublets.thumbnail_url (the
-                        // card image) is ever read, so a thumb for a gallery
-                        // image would be a file nothing loads. The gallery
-                        // shows the display-size copy instead.
+                        // Every photo gets both copies: the display size for
+                        // the gallery, and a thumbnail, which the gallery shows
+                        // while the display copy loads and the admin Images tab
+                        // lays out (see listing_photos()).
                         make_display_image($fsTarget);
+                        make_thumbnail($fsTarget);
                         $urlTarget = $url_prefix . basename($fsTarget);
                         $stmtImage->execute([$subletId, $urlTarget, $newOrder]);
                     }
@@ -277,9 +278,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$postTooLarge) {
                     $fsT = $fs_dir . new_upload_name($ext);
                     if (move_uploaded_file($_FILES['images']['tmp_name'][$i], $fsT)) {
                         $fsT = ensure_browser_safe($fsT);
-                        // See above: gallery images need no thumbnail, only
-                        // the display-size copy.
+                        // Both copies, as above.
                         make_display_image($fsT);
+                        make_thumbnail($fsT);
                         $urlT = $url_prefix . basename($fsT);
                         $stmtImage->execute([$subletId, $urlT, $i]);
                     }

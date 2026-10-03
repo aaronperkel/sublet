@@ -7,11 +7,16 @@ require_admin();
 require_once '../includes/header.php';
 require_once '../includes/htaccess_allowlist.php';
 require_once '../includes/events.php';
+require_once '../includes/archive.php';
+require_once '../includes/image_admin.php';
 
 // Stats — totals across everything, since admin sees hidden listings too.
 $totalPosts = $pdo->query("SELECT COUNT(*) FROM sublets")->fetchColumn();
 $totalUsers = $pdo->query("SELECT COUNT(DISTINCT username) FROM sublets")->fetchColumn();
 $totalImages = $pdo->query("SELECT COUNT(*) FROM sublet_images")->fetchColumn();
+// What the photos weigh on disk, copies and orphans included: the Images tab
+// breaks it down. The row count above is photos, not files.
+$imageDisk = image_folder_usage();
 
 // Recipients for a bulk "all users" email. Deliberately narrower than
 // $totalUsers: someone whose only listing sits in a deactivated semester is not
@@ -78,6 +83,13 @@ if ($activityReady) {
 $shareTargetLabels = ['native' => 'Share to…', 'instagram' => 'Instagram story', 'snapchat' => 'Snapchat', 'text' => 'Text', 'email' => 'Email', 'x' => 'X', 'copy' => 'Copied the link'];
 $viewSourceLabels = ['browse' => 'Browse', 'map' => 'Map', 'share-link' => 'Share links', 'deeplink' => 'Direct links', 'unknown' => 'Unknown'];
 
+// Archiving (includes/archive.php). The schema check compares the hand-made
+// Phase 5 tables with the plan's DDL, so this page can say whether they match.
+$archiveSchema = archive_schema_report($pdo);
+$archiveHistory = archive_history($pdo);
+$archiveTarballs = archive_tarballs();
+$archiveHasPhotos = table_exists($pdo, 'semester_archives') && isset(table_columns($pdo, 'semester_archives')['photos']);
+
 // Individually approved / blocked netids for the Access tab. allowed_users is
 // created by hand (the app's DB user has no CREATE grant), so its absence has to
 // render as instructions rather than a fatal error.
@@ -129,7 +141,11 @@ if ($allowlistReady && $parsedUids !== null) {
             </div>
             <div class="stat-card">
                 <div class="stat-number"><?= $totalImages ?></div>
-                <div class="stat-label">Images</div>
+                <div class="stat-label">Photos</div>
+            </div>
+            <div class="stat-card" title="<?= (int)$imageDisk['files'] ?> files in public/images, including each photo's thumbnail and display copies">
+                <div class="stat-number"><?= htmlspecialchars(format_bytes($imageDisk['bytes'])) ?></div>
+                <div class="stat-label">On disk</div>
             </div>
             <?php if ($hiddenCount > 0): ?>
                 <?php /* Posts still in the database but not on the public site,
@@ -153,6 +169,9 @@ if ($allowlistReady && $parsedUids !== null) {
         </button>
         <button class="admin-tab" data-tab="posts">
             <i class="fa-solid fa-list"></i> Posts
+        </button>
+        <button class="admin-tab" data-tab="images">
+            <i class="fa-solid fa-images"></i> Images
         </button>
         <button class="admin-tab" data-tab="users">
             <i class="fa-solid fa-users"></i> Users
@@ -181,23 +200,41 @@ if ($allowlistReady && $parsedUids !== null) {
                     <p class="text-muted" style="padding: 1rem;">No semesters configured. Add one below, or run the migration script.</p>
                 <?php endif; ?>
                 <?php foreach ($allSemesters as $sem): ?>
+                    <?php $archivedAt = $sem['archived_at'] ?? null; ?>
                     <div class="semester-item" data-id="<?= $sem['id'] ?>">
                         <div class="semester-info">
                             <span class="semester-status <?= $sem['active'] ? '' : 'inactive' ?>"></span>
                             <div>
                                 <strong><?= htmlspecialchars($sem['name']) ?></strong>
-                                <span class="text-muted" style="font-size: 0.8rem; margin-left: 0.5rem;"><?= htmlspecialchars($sem['code']) ?></span>
-                                <span class="text-muted" style="font-size: 0.8rem; margin-left: 0.5rem;">(<?= $sem['post_count'] ?> posts)</span>
+                                <span class="semester-meta"><?= htmlspecialchars($sem['code']) ?></span>
+                                <span class="semester-meta">(<?= $sem['post_count'] ?> posts)</span>
+                                <?php if ($archivedAt): ?>
+                                    <span class="semester-meta">Archived <?= htmlspecialchars(date('M j, Y', strtotime($archivedAt))) ?></span>
+                                <?php elseif (!$sem['active']): ?>
+                                    <span class="semester-meta">Hidden</span>
+                                <?php endif; ?>
                             </div>
                         </div>
                         <div class="semester-actions">
-                            <button class="btn btn-sm btn-secondary toggle-semester"
-                                    data-id="<?= $sem['id'] ?>"
-                                    data-active="<?= $sem['active'] ?>"
-                                    data-name="<?= htmlspecialchars($sem['name']) ?>"
-                                    data-post-count="<?= $sem['post_count'] ?>">
-                                <?= $sem['active'] ? 'Deactivate' : 'Activate' ?>
-                            </button>
+                            <?php /* An archived semester has no listings left and stays
+                                     off; api/semesters.php refuses to reactivate it. */ ?>
+                            <?php if (!$archivedAt): ?>
+                                <button class="btn btn-sm btn-secondary toggle-semester"
+                                        data-id="<?= $sem['id'] ?>"
+                                        data-active="<?= $sem['active'] ?>"
+                                        data-name="<?= htmlspecialchars($sem['name']) ?>"
+                                        data-post-count="<?= $sem['post_count'] ?>">
+                                    <?= $sem['active'] ? 'Deactivate' : 'Activate' ?>
+                                </button>
+                            <?php endif; ?>
+                            <?php if (!$sem['active'] && !$archivedAt): ?>
+                                <button class="btn btn-sm btn-secondary archive-semester"
+                                        data-code="<?= htmlspecialchars($sem['code']) ?>"
+                                        data-name="<?= htmlspecialchars($sem['name']) ?>"
+                                        aria-controls="archivePanel">
+                                    Archive&hellip;
+                                </button>
+                            <?php endif; ?>
                             <?php if ($sem['post_count'] == 0): ?>
                                 <button class="btn btn-sm btn-danger delete-semester" data-id="<?= $sem['id'] ?>">Delete</button>
                             <?php endif; ?>
@@ -218,6 +255,108 @@ if ($allowlistReady && $parsedUids !== null) {
                     <i class="fa-solid fa-plus"></i> Add
                 </button>
             </div>
+        </div>
+
+        <?php /* Archiving: the last step for a semester that is over. The
+                 dry run and the archive itself are app/api/archive.php; the
+                 panel is filled in by initArchive() in app.js. */ ?>
+        <div class="admin-card" id="archiveCard">
+            <h3>Archive a semester</h3>
+            <p class="admin-note">
+                For a semester that is over. Deactivate it first, which hides its listings, then archive it to remove them for good.
+                Its photos are saved to a tarball outside the website first, in <code><?= htmlspecialchars(archive_backup_dir()) ?></code>, and checked.
+                The archive keeps totals (listings, prices, views, contacts, shares), never who. Its raw activity events are deleted with it.
+            </p>
+
+            <?php if ($archiveSchema['matches']): ?>
+                <p class="archive-schema archive-schema-ok">
+                    <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+                    Schema check: <code>semesters.archived_at</code> and <code>semester_archives</code> match the Phase 5 plan.
+                </p>
+            <?php else: ?>
+                <div class="alert alert-<?= $archiveSchema['ready'] ? 'warning' : 'error' ?>">
+                    <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                    <span>
+                        Schema check: the Phase 5 tables differ from the plan<?= $archiveSchema['ready'] ? '. Archiving can still run, since every column it writes exists.' : ', and archiving is off until they are fixed.' ?>
+                    </span>
+                </div>
+            <?php endif; ?>
+            <?php foreach ($archiveSchema['notes'] as $note): ?>
+                <p class="admin-note"><?= htmlspecialchars($note) ?></p>
+            <?php endforeach; ?>
+            <details class="archive-schema-details"<?= $archiveSchema['matches'] ? '' : ' open' ?>>
+                <summary>Column by column</summary>
+                <div class="table-scroll">
+                    <table class="admin-table">
+                        <thead><tr><th>What</th><th>Planned</th><th>In the database</th><th><span class="sr-only">Match</span></th></tr></thead>
+                        <tbody>
+                            <?php foreach ($archiveSchema['rows'] as [$what, $expected, $actual, $ok]): ?>
+                                <tr class="<?= $ok ? '' : 'archive-schema-diff' ?>">
+                                    <td><code><?= htmlspecialchars($what) ?></code></td>
+                                    <td><?= htmlspecialchars($expected) ?></td>
+                                    <td><?= htmlspecialchars($actual) ?></td>
+                                    <td><?= $ok ? 'Matches' : '<strong>Differs</strong>' ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </details>
+
+            <div class="archive-panel" id="archivePanel" hidden tabindex="-1"></div>
+
+            <h4 class="admin-subhead">Archived semesters</h4>
+            <?php if (!$archiveHistory): ?>
+                <p class="text-muted">None yet.</p>
+            <?php else: ?>
+                <div class="table-scroll">
+                    <table class="admin-table archive-history">
+                        <thead>
+                            <tr>
+                                <th>Semester</th><th>Archived</th><th class="num">Listings</th><th class="num">Median price</th>
+                                <th class="num">Views</th><th class="num">Got in touch</th><th class="num">Shares</th><th class="num">From share links</th>
+                                <?php if ($archiveHasPhotos): ?><th class="num">Photos</th><?php endif; ?>
+                                <th class="num">Size</th><th>Backup</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($archiveHistory as $a): ?>
+                                <tr>
+                                    <td><?= htmlspecialchars($a['semester_name']) ?> <span class="semester-meta"><?= htmlspecialchars($a['semester_code']) ?></span></td>
+                                    <td><?= htmlspecialchars(date('M j, Y', strtotime($a['archived_at']))) ?></td>
+                                    <td class="num"><?= (int)$a['listings'] ?></td>
+                                    <td class="num"><?= $a['price_median'] !== null
+                                        ? '$' . number_format((float)$a['price_median']) . ' <span class="semester-meta">$' . number_format((float)$a['price_min']) . '&ndash;$' . number_format((float)$a['price_max']) . '</span>'
+                                        : '&mdash;' ?></td>
+                                    <td class="num"><?= (int)$a['views'] ?></td>
+                                    <td class="num"><?= (int)$a['contacts'] ?></td>
+                                    <td class="num"><?= (int)$a['shares'] ?></td>
+                                    <td class="num"><?= (int)$a['share_arrivals'] ?></td>
+                                    <?php if ($archiveHasPhotos): ?><td class="num"><?= (int)$a['photos'] ?></td><?php endif; ?>
+                                    <td class="num"><?= htmlspecialchars(format_bytes((int)$a['bytes'])) ?></td>
+                                    <td><?= $a['tarball'] ? '<code>' . htmlspecialchars($a['tarball']) . '</code>' : 'No photos' ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+
+            <h4 class="admin-subhead">Photo backups</h4>
+            <?php if (!$archiveTarballs): ?>
+                <p class="text-muted">No archive tarballs. Other backups in that folder, such as the one from before the October 2026 image backfill, are not listed and cannot be deleted from here.</p>
+            <?php else: ?>
+                <p class="admin-note">Only the tarballs written by archiving are listed. Deleting one removes the only copy of that semester's photos.</p>
+                <ul class="archive-tarballs" id="archiveTarballs">
+                    <?php foreach ($archiveTarballs as $t): ?>
+                        <li>
+                            <code><?= htmlspecialchars($t['name']) ?></code>
+                            <span class="semester-meta"><?= htmlspecialchars(format_bytes($t['bytes'])) ?> &middot; <?= htmlspecialchars(date('M j, Y g:ia', $t['mtime'])) ?></span>
+                            <button type="button" class="btn btn-sm btn-secondary delete-tarball" data-name="<?= htmlspecialchars($t['name']) ?>">Delete</button>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -302,8 +441,9 @@ if ($allowlistReady && $parsedUids !== null) {
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <button class="btn btn-sm btn-secondary manage-images-btn" data-post-id="<?= $post['id'] ?>">
-                                        <?= $post['image_count'] ?> <i class="fa-solid fa-images"></i>
+                                    <?php /* Opens this listing in the Images tab. */ ?>
+                                    <button class="btn btn-sm btn-secondary show-listing-images" data-post-id="<?= $post['id'] ?>" aria-label="<?= (int)$post['image_count'] ?> photos: show in the Images tab">
+                                        <?= $post['image_count'] ?> <i class="fa-solid fa-images" aria-hidden="true"></i>
                                     </button>
                                 </td>
                                 <td>
@@ -318,16 +458,50 @@ if ($allowlistReady && $parsedUids !== null) {
                 </div>
             <?php endif; ?>
         </div>
+    </div>
 
-        <!-- Image management modal -->
-        <div class="modal-overlay" id="imageModal">
-            <div class="modal-container" style="max-width: 500px;">
-                <button class="modal-close" id="imageModalClose">&times;</button>
-                <div class="modal-details" style="padding: 1.5rem;">
-                    <h3 style="margin-bottom: 1rem;">Manage Images</h3>
-                    <div class="admin-images" id="adminImageGrid"></div>
-                </div>
+    <?php /* Images: every listing's photos, storage, and the orphan sweep.
+             Filled in by initImagesTab() in app.js from api/images.php when
+             the tab is first opened, since it reads every file's size and
+             dimensions. Replaces the per-listing "Manage Images" dialog. */ ?>
+    <div class="tab-panel" id="tab-images">
+        <div class="admin-card">
+            <div class="activity-head">
+                <h3>Images</h3>
+                <nav class="activity-range" aria-label="View">
+                    <button type="button" class="activity-range-link active" data-images-view="listings" aria-pressed="true">Listings</button>
+                    <button type="button" class="activity-range-link" data-images-view="orphans" aria-pressed="false">Orphans &amp; missing</button>
+                </nav>
             </div>
+            <p class="admin-note" id="imagesSummary" role="status">Loading&hellip;</p>
+            <p class="admin-note">Each listing's first photo is its card on Browse and Map and its share preview, so the arrows and Make cover change what students see.</p>
+            <div id="imagesStorage"></div>
+            <div id="imagesThumbs" hidden></div>
+
+            <div id="imagesListingsView">
+                <div class="images-filters">
+                    <label class="images-filter">
+                        <span>Semester</span>
+                        <select id="imagesSemester"><option value="">All semesters</option></select>
+                    </label>
+                    <label class="images-check">
+                        <input type="checkbox" id="imagesHidden"> Hidden listings only
+                    </label>
+                    <p class="images-only" id="imagesOnly" hidden>
+                        <span id="imagesOnlyLabel"></span>
+                        <button type="button" class="btn btn-sm btn-secondary" id="imagesShowAll">Show all listings</button>
+                    </p>
+                </div>
+                <div id="imagesList"></div>
+            </div>
+
+            <div id="imagesOrphansView" hidden></div>
+        </div>
+
+        <div class="images-bulkbar" id="imagesBulk" hidden>
+            <span id="imagesBulkCount" role="status"></span>
+            <button type="button" class="btn btn-sm btn-secondary" id="imagesBulkClear">Clear</button>
+            <button type="button" class="btn btn-sm btn-danger" id="imagesBulkDelete">Delete selected</button>
         </div>
     </div>
 

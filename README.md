@@ -74,11 +74,15 @@ filename. Both live in `includes/`; new POST endpoints need the former.
 
 - **`sublets`** — effectively one row per user; holds price, address, lat/lon,
   semester, contact fields, and utility/amenity flags.
-- **`sublet_images`** — additional photos per listing; `sort_order = 0` is the
-  thumbnail.
+- **`sublet_images`** — a listing's photos in order; the first is its card
+  image. The admin Images tab reorders them and sweeps orphan files.
 - **`semesters`** — deactivating one hides all of its listings from the public
   site without deleting anything. The rule lives in `includes/visibility.php`
-  and any new public listing query needs it.
+  and any new public listing query needs it. Archiving a hidden semester then
+  removes its listings for good, after saving its photos to a tarball outside
+  the docroot.
+- **`semester_archives`** — what an archived semester leaves behind: totals
+  (listings, prices, views, contacts, shares), never who.
 - **`listing_events`** — the activity log: listing views, contact taps and
   shares, counted per listing. People are stored as a keyed hash, never a
   NetID, and the site only ever shows totals.

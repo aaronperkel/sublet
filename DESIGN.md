@@ -348,6 +348,12 @@ Green, with the credit, the Instagram contact, and two standing lines: "An indep
 ### Activity (admin) and the poster's numbers
 Counts only, never names. The admin Activity tab has a segmented range switch (the active segment filled green), stat cards for the totals, a daily bar chart with views in Catamount Green and contacts in Focus blue side by side (each bar clears 3:1 on the white card, and its axis labels are HTML so they do not scale with the SVG), two horizontal-bar breakdowns (where views start, where shares go), and a per-listing table with right-aligned tabular figures. On the edit form, the poster sees one line in a Fog panel under the heading ("Since Oct 2: 48 people viewed it · 6 got in touch · shared 3 times") and the same disclosure.
 
+### Archive a semester (admin)
+A card under the semester list. The dry run opens in a Fog panel inside it: fact tiles (white, 6px, uppercase Label over a bold figure) for listings, photos, bytes, events and share cards, one sentence saying what the archive keeps and where the photos are saved, and a table of the listings that would go. The only way through is the semester code typed into a 1rem field; the Danger button beside it stays disabled (45% opacity) until the code matches exactly, and its label says what it does ("Archive Summer 2026"). A schema check sits above it in Included ink when the tables match the plan, as an Error or Warning alert with a column-by-column table when they do not. Deleting a backup tarball is two presses: the first turns the button Danger and says "Delete this backup", and it disarms after four seconds.
+
+### Images (admin)
+Every listing's photos, grouped under the listing's address, with per-semester storage above. Photos are judged here, so tiles are at least 160px wide, drawn from the 600px thumbnails, 4:3 with `object-fit: cover`, and the first carries a Catamount Green "Cover" label. Nothing sits on the photo but the cover label and a 44px selection target in the corner; the controls are below it, on two rows that line up across a grid: move earlier, move later and "Make cover", then Delete on its own. Delete is two presses ("Delete?"), and is disabled on a listing's only photo. Selected tiles take a Danger outline, and a white bar with the count, Clear and "Delete selected" stays at the bottom of the screen while any are selected. The orphan view lists each file with a small preview, its kind and size, and deletes only after the number of files is typed.
+
 ## Do's and Don'ts
 
 ### Do:
