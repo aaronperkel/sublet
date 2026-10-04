@@ -406,7 +406,11 @@ The site-wide banner is a flat file, `data/announcement.json` (`active`, `messag
 
 ## Email
 
-All mail goes through PHP's `mail()`. Post create/update/delete each notify `aperkel@uvm.edu`; bulk admin mail goes to `{username}@uvm.edu` with an HTML template inlined in `app/api/email.php` (UVM green `#154734` / gold `#FFD100`), plus a copy to the admin.
+All mail goes through PHP's `mail()`. Bulk admin mail goes to `{username}@uvm.edu` with an HTML template inlined in `app/api/email.php` (UVM green `#154734` / gold `#FFD100`), plus a copy to the admin.
+
+**Admin notices** (`includes/notify.php`) go to `aperkel@uvm.edu` when a poster creates, edits, pauses, resumes, marks taken or deletes a listing, and when the admin deletes one from the Posts tab. Until October 2026 each was one line ("updated their sublet post"); now each carries the listing. A new listing lists every field; an edit lists only the fields that changed, before and after, and names them in the subject ("Listing edited (price, semesters, description and 1 more)"); a status change or delete says what the listing was. A save that changes nothing sends nothing. The notices are built from `listing_snapshot()` arrays, so a new field on the post form needs a row in `notice_fields()` or edits to it go unreported. They are HTML, with the subject `mb_encode_mimeheader`'d and the body quoted-printable, for the same relay reason as the broadcast.
+
+`includes/notify_samples.php` sends four sample notices on invented listings (no database): `/usr/bin/php82 includes/notify_samples.php`, or `--preview <dir>` to write them as HTML instead. It refuses to run outside the CLI, and `includes/` is not served anyway.
 
 That address is plumbing, not a support channel. **The only contact route the site advertises is a DM to `@uvmsublets` on Instagram** — in both footers, on `landing.php`, on `s.php` and in the broadcast email template. The old `me@aaronperkel.com` mailto is gone from every user-facing surface; do not reintroduce an email address as the way to report a problem.
 

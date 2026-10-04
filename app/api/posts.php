@@ -9,6 +9,7 @@
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/thumbnail.php';
+require_once __DIR__ . '/../../includes/notify.php';
 
 header('Content-Type: application/json');
 require_same_origin();
@@ -43,6 +44,9 @@ if ($action === 'delete') {
         exit;
     }
 
+    // What the listing was, for the notice, before it goes.
+    $deleted = listing_snapshot($pdo, (int)$id);
+
     // Get images to delete files
     $stmt = $pdo->prepare("SELECT image_url FROM sublet_images WHERE sublet_id = ?");
     $stmt->execute([$id]);
@@ -69,7 +73,9 @@ if ($action === 'delete') {
     // Delete from DB (cascade will handle sublet_images)
     $pdo->prepare("DELETE FROM sublets WHERE id = ?")->execute([$id]);
 
-    mail('aperkel@uvm.edu', 'Sublet Post Deleted (Admin)', "Admin deleted post #{$id} by {$post['username']}.");
+    if ($deleted) {
+        admin_notify(admin_notice_deleted($deleted, 'admin'));
+    }
 
     echo json_encode(['success' => true]);
     exit;

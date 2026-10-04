@@ -4,6 +4,7 @@ require_once '../includes/header.php';
 require_once '../includes/thumbnail.php';
 require_once '../includes/share.php';
 require_once '../includes/events.php';
+require_once '../includes/notify.php';
 
 $username = get_current_user_id();
 if (!$username) {
@@ -82,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $postAction === 'status') {
     $oldStatus = (string)($existingPost['status'] ?? 'open');
     if ($isEdit && set_listing_status($pdo, (int)$existingPost['id'], $newStatus)) {
         if ($newStatus !== $oldStatus) {
-            mail('aperkel@uvm.edu', 'Sublet Post Status', "User $username changed their sublet post from $oldStatus to $newStatus.");
+            admin_notify(admin_notice_status(listing_snapshot($pdo, (int)$existingPost['id']), $oldStatus, $newStatus));
         }
         header('Location: post.php?status=' . rawurlencode($newStatus), true, 303);
         exit;
@@ -96,6 +97,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $postAction === 'status') {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete' && $isEdit) {
     require_same_origin();
 
+    // What the listing was, for the admin's notice, before it goes.
+    $deleted = listing_snapshot($pdo, (int)$existingPost['id']);
+
     // Delete image files
     $stmtImages = $pdo->prepare("SELECT image_url FROM sublet_images WHERE sublet_id = ?");
     $stmtImages->execute([$existingPost['id']]);
@@ -107,9 +111,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
 
     $pdo->prepare("DELETE FROM sublets WHERE id = ?")->execute([$existingPost['id']]);
 
-    $to = 'aperkel@uvm.edu';
-    $subject = 'Sublet Post Deleted';
-    mail($to, $subject, "User $username deleted their sublet post.");
+    if ($deleted) {
+        admin_notify(admin_notice_deleted($deleted, 'poster'));
+    }
 
     header("Location: index.php");
     exit;
@@ -244,6 +248,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$postTooLarge && $postAction !== '
                 static fn($col) => "`$col` = ?",
                 array_keys($fields)
             ));
+            // The listing as it was, so the admin's notice can say what changed.
+            $beforeSave = listing_snapshot($pdo, (int)$existingPost['id']);
+            $photosAdded = 0;
+
             $sql = "UPDATE sublets SET $assignments WHERE username = ?";
             $pdo->prepare($sql)->execute([...array_values($fields), $username]);
             $subletId = $existingPost['id'];
@@ -276,11 +284,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$postTooLarge && $postAction !== '
                         make_thumbnail($fsTarget);
                         $urlTarget = $url_prefix . basename($fsTarget);
                         $stmtImage->execute([$subletId, $urlTarget, $newOrder]);
+                        $photosAdded++;
                     }
                 }
             }
 
-            mail('aperkel@uvm.edu', 'Sublet Post Updated', "User $username updated their sublet post.");
+            // Only what changed; a save that changed nothing sends nothing.
+            if ($beforeSave) {
+                admin_notify(admin_notice_updated($beforeSave, listing_snapshot($pdo, (int)$subletId), $photosAdded));
+            }
             $success_message = "Your listing has been updated!";
 
             // Refresh post data
@@ -348,7 +360,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$postTooLarge && $postAction !== '
                     }
                 }
 
-                mail('aperkel@uvm.edu', 'New Sublet Post', "New sublet posted by $username.\nPrice: $price\nAddress: $address");
+                admin_notify(admin_notice_created(listing_snapshot($pdo, (int)$subletId)));
                 $success_message = "Your listing has been posted!";
                 $isEdit = true;
                 $stmtCheck->execute([$username]);
