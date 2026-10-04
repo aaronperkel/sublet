@@ -26,36 +26,50 @@ $stmtCheck->execute([$username]);
 $existingPost = $stmtCheck->fetch(PDO::FETCH_ASSOC);
 $isEdit = (bool)$existingPost;
 
-// Get active semesters for dropdown
-$stmtSem = $pdo->query("SELECT code, name FROM semesters WHERE active = 1 ORDER BY sort_order, code");
-$semesterOptions = $stmtSem->fetchAll(PDO::FETCH_ASSOC);
-
-// If no semesters in DB, fall back to querying distinct from sublets
-if (empty($semesterOptions)) {
-    $stmtSem = $pdo->query("SELECT DISTINCT semester as code, semester as name FROM sublets ORDER BY semester");
-    $semesterOptions = $stmtSem->fetchAll(PDO::FETCH_ASSOC);
-}
-
-// If the user's semester has since been deactivated it is missing from the
-// dropdown above, so the browser would fall back to the first option and
-// silently move their listing on save. Keep it selectable and flag it instead.
-$listingHidden = false;
-if ($isEdit && !in_array($existingPost['semester'], array_column($semesterOptions, 'code'), true)) {
-    $stmtCurSem = $pdo->prepare("SELECT code, name FROM semesters WHERE code = ?");
-    $stmtCurSem->execute([$existingPost['semester']]);
-    $currentSem = $stmtCurSem->fetch(PDO::FETCH_ASSOC);
-
-    // Only a row that exists but is inactive means "hidden" — an unmapped
-    // legacy code still shows on the site (see includes/visibility.php).
-    if ($currentSem) {
-        $listingHidden = true;
-    } else {
-        $currentSem = ['code' => $existingPost['semester'], 'name' => $existingPost['semester']];
+/**
+ * The semester pills for the form, and the listing's own semesters.
+ *
+ * Every open semester, in calendar order, plus any the listing already has
+ * that has since been deactivated: those stay in the row, ticked and marked
+ * "(closed)", so saving never silently drops one. A listing is for one or
+ * more back-to-back semesters (see includes/semesters.php).
+ *
+ * Returns [$options, $listingSemesters], each option ['code', 'name',
+ * 'closed', 'key'].
+ */
+function post_semester_options(PDO $pdo, ?array $post): array {
+    $open = $pdo->query("SELECT code, name, sort_order FROM semesters WHERE active = 1")->fetchAll(PDO::FETCH_ASSOC);
+    // No semesters configured at all: offer the codes listings already use.
+    if (!$open) {
+        $open = $pdo->query("SELECT DISTINCT semester_code AS code, semester_code AS name, 0 AS sort_order FROM sublet_semesters")->fetchAll(PDO::FETCH_ASSOC);
+    }
+    $options = [];
+    foreach ($open as $row) {
+        $options[$row['code']] = ['code' => $row['code'], 'name' => $row['name'], 'sort_order' => (int)$row['sort_order'], 'closed' => false];
     }
 
-    $currentSem['hidden'] = $listingHidden;
-    array_unshift($semesterOptions, $currentSem);
+    $mine = [];
+    if ($post) {
+        $mine = listing_semesters($pdo, [(int)$post['id']])[(int)$post['id']] ?? [];
+        if (!$mine) {
+            $mine = [['code' => $post['semester'], 'name' => $post['semester'], 'open' => true]];
+        }
+        foreach ($mine as $s) {
+            // A code with no semesters row still counts as open (visibility.php);
+            // only a deactivated one is "closed".
+            $options[$s['code']] ??= ['code' => $s['code'], 'name' => $s['name'], 'sort_order' => 0, 'closed' => !$s['open']];
+        }
+    }
+    $options = array_map(static fn($o) => $o + ['key' => semester_key($o['name'])], sort_semesters(array_values($options)));
+    return [$options, $mine];
 }
+
+[$semesterOptions, $listingSemesters] = post_semester_options($pdo, $isEdit ? $existingPost : null);
+
+// Hidden when every semester the listing has is closed. One closed semester
+// next to an open one leaves it up.
+$closedSemesters = array_values(array_filter($listingSemesters, static fn($s) => !$s['open']));
+$listingHidden = $isEdit && $listingSemesters && count($closedSemesters) === count($listingSemesters);
 
 // Pause, resume or mark taken. Each is a small form of its own above the
 // listing form, posting action=status. POST only and same-origin for the
@@ -125,7 +139,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$postTooLarge && $postAction !== '
 
     $price = $_POST['price'] ?? '';
     $address = trim($_POST['address'] ?? '');
-    $semester = $_POST['semester'] ?? '';
+
+    // The semesters ticked, checked against the pills this page offered (open
+    // semesters, and closed ones the listing already has), in calendar order.
+    $requested = array_values(array_unique(array_filter(array_map('strval', (array)($_POST['semesters'] ?? [])), 'strlen')));
+    $chosenSemesters = array_values(array_filter($semesterOptions, static fn($o) => in_array($o['code'], $requested, true)));
+    $semesterError = '';
+    if (!$chosenSemesters) {
+        $semesterError = 'Pick the semester your place is available for.';
+    } elseif (count($chosenSemesters) !== count($requested)) {
+        $semesterError = "One of those semesters isn't open for sublets. Reload the page and pick again.";
+    } elseif (!semesters_back_to_back(array_column($chosenSemesters, 'name'))) {
+        $semesterError = 'Semesters have to be back to back, like Summer and Fall. For a later one with a gap, post again once this sublet is over.';
+    }
+    $semester = $chosenSemesters[0]['code'] ?? '';
     $lat = (float)($_POST['lat'] ?? 0);
     $lon = (float)($_POST['lon'] ?? 0);
     $description = $_POST['description'] ?? '';
@@ -202,6 +229,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$postTooLarge && $postAction !== '
         $error_message = "Please upload at least one image.";
     }
 
+    if (!$error_message && $semesterError !== '') {
+        $error_message = $semesterError;
+    }
+
     if (empty($error_message)) {
         $fs_dir = ROOT_DIR . "/public/images/";
         $url_prefix = "./public/images/";
@@ -216,6 +247,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$postTooLarge && $postAction !== '
             $sql = "UPDATE sublets SET $assignments WHERE username = ?";
             $pdo->prepare($sql)->execute([...array_values($fields), $username]);
             $subletId = $existingPost['id'];
+            set_listing_semesters($pdo, (int)$subletId, array_column($chosenSemesters, 'code'), $semester);
 
             // Process new images if uploaded
             if (!empty($_FILES['images']['name'][0])) {
@@ -292,6 +324,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$postTooLarge && $postAction !== '
                     . ") VALUES (" . implode(', ', array_fill(0, count($insert), '?')) . ")";
                 $pdo->prepare($sql)->execute(array_values($insert));
                 $subletId = $pdo->lastInsertId();
+                set_listing_semesters($pdo, (int)$subletId, array_column($chosenSemesters, 'code'), $semester);
 
                 // Insert all images
                 $stmtImage = $pdo->prepare("INSERT INTO sublet_images (sublet_id, image_url, sort_order) VALUES (?, ?, ?)");
@@ -339,13 +372,19 @@ if ($skippedUploads > 0) {
     }
 }
 
-// The share message wants the semester's display name, but $existingPost is a
-// plain SELECT * — semester_name is a join that only the Browse and Map queries
-// carry. Resolve it from the options already loaded for the <select>.
+// After a save the listing's semesters may have changed, so the pills and the
+// hidden notice are rebuilt from what was stored.
+if ($isEdit && $success_message !== '') {
+    [$semesterOptions, $listingSemesters] = post_semester_options($pdo, $existingPost);
+    $closedSemesters = array_values(array_filter($listingSemesters, static fn($s) => !$s['open']));
+    $listingHidden = $listingSemesters && count($closedSemesters) === count($listingSemesters);
+}
+
+// The share message names the semesters the way Browse does: the open ones,
+// as one label ("Summer & Fall 2027").
 $shareSemesterName = '';
-if (!empty($existingPost['semester'])) {
-    $semesterNames = array_column($semesterOptions, 'name', 'code');
-    $shareSemesterName = $semesterNames[$existingPost['semester']] ?? $existingPost['semester'];
+if (!empty($existingPost['id'])) {
+    $shareSemesterName = with_semester_labels($pdo, [$existingPost + ['semester_name' => $existingPost['semester']]], true)[0]['semester_name'];
 }
 
 // What the form shows. After a failed save that is what the student just
@@ -354,7 +393,7 @@ if (!empty($existingPost['semester'])) {
 // saved listing when editing, and empty for a new one. Every value is escaped
 // where it is printed. Unchecked boxes are simply absent from $_POST, which is
 // why this replaces $existingPost rather than merging into it.
-$formFailed = $_SERVER['REQUEST_METHOD'] === 'POST' && !$postTooLarge && $error_message !== '';
+$formFailed = $_SERVER['REQUEST_METHOD'] === 'POST' && !$postTooLarge && $error_message !== '' && $postAction !== 'status';
 $form = $isEdit ? $existingPost : [];
 if ($formFailed) {
     $form = array_map(static fn($v) => is_string($v) ? trim($v) : $v, $_POST);
@@ -374,6 +413,12 @@ if ($formFailed) {
         $error_message .= ' Your photos weren\'t saved, so please add them again.';
     }
 }
+// Which semester pills start ticked: what was just submitted after a failed
+// save, otherwise the listing's own semesters.
+$checkedSemesters = $formFailed
+    ? array_map('strval', (array)($_POST['semesters'] ?? []))
+    : array_column($listingSemesters, 'code');
+
 $formHasLocation = is_numeric($form['lat'] ?? null) && is_numeric($form['lon'] ?? null)
     && (float)$form['lat'] !== 0.0;
 
@@ -461,9 +506,9 @@ if ($isEdit) {
 <?php if ($listingHidden): ?>
     <div class="alert alert-info">
         <i class="fa-solid fa-eye-slash"></i>
-        Your listing is currently hidden because
-        <strong><?= htmlspecialchars($semesterOptions[0]['name']) ?></strong> is no longer open for sublets.
-        It hasn't been deleted &mdash; pick a current semester below to make it visible again.
+        <span>Your listing is currently hidden because
+        <strong><?= htmlspecialchars(semester_label(array_column($closedSemesters, 'name'))) ?></strong> <?= count($closedSemesters) === 1 ? 'is' : 'are' ?> no longer open for sublets.
+        It hasn't been deleted &mdash; pick a current semester below to make it visible again.</span>
     </div>
 <?php endif; ?>
 
@@ -591,18 +636,26 @@ if ($isEdit) {
             </div>
 
             <!-- Semester -->
-            <div class="form-group">
-                <label for="semester">Semester</label>
-                <select id="semester" name="semester" required>
-                    <option value="" disabled <?= empty($form['semester']) ? 'selected' : '' ?>>Select semester</option>
+            <?php /* One pill per open semester, in calendar order, plus any closed
+                     one the listing already has. Several can be ticked if they
+                     run back to back; app.js greys out the ones that would leave
+                     a gap, and the server checks again. data-key is the
+                     semester's place in the calendar (semester_key()), empty
+                     for a name that is not a term and year. */ ?>
+            <fieldset class="form-group semester-picker" id="semesterPicker" aria-describedby="semesterHint">
+                <legend>Semester</legend>
+                <div class="semester-options">
                     <?php foreach ($semesterOptions as $sem): ?>
-                        <option value="<?= htmlspecialchars($sem['code']) ?>"
-                            <?= ($form['semester'] ?? null) === $sem['code'] ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($sem['name']) ?><?= !empty($sem['hidden']) ? ' (closed — listing hidden)' : '' ?>
-                        </option>
+                        <label class="semester-option<?= $sem['closed'] ? ' is-closed' : '' ?>">
+                            <input type="checkbox" name="semesters[]" value="<?= htmlspecialchars($sem['code']) ?>"
+                                   data-key="<?= $sem['key'] ?? '' ?>"
+                                   <?= in_array($sem['code'], $checkedSemesters, true) ? 'checked' : '' ?>>
+                            <span><?= htmlspecialchars($sem['name']) ?><?= $sem['closed'] ? ' (closed)' : '' ?></span>
+                        </label>
                     <?php endforeach; ?>
-                </select>
-            </div>
+                </div>
+                <p class="field-hint" id="semesterHint"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Pick more than one if it&rsquo;s available back to back, like Summer and Fall. For a later semester with a gap, post again once this sublet is over.</p>
+            </fieldset>
 
             <?php if (isset($subletColumns['bedrooms'])): ?>
                 <?php

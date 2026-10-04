@@ -16,7 +16,8 @@ $sql .= " WHERE " . implode(" AND ", $filters['where']);
 
 $stmt = $pdo->prepare($sql);
 $stmt->execute($filters['params']);
-$sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// semester_name becomes the label of the listing's open semesters, as on Browse.
+$sublets = with_semester_labels($pdo, $stmt->fetchAll(PDO::FETCH_ASSOC), true);
 
 // Each pin's photo list, so the listing view opens with its arrows and counter
 // (see listing_photos()). Before image_url is turned into a URL below.

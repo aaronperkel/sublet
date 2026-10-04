@@ -153,7 +153,12 @@ function activity_window(string $range): array {
             return ["1 = 1", []];
         case 'open':
         default:
-            return ["e.semester IN (SELECT code FROM semesters WHERE active = 1)", []];
+            // Each event carries the listing's first semester at the time.
+            // A listing that runs on into a later semester stays in "open"
+            // after its first one is hidden, so it is matched as a listing
+            // still in a visible semester as well.
+            return ["(e.semester IN (SELECT code FROM semesters WHERE active = 1)"
+                . " OR e.listing_id IN (SELECT s.id FROM sublets s WHERE " . VISIBLE_SEMESTER_WHERE . "))", []];
     }
 }
 

@@ -75,6 +75,9 @@ filename. Both live in `includes/`; new POST endpoints need the former.
 - **`sublets`** — effectively one row per user; holds price, address, lat/lon,
   semester, contact fields, utility/amenity flags, and a status: open, paused
   or taken. Only open listings in open semesters are on the board.
+- **`sublet_semesters`** — the semesters a listing runs for: one, or several
+  back to back (Summer and Fall, say). A listing is up while any of them is
+  open.
 - **`sublet_images`** — a listing's photos in order; the first is its card
   image. The admin Images tab reorders them and sweeps orphan files.
 - **`semesters`** — deactivating one hides all of its listings from the public

@@ -238,6 +238,83 @@ function archive_tarball_name(string $code, ?int $time = null): string {
 }
 
 /**
+ * The semester's listings, in two groups.
+ *
+ * A listing can run for several back-to-back semesters (sublet_semesters). One
+ * that also runs for a semester that has not been archived *stays*: archiving
+ * takes this semester off it and nothing else. Every other listing that runs
+ * for this semester goes. A listing whose `sublets.semester` is this code but
+ * has no rows in the table counts as this semester alone.
+ *
+ * Returns [removed rows (SELECT *, by id), staying: id => ['row', 'keeps' =>
+ * its other semesters in calendar order]]. With $forUpdate the rows are
+ * locked, for archive_commit().
+ */
+function archive_split(PDO $pdo, string $code, bool $forUpdate = false): array {
+    $lock = $forUpdate ? ' FOR UPDATE' : '';
+    $stmt = $pdo->prepare(
+        "SELECT * FROM sublets
+          WHERE semester = ? OR id IN (SELECT sublet_id FROM sublet_semesters WHERE semester_code = ?)
+          ORDER BY id$lock"
+    );
+    $stmt->execute([$code, $code]);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    if (!$rows) {
+        return [[], []];
+    }
+
+    $ids = array_map(static fn($r) => (int)$r['id'], $rows);
+    $in = implode(',', array_fill(0, count($ids), '?'));
+    $archivedAt = isset(table_columns($pdo, 'semesters')['archived_at']) ? 'sem.archived_at' : 'NULL';
+    $stmt = $pdo->prepare(
+        "SELECT ss.sublet_id, ss.semester_code AS code, COALESCE(sem.name, ss.semester_code) AS name,
+                COALESCE(sem.sort_order, 0) AS sort_order, $archivedAt AS archived_at
+           FROM sublet_semesters ss LEFT JOIN semesters sem ON sem.code = ss.semester_code
+          WHERE ss.sublet_id IN ($in) AND ss.semester_code <> ?$lock"
+    );
+    $stmt->execute([...$ids, $code]);
+    $others = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $o) {
+        if (empty($o['archived_at'])) {
+            $others[(int)$o['sublet_id']][] = $o;
+        }
+    }
+
+    $removed = [];
+    $staying = [];
+    foreach ($rows as $row) {
+        $id = (int)$row['id'];
+        if (!empty($others[$id])) {
+            $staying[$id] = ['row' => $row, 'keeps' => sort_semesters($others[$id])];
+        } else {
+            $removed[] = $row;
+        }
+    }
+    return [$removed, $staying];
+}
+
+/**
+ * The activity-log rows an archive deletes and counts: the semester's events,
+ * except those of listings that stay (they are re-tagged instead), plus any
+ * event of a listing that goes, whatever semester it was tagged with.
+ * Returns [SQL over alias `e`, params].
+ */
+function archive_events_where(string $code, array $removedIds, array $stayIds): array {
+    $where = 'e.semester = ?';
+    $params = [$code];
+    if ($stayIds) {
+        $where .= ' AND e.listing_id NOT IN (' . implode(',', array_fill(0, count($stayIds), '?')) . ')';
+        $params = [...$params, ...$stayIds];
+    }
+    $where = "($where)";
+    if ($removedIds) {
+        $where .= ' OR e.listing_id IN (' . implode(',', array_fill(0, count($removedIds), '?')) . ')';
+        $params = [...$params, ...$removedIds];
+    }
+    return ["($where)", $params];
+}
+
+/**
  * The dry run: everything archiving $code would remove, and whether it may.
  * Read-only.
  */
@@ -271,10 +348,11 @@ function archive_plan(PDO $pdo, string $code): array {
         $plan['blocking'][] = 'It was already archived on ' . $semester['archived_at'] . '.';
     }
 
-    $stmt = $pdo->prepare('SELECT * FROM sublets WHERE semester = ? ORDER BY id');
-    $stmt->execute([$code]);
-    $listings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // The listings that go; the ones that also run for a later semester stay
+    // and lose only this one (archive_split()).
+    [$listings, $staying] = archive_split($pdo, $code);
     $ids = array_map(static fn($row) => (int)$row['id'], $listings);
+    $stayIds = array_keys($staying);
 
     $imageRows = [];
     if ($ids) {
@@ -299,19 +377,21 @@ function archive_plan(PDO $pdo, string $code): array {
     $refs = array_values(array_unique(array_merge([], ...array_values($refsByListing ?: [[]]))));
 
     // A file is never shared between listings (names are random), but if one
-    // ever were, deleting it would break a listing that is staying.
+    // ever were, deleting it would break a listing that is staying, including
+    // one that stays because it also runs for a later semester.
     if ($refs) {
         $in = implode(',', array_fill(0, count($refs), '?'));
+        $notIn = ' AND s.id NOT IN (' . implode(',', array_fill(0, count($ids), '?')) . ')';
         $stmt = $pdo->prepare(
             "SELECT DISTINCT si.image_url FROM sublet_images si JOIN sublets s ON s.id = si.sublet_id
-             WHERE s.semester <> ? AND si.image_url IN ($in)
-             UNION SELECT image_url FROM sublets WHERE semester <> ? AND image_url IN ($in)
-             UNION SELECT thumbnail_url FROM sublets WHERE semester <> ? AND thumbnail_url IN ($in)"
+             WHERE si.image_url IN ($in)$notIn
+             UNION SELECT s.image_url FROM sublets s WHERE s.image_url IN ($in)$notIn
+             UNION SELECT s.thumbnail_url FROM sublets s WHERE s.thumbnail_url IN ($in)$notIn"
         );
-        $stmt->execute(array_merge([$code], $refs, [$code], $refs, [$code], $refs));
+        $stmt->execute([...$refs, ...$ids, ...$refs, ...$ids, ...$refs, ...$ids]);
         $shared = $stmt->fetchAll(PDO::FETCH_COLUMN);
         if ($shared) {
-            $plan['blocking'][] = count($shared) . ' file(s) are also used by listings in other semesters: ' . implode(', ', array_map('basename', $shared));
+            $plan['blocking'][] = count($shared) . ' file(s) are also used by listings that are staying: ' . implode(', ', array_map('basename', $shared));
         }
     }
 
@@ -353,11 +433,12 @@ function archive_plan(PDO $pdo, string $code): array {
     $events = ['rows' => 0, 'by_type' => []];
     $activity = ['views' => 0, 'contacts' => 0, 'shares' => 0, 'arrivals' => 0];
     if (table_exists($pdo, 'listing_events')) {
-        $stmt = $pdo->prepare('SELECT type, COUNT(*) FROM listing_events WHERE semester = ? GROUP BY type ORDER BY type');
-        $stmt->execute([$code]);
+        [$eventsWhere, $eventsParams] = archive_events_where($code, $ids, $stayIds);
+        $stmt = $pdo->prepare("SELECT e.type, COUNT(*) FROM listing_events e WHERE $eventsWhere GROUP BY e.type ORDER BY e.type");
+        $stmt->execute($eventsParams);
         $events['by_type'] = array_map('intval', $stmt->fetchAll(PDO::FETCH_KEY_PAIR));
         $events['rows'] = array_sum($events['by_type']);
-        foreach (listing_activity($pdo, 'e.semester = ?', [$code]) as $counts) {
+        foreach (listing_activity($pdo, $eventsWhere, $eventsParams) as $counts) {
             $activity['views'] += $counts['views'];
             $activity['contacts'] += $counts['contacts'];
             $activity['shares'] += $counts['shares'];
@@ -373,6 +454,13 @@ function archive_plan(PDO $pdo, string $code): array {
 
     $plan['listings'] = $rows;
     $plan['listing_ids'] = $ids;
+    $plan['stay_ids'] = $stayIds;
+    $plan['staying'] = array_values(array_map(static fn($s) => [
+        'id' => (int)$s['row']['id'],
+        'address' => format_address($s['row']['address']),
+        'username' => $s['row']['username'],
+        'keeps' => semester_label(array_column($s['keeps'], 'name')),
+    ], $staying));
     $plan['refs'] = $refs;
     $plan['files'] = array_map('basename', array_keys($files));
     $plan['files_by_listing'] = $filesByListing;
@@ -560,6 +648,7 @@ function archive_execute(PDO $pdo, string $code, string $confirm, string $by): a
             'files_left' => array_map('basename', $left),
             'bytes' => $plan['totals']['bytes'],
             'events_deleted' => $eventsDeleted,
+            'stayed' => count($plan['staying'] ?? []),
             'share_cards' => count($plan['share_cards']),
             'tarball' => $tarball,
             'tarball_bytes' => $tarBytes,
@@ -593,10 +682,9 @@ function archive_commit(PDO $pdo, array $plan, ?string $tarball, string $by): ar
         if (!$sem || $sem['active'] || !empty($sem['archived_at'])) {
             throw new RuntimeException('The semester changed state since the preview.');
         }
-        $stmt = $pdo->prepare('SELECT id, image_url, thumbnail_url FROM sublets WHERE semester = ? ORDER BY id FOR UPDATE');
-        $stmt->execute([$code]);
-        $now = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        if (array_map(static fn($r) => (int)$r['id'], $now) !== $ids) {
+        [$now, $nowStaying] = archive_split($pdo, $code, true);
+        if (array_map(static fn($r) => (int)$r['id'], $now) !== $ids
+            || array_keys($nowStaying) !== ($plan['stay_ids'] ?? [])) {
             throw new RuntimeException('Listings were added to or moved out of the semester since the preview.');
         }
         $refsNow = [];
@@ -647,18 +735,32 @@ function archive_commit(PDO $pdo, array $plan, ?string $tarball, string $by): ar
             . implode(', ', array_fill(0, count($values), '?')) . ')'
         )->execute(array_values($values));
 
+        // A listing that runs on into a later semester loses this one: its
+        // row in sublet_semesters goes, its first semester moves on if this was
+        // it, and its activity is re-tagged so the delete below keeps it.
+        $hasEvents = table_exists($pdo, 'listing_events');
+        foreach ($nowStaying as $id => $stay) {
+            $first = $stay['keeps'][0]['code'];
+            $pdo->prepare('DELETE FROM sublet_semesters WHERE sublet_id = ? AND semester_code = ?')->execute([$id, $code]);
+            $pdo->prepare('UPDATE sublets SET semester = ? WHERE id = ? AND semester = ?')->execute([$first, $id, $code]);
+            if ($hasEvents) {
+                $pdo->prepare('UPDATE listing_events SET semester = ? WHERE listing_id = ? AND semester = ?')->execute([$first, $id, $code]);
+            }
+        }
+
         $eventsDeleted = 0;
-        if (table_exists($pdo, 'listing_events')) {
-            $stmt = $pdo->prepare('DELETE FROM listing_events WHERE semester = ?');
-            $stmt->execute([$code]);
+        if ($hasEvents) {
+            [$eventsWhere, $eventsParams] = archive_events_where($code, $ids, array_keys($nowStaying));
+            $stmt = $pdo->prepare("DELETE e FROM listing_events e WHERE $eventsWhere");
+            $stmt->execute($eventsParams);
             $eventsDeleted = $stmt->rowCount();
         }
 
         $listingsDeleted = 0;
         if ($ids) {
             $in = implode(',', array_fill(0, count($ids), '?'));
-            $stmt = $pdo->prepare("DELETE FROM sublets WHERE semester = ? AND id IN ($in)");
-            $stmt->execute(array_merge([$code], $ids));
+            $stmt = $pdo->prepare("DELETE FROM sublets WHERE id IN ($in)");
+            $stmt->execute($ids);
             $listingsDeleted = $stmt->rowCount();
         }
 

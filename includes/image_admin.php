@@ -141,6 +141,11 @@ function image_inventory(PDO $pdo): array {
         $photosBy[(int)$row['sublet_id']][] = $row;
     }
 
+    // Storage is counted under each listing's first semester; the filter and
+    // the label cover all of them.
+    $listingSemesters = listing_semesters($pdo, array_column($listings, 'id'));
+    $active = array_map('boolval', $pdo->query('SELECT code, active FROM semesters')->fetchAll(PDO::FETCH_KEY_PAIR));
+
     $out = [];
     $semesters = [];
     $missingThumbs = 0;
@@ -161,7 +166,8 @@ function image_inventory(PDO $pdo): array {
             $photos[] = $details;
         }
         $code = (string)$listing['semester'];
-        $semesters[$code] ??= ['code' => $code, 'name' => $listing['semester_name'], 'hidden' => (bool)$listing['is_hidden'], 'listings' => 0, 'photos' => 0, 'bytes' => 0];
+        $semesters[$code] ??= ['code' => $code, 'name' => $listing['semester_name'], 'hidden' => isset($active[$code]) && !$active[$code], 'listings' => 0, 'photos' => 0, 'bytes' => 0];
+        $mine = $listingSemesters[$id] ?? [['code' => $code, 'name' => $listing['semester_name']]];
         $semesters[$code]['listings']++;
         $semesters[$code]['photos'] += count($photos);
         $semesters[$code]['bytes'] += $bytes;
@@ -171,7 +177,8 @@ function image_inventory(PDO $pdo): array {
             'address' => format_address($listing['address']),
             'username' => $listing['username'],
             'semester' => $code,
-            'semester_name' => $listing['semester_name'],
+            'semesters' => array_column($mine, 'code'),
+            'semester_name' => semester_label(array_column($mine, 'name')),
             'hidden' => (bool)$listing['is_hidden'],
             'status' => $listing['status'],
             'photos' => $photos,

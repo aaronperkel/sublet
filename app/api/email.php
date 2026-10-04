@@ -56,7 +56,8 @@ if ($type === 'all') {
         echo json_encode(['error' => 'Semester required']);
         exit;
     }
-    $stmt = $pdo->prepare("SELECT DISTINCT username FROM sublets WHERE semester = ?");
+    // Everyone whose listing runs for that semester, among others or alone.
+    $stmt = $pdo->prepare("SELECT DISTINCT s.username FROM sublets s JOIN sublet_semesters ss ON ss.sublet_id = s.id WHERE ss.semester_code = ?");
     $stmt->execute([$semester]);
     $recipients = $stmt->fetchAll(PDO::FETCH_COLUMN);
 } elseif ($type === 'individual') {

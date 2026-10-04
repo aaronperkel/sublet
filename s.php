@@ -50,6 +50,10 @@ try {
         );
         $stmt->execute([$id]);
         $listing = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+        if ($listing !== null) {
+            // "Summer & Fall 2027" for a listing that runs for both.
+            $listing = with_semester_labels($pdo, [$listing], true)[0];
+        }
     }
 } catch (Throwable $e) {
     $listing = null;

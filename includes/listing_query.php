@@ -58,8 +58,10 @@ function build_listing_filters(array $query, array $columns): array {
         $params[] = $query['max_price'];
     }
 
+    // "Available in this semester": any of the listing's semesters, so a
+    // Summer and Fall listing is found under either (see semesters.php).
     if (!empty($query['semester'])) {
-        $where[] = 's.semester = ?';
+        $where[] = 'EXISTS (SELECT 1 FROM sublet_semesters fss WHERE fss.sublet_id = s.id AND fss.semester_code = ?)';
         $params[] = $query['semester'];
     }
 

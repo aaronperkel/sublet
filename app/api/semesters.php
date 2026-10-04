@@ -97,7 +97,9 @@ if ($action === 'delete') {
     $code = $stmt->fetchColumn();
 
     if ($code) {
-        $stmtCount = $pdo->prepare("SELECT COUNT(*) FROM sublets WHERE semester = ?");
+        // Any listing that runs for it, including one that also runs for
+        // another semester.
+        $stmtCount = $pdo->prepare("SELECT COUNT(*) FROM sublet_semesters WHERE semester_code = ?");
         $stmtCount->execute([$code]);
         if ($stmtCount->fetchColumn() > 0) {
             http_response_code(409);

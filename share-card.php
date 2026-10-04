@@ -434,6 +434,10 @@ try {
     );
     $stmt->execute([$id]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    if ($row !== null) {
+        // The same semester label as s.php's meta tags, so picture and title agree.
+        $row = with_semester_labels($pdo, [$row], true)[0];
+    }
 } catch (Throwable $e) {
     $row = null;
 }

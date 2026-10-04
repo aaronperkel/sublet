@@ -42,8 +42,8 @@ $stmtMaxDist = $pdo->query("SELECT MAX(" . campus_distance_expr() . ") as max_di
 $maxDistance = $stmtMaxDist->fetch(PDO::FETCH_ASSOC)['max_distance'] ?? 20;
 $maxDistanceRounded = max(ceil($maxDistance * 2) / 2, 1);
 
-$stmtSemesters = $pdo->query("SELECT DISTINCT s.semester, COALESCE(sem.name, s.semester) as name FROM sublets s " . VISIBLE_SEMESTER_JOIN . " WHERE " . PUBLIC_LISTING_WHERE . " ORDER BY s.semester");
-$availableSemesters = $stmtSemesters->fetchAll(PDO::FETCH_ASSOC);
+// Every open semester some listing on the board runs for, in calendar order.
+$availableSemesters = board_semesters($pdo);
 
 // Open semesters with nothing on the board. The filter lists them as "none
 // yet" rather than leaving them out, so someone looking for summer learns
@@ -52,7 +52,7 @@ $availableSemesters = $stmtSemesters->fetchAll(PDO::FETCH_ASSOC);
 // instead, since people did post for it.
 $listedCodes = array_column($availableSemesters, 'semester');
 $emptySemesters = array_values(array_filter(
-    $pdo->query("SELECT code, name, EXISTS(SELECT 1 FROM sublets x WHERE x.semester = semesters.code) AS has_listings FROM semesters WHERE active = 1 ORDER BY sort_order, code")->fetchAll(PDO::FETCH_ASSOC),
+    sort_semesters($pdo->query("SELECT code, name, sort_order, EXISTS(SELECT 1 FROM sublet_semesters x WHERE x.semester_code = semesters.code) AS has_listings FROM semesters WHERE active = 1")->fetchAll(PDO::FETCH_ASSOC)),
     static fn($sem) => !in_array($sem['code'], $listedCodes, true)
 ));
 ?>

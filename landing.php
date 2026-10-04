@@ -47,13 +47,7 @@ try {
     );
     $liveCount = (int)$stmtCount->fetchColumn();
 
-    $stmtSem = $pdo->query(
-        "SELECT DISTINCT COALESCE(sem.name, s.semester) AS name
-         FROM sublets s " . VISIBLE_SEMESTER_JOIN . "
-         WHERE " . PUBLIC_LISTING_WHERE . "
-         ORDER BY name"
-    );
-    $liveSemesters = $stmtSem->fetchAll(PDO::FETCH_COLUMN);
+    $liveSemesters = array_column(board_semesters($pdo), 'name');
 } catch (Throwable $e) {
     $showcaseImages = [];
     $liveCount = null;

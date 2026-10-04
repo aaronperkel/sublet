@@ -278,7 +278,7 @@ Form-encoded POST in, JSON out — not REST. Endpoints dispatch on `$_POST['acti
 | File | Notes |
 |---|---|
 | `posts.php` | admin-only delete of a post or of all posts by a user, and `set_status` (open / paused / taken; the Posts tab's select) |
-| `semesters.php` | admin-only add/toggle/delete; refuses to delete a semester that has posts, and to reactivate one that is archived |
+| `semesters.php` | admin-only add/toggle/delete; refuses to delete a semester any listing runs for (`sublet_semesters`), and to reactivate one that is archived |
 | `archive.php` | admin-only. GET `action=preview` is the dry run; POST `action=archive` (`code`, `confirm` = the code typed back) archives a hidden semester; POST `action=delete_tarball`. See "Semester archive" |
 | `images.php` | GET `sublet_id` lists a listing's photos (the listing view's fallback, ordered like `listing_photos()`; returns `display_url` and `thumb_url`). Admin **or** post owner: delete (`_method=DELETE`), `set_cover`, `move`. Admin only: GET `action=inventory` and `action=orphans` (the Images tab), POST `bulk_delete`, `delete_orphans`, `make_thumbs`. Every change renumbers and re-covers the listing (see "Images") |
 | `announcement.php` | GET public, POST admin-only |
@@ -291,8 +291,9 @@ Form-encoded POST in, JSON out — not REST. Endpoints dispatch on `$_POST['acti
 
 There is no schema/migration file in the tree; the shape below is what the queries imply.
 
-- **`sublets`** — effectively **one row per user**. `post.php` treats `username` as the key: it looks up the user's post to decide create-vs-edit, and updates with `WHERE username = ?`. Also holds `image_url`/`thumbnail_url`, `price`, `address`, `lat`/`lon`, `semester`, `posted_at`, contact fields, `utility_*`, and `amenity_*` flags, plus `status` (`open`/`paused`/`taken`, default `open`, indexed) and `status_changed_at` (NULL until the first change), added by hand in October 2026. See "Listing visibility".
+- **`sublets`** — effectively **one row per user**. `post.php` treats `username` as the key: it looks up the user's post to decide create-vs-edit, and updates with `WHERE username = ?`. Also holds `image_url`/`thumbnail_url`, `price`, `address`, `lat`/`lon`, `semester` (the listing's *first* semester; all of them are in `sublet_semesters`), `posted_at`, contact fields, `utility_*`, and `amenity_*` flags, plus `status` (`open`/`paused`/`taken`, default `open`, indexed) and `status_changed_at` (NULL until the first change), added by hand in October 2026. See "Listing visibility".
 - **`sublet_images`** — `sublet_id`, `image_url`, `sort_order`. The first image by `sort_order` is the card image (`sublets.image_url`). Since October 2026 every change (`images.php`) renumbers a listing's photos 0..n-1 through `renumber_listing_photos()`, which also moves the card image to the first one; before that, deleting the cover promoted the next photo without renumbering, and listings untouched since may still have no 0. Test for "first", not for 0. Rows cascade-delete with their listing (`ON DELETE CASCADE`); the files do not.
+- **`sublet_semesters`** — `sublet_id`, `semester_code`, `PRIMARY KEY` on both, `ON DELETE CASCADE` from `sublets`. One row per semester a listing runs for; several only when they are back to back. Created by hand in October 2026 with `CREATE TABLE … SELECT id, semester FROM sublets`, so its columns copy `sublets`' exact types and collation (a mismatch makes MySQL refuse the joins). No foreign key to `semesters`, since unmapped codes must keep working. See "Semesters per listing".
 - **`semesters`** — `code`, `name`, `active`, `sort_order`, `archived_at` (NULL until archived). `code` joins to `sublets.semester`; queries `COALESCE(sem.name, s.semester)` so unmapped codes still render.
 - **`semester_archives`** — one row per archived semester (`UNIQUE` on `semester_code`): `semester_name`, `archived_at`, `archived_by`, `listings`, `taken`, `price_median`/`price_min`/`price_max`, `views`, `contacts`, `shares`, `share_arrivals`, `bytes`, `tarball`, and optionally `photos`. Totals only, never who. See "Semester archive".
 - **`listing_events`** — the activity log: `listing_id`, `poster_username`, `actor_key`, `semester`, `type`, `source`, `target`, `dedupe_key` (UNIQUE), `created_at`. No foreign key to `sublets`, on purpose. See "Activity log".
@@ -318,10 +319,12 @@ The readers are `listing_activity()` (people who viewed, got in touch, or did bo
 A listing is on the board when its semester is visible **and** its poster has not taken it down. Deactivating a semester in the admin portal hides all of its listings; a poster can pause their own listing or mark it taken. The rule lives in one place — `includes/visibility.php`, required by `db.php` — as constants used to build queries:
 
 ```php
-VISIBLE_SEMESTER_JOIN    // LEFT JOIN semesters sem ON s.semester = sem.code
-VISIBLE_SEMESTER_WHERE   // (sem.code IS NULL OR sem.active = 1)
+VISIBLE_SEMESTER_JOIN    // LEFT JOIN semesters sem ON s.semester = sem.code   (the first semester's name)
+VISIBLE_SEMESTER_WHERE   // EXISTS one of the listing's sublet_semesters with (no semesters row OR active = 1)
 PUBLIC_LISTING_WHERE     // (VISIBLE_SEMESTER_WHERE AND s.status = 'open')
 ```
+
+A listing that runs for several semesters is visible while **any** of them is: a Summer and Fall listing stays up for Fall once Summer is deactivated, and goes only when both are.
 
 **Every query that shows listings to students uses `PUBLIC_LISTING_WHERE`.** `VISIBLE_SEMESTER_WHERE` on its own is for places that ask about semesters alone: the admin's "Hidden" flag and the Images tab. `s.php` is the one public reader that looks past status, and only to tell a taken listing apart (see "Sharing a listing").
 
@@ -341,7 +344,17 @@ The `sem.code IS NULL` half is load-bearing, not defensive padding: listings who
 
 `PUBLIC_LISTING_WHERE` is applied in `includes/header.php` (dropdown + both slider bounds), in `build_listing_filters()` (`includes/listing_query.php`, shared by `app/index.php` and `app/map.php`, and so the photo lists and `MAP_SUBLETS`), in `landing.php`'s photo strip and counts, and in `share-card.php`. **Any new query that lists sublets to the public needs it too.** `app/admin.php` deliberately does *not* filter — it shows every listing, flags the hidden ones via a `NOT (VISIBLE_SEMESTER_WHERE) as is_hidden` column, and gives each a status select in the Posts tab.
 
-Deactivation is reversible and deletes nothing; archiving, the step after it, is what deletes (see "Semester archive"). `app/post.php` keeps a deactivated semester selectable for the user who is already in it (otherwise the `<select>` would silently reassign their listing to the first option on save) and shows them an explanatory notice.
+Deactivation is reversible and deletes nothing; archiving, the step after it, is what deletes (see "Semester archive"). `app/post.php` keeps a deactivated semester the listing already has in its row of semester pills, ticked and marked "(closed)", so saving never silently drops it, and shows a notice when every one of the listing's semesters is closed.
+
+## Semesters per listing
+
+A listing runs for one semester or several **back to back** (`includes/semesters.php`). Back to back is read from the semester's *name*, not `sort_order`: Spring, Summer, Fall, then the next Spring (`semester_key()`), so Fall 2026 + Spring 2027 is fine and Spring + Fall without Summer is a gap. A gap means posting again once the first sublet is over. A name that is not "<Term> <year>" can only stand alone. One price covers all of them.
+
+- **Storage:** `sublet_semesters`, written only by `set_listing_semesters()`, which also points `sublets.semester` at the first. Everything that needs one semester (the tag on each activity event, the archive's bookkeeping) keeps reading `sublets.semester`, and the code before the table still reads a correct value after a rollback.
+- **Posting:** `post.php` shows a pill per open semester, in calendar order, plus any closed one the listing has. `initSemesterPicker()` greys out (`aria-disabled`) whatever would leave a gap; the server checks the same rule, that every code was one it offered, and that at least one is ticked.
+- **Labels:** `listing_semesters()` fetches a page's semesters in one query and `with_semester_labels()` turns them into `semester_name`: "Summer & Fall 2027", "Fall 2027 & Spring 2028", "Spring–Fall 2027". Public pages label the open semesters only; the admin sees all. The Browse badge, map popups, the listing view, the share sheet, `s.php` and the share card all use it, so the share card's picture and title agree.
+- **Filtering:** the semester filter means "available in", so a Summer and Fall listing is found under either. The dropdown lists the open semesters of listings on the board (`board_semesters()`).
+- **Admin:** a semester's post count, its email audience and the delete guard all count every listing that runs for it. The Images tab files storage under the first semester and filters by any.
 
 The rule also governs **who gets a broadcast email**: `$emailableUsers` in `app/admin.php` and the `type=all` query in `app/api/email.php` both filter by `PUBLIC_LISTING_WHERE`, so nobody whose listing is hidden, paused or taken is swept into a mass mail. Those two must change together or the count in the UI stops matching what is actually sent. Picking a specific semester is exempt — that is an explicit choice, deactivated or not.
 
@@ -349,10 +362,10 @@ The rule also governs **who gets a broadcast email**: `$emailableUsers` in `app/
 
 A semester goes **active → hidden → archived**. Hiding (`active = 0`) is the reversible step above. Archiving is the last one and removes the semester's listings for good. It lives in `includes/archive.php`, is reached through `app/api/archive.php`, and the admin's **Semesters** tab drives it.
 
-1. **Dry run.** `archive_plan()` lists exactly what would go: listings (with their status; the taken ones are counted into the archive row), photo rows, every file on disk (originals with their `_thumb`/`_display` copies, found from all three image columns), bytes, events and cached share cards. It refuses an active semester, an archived one, a code with no row, a file shared with a listing in another semester, and a schema that lacks a column it writes. Read-only.
+1. **Dry run.** `archive_plan()` lists exactly what would go: listings (with their status; the taken ones are counted into the archive row). A listing that also runs for a semester that is not archived **stays** (`archive_split()`): it is listed separately ("Staying on the site"), loses only this semester, keeps its photos, and has its activity re-tagged to its next semester rather than deleted. The rest of the plan covers photo rows, every file on disk (originals with their `_thumb`/`_display` copies, found from all three image columns), bytes, events and cached share cards. It refuses an active semester, an archived one, a code with no row, a file shared with a listing that stays, and a schema that lacks a column it writes. Read-only.
 2. **Confirmation.** The semester code, typed back. Nothing else is accepted.
 3. **Backup.** A tarball to `~/sublet-image-backups/semester-<code>-<UTC>.tar.gz` (mode 0600, outside the docroot). It holds the files under their own names plus `manifest.json`, which maps listing ids to file names and carries no personal details. It is read back with `tar -tvzf` and must match the plan exactly, names and sizes, or nothing else happens.
-4. **Database.** `archive_commit()` runs one transaction. It re-reads the semester, its listings and their photo paths `FOR UPDATE` and refuses if anything changed since the plan; otherwise it inserts the `semester_archives` row (totals only), deletes the semester's `listing_events`, deletes the listings (photo rows cascade) and sets `semesters.archived_at`. On any failure it rolls back and deletes the tarball, since nothing was removed.
+4. **Database.** `archive_commit()` runs one transaction. It re-reads the semester, both groups of listings and the photo paths `FOR UPDATE` and refuses if anything changed since the plan; otherwise it inserts the `semester_archives` row (totals of the listings that go), takes the semester off the staying listings (their `sublet_semesters` row, `sublets.semester` and event tags move on), deletes the semester's remaining `listing_events` and the listings that go (photo and semester rows cascade) and sets `semesters.archived_at`. On any failure it rolls back and deletes the tarball, since nothing was removed.
 5. **Files.** Only after the commit: `delete_image_files()` on every stored path, and the listings' share cards from `public/share/`. A file that will not delete becomes an orphan for the Images tab, never a row pointing at nothing.
 
 The request is POST-only, admin-only and `require_same_origin()`-checked, ignores a closed tab (`ignore_user_abort`) and holds a lock file so a double click cannot run two archives. The Semesters tab lists past archives and the tarballs; only names matching `ARCHIVE_TARBALL_PATTERN` are listed or deletable, so the pre-backfill backup in the same folder cannot be removed from the web.

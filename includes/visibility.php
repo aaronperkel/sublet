@@ -10,6 +10,10 @@
  * Listings whose semester code has no row in `semesters` at all (legacy or
  * unmapped codes) stay visible. Only an explicit deactivation hides a listing.
  *
+ * A listing can run for several back-to-back semesters (sublet_semesters, see
+ * semesters.php). It is visible while *any* of them is: a Summer and Fall
+ * listing stays up for Fall after Summer is deactivated.
+ *
  * A poster can also take their own listing off the board: `sublets.status` is
  * 'open', 'paused' or 'taken' (LISTING_STATUSES). Only an open listing in a
  * visible semester is public, and PUBLIC_LISTING_WHERE is that rule. Every
@@ -17,14 +21,19 @@
  * for the places that deliberately ask about semesters alone (the admin's
  * "Hidden" flag, the Images tab).
  *
- * All three constants assume the listings table is aliased `s` and `semesters`
- * is aliased `sem`. The WHERE constants require VISIBLE_SEMESTER_JOIN (or an
- * equivalent join) to already be part of the query.
+ * The constants assume the listings table is aliased `s`. VISIBLE_SEMESTER_JOIN
+ * joins the listing's first semester as `sem`, for its name; the WHERE
+ * constants no longer need it, since they look at every semester the listing
+ * has through their own subquery (aliases vss/vsem, kept apart from the
+ * caller's).
  */
+require_once __DIR__ . '/semesters.php';
 
 define('VISIBLE_SEMESTER_JOIN', 'LEFT JOIN semesters sem ON s.semester = sem.code');
 
-define('VISIBLE_SEMESTER_WHERE', '(sem.code IS NULL OR sem.active = 1)');
+define('VISIBLE_SEMESTER_WHERE', '(EXISTS (SELECT 1 FROM sublet_semesters vss'
+    . ' LEFT JOIN semesters vsem ON vsem.code = vss.semester_code'
+    . ' WHERE vss.sublet_id = s.id AND (vsem.code IS NULL OR vsem.active = 1)))');
 
 define('PUBLIC_LISTING_WHERE', '(' . VISIBLE_SEMESTER_WHERE . " AND s.status = 'open')");
 

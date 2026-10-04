@@ -31,7 +31,9 @@ $sql .= $orderBy;
 
 $stmt = $pdo->prepare($sql);
 $stmt->execute($filters['params']);
-$sublets = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// semester_name becomes the label of every open semester the listing runs
+// for ("Summer & Fall 2027"); semester stays the first one.
+$sublets = with_semester_labels($pdo, $stmt->fetchAll(PDO::FETCH_ASSOC), true);
 
 $hasActiveFilters = $filters['active'];
 
@@ -49,13 +51,14 @@ $photosById = listing_photos($pdo, $sublets);
 // which was easy to miss and left the unmarked cards reading as undated. The
 // heading still names the semester when every listing shares one.
 $semesterCounts = array_count_values(array_map('strval', array_column($sublets, 'semester_name')));
-$onlySemester = count($semesterCounts) === 1 ? (string)array_key_first($semesterCounts) : '';
+$onlySemester = count($semesterCounts) === 1 && count($sublets[0]['semester_codes'] ?? []) === 1
+    ? (string)array_key_first($semesterCounts) : '';
 $amenityCounts = listing_amenity_counts($sublets);
 
 $boardTitle = count($sublets) . ' '
     . ($onlySemester !== '' ? $onlySemester . ' ' : '')
     . 'sublet' . (count($sublets) !== 1 ? 's' : '')
-    . ($hasActiveFilters ? ' match these filters' : '');
+    . ($hasActiveFilters ? (count($sublets) === 1 ? ' matches these filters' : ' match these filters') : '');
 
 // Get semester mapping for JS
 $semesterMap = [];

@@ -1745,6 +1745,50 @@ document.addEventListener('DOMContentLoaded', function () {
         initPostSubmit();
         initRoommateFields();
         initPostShare();
+        initSemesterPicker();
+    }
+
+    // ---- Semesters: back to back, no gaps ----
+    //
+    // Each pill's data-key is its place in the calendar (Spring, Summer, Fall,
+    // the next Spring…), so back to back means keys one apart. Once one is
+    // ticked, only its neighbours can be added, and only the ends of the run
+    // can be unticked, so the selection can never have a gap. A semester
+    // whose name is not a term and year (no key) can only stand alone.
+    // post.php checks the same rule on save.
+    function initSemesterPicker() {
+        var picker = document.getElementById('semesterPicker');
+        if (!picker) return;
+        var boxes = Array.prototype.slice.call(picker.querySelectorAll('input[type="checkbox"]'));
+        var keyOf = function (box) { return box.dataset.key === '' ? null : parseInt(box.dataset.key, 10); };
+
+        function update() {
+            var on = boxes.filter(function (b) { return b.checked; });
+            var keys = on.map(keyOf);
+            var hasLoose = keys.some(function (k) { return k === null; });
+            var min = Math.min.apply(null, keys), max = Math.max.apply(null, keys);
+            boxes.forEach(function (box) {
+                var k = keyOf(box), ok;
+                if (!on.length) ok = true;
+                else if (box.checked) ok = on.length === 1 || (!hasLoose && (k === min || k === max));
+                else ok = !hasLoose && k !== null && (k === min - 1 || k === max + 1);
+                // aria-disabled rather than disabled, so a ticked box that
+                // cannot be unticked right now is still sent with the form.
+                box.setAttribute('aria-disabled', ok ? 'false' : 'true');
+                box.parentNode.classList.toggle('is-unavailable', !ok);
+            });
+        }
+
+        picker.addEventListener('click', function (e) {
+            var box = e.target.closest ? e.target.closest('.semester-option') : null;
+            box = box ? box.querySelector('input') : null;
+            if (box && box.getAttribute('aria-disabled') === 'true') e.preventDefault();
+        });
+        picker.addEventListener('keydown', function (e) {
+            if (e.key === ' ' && e.target.getAttribute && e.target.getAttribute('aria-disabled') === 'true') e.preventDefault();
+        });
+        picker.addEventListener('change', update);
+        update();
     }
 
     // Rendered by post.php only after a successful save, so its absence is the
@@ -2636,6 +2680,20 @@ document.addEventListener('DOMContentLoaded', function () {
                     });
                     html += '</tbody></table></div>';
                 }
+
+                // Listings that also run for a later semester: archiving takes
+                // this semester off them and leaves them up.
+                if (plan.staying && plan.staying.length) {
+                    html += '<h4 class="admin-subhead">Staying on the site</h4>'
+                        + '<p class="admin-note">' + plan.staying.length + ' listing' + (plan.staying.length === 1 ? ' also runs' : 's also run')
+                        + ' for a later semester. ' + (plan.staying.length === 1 ? 'It loses' : 'They lose') + ' ' + escapeHtml(name)
+                        + ' and ' + (plan.staying.length === 1 ? 'keeps its' : 'keep their') + ' photos and activity.</p>'
+                        + '<div class="table-scroll"><table class="admin-table"><thead><tr><th>Listing</th><th>Posted by</th><th>Still listed for</th></tr></thead><tbody>';
+                    plan.staying.forEach(function (s) {
+                        html += '<tr><td>' + escapeHtml(s.address) + '</td><td>' + escapeHtml(s.username) + '</td><td>' + escapeHtml(s.keeps) + '</td></tr>';
+                    });
+                    html += '</tbody></table></div>';
+                }
             }
 
             if (!plan.blocking || !plan.blocking.length) {
@@ -2683,6 +2741,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     + escapeHtml(res.semester) + ' is archived: ' + res.listings + ' listing' + (res.listings === 1 ? '' : 's') + ', '
                     + res.photos + ' photos (' + res.files_deleted + ' files, ' + formatBytes(res.bytes) + ') and '
                     + res.events_deleted + ' events removed'
+                    + (res.stayed ? '; ' + res.stayed + ' listing' + (res.stayed === 1 ? '' : 's') + ' that also run' + (res.stayed === 1 ? 's' : '') + ' for a later semester stayed up' : '')
                     + (res.tarball ? '. Photos saved to ' + escapeHtml(res.tarball) + ' (' + formatBytes(res.tarball_bytes) + ').' : '.')
                     + '</span></div>'
                     + (res.files_left && res.files_left.length
@@ -2882,7 +2941,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             var listings = inventory.listings.filter(function (l) {
                 if (onlyListing !== null) return l.id === onlyListing;
-                if (semSelect.value && l.semester !== semSelect.value) return false;
+                if (semSelect.value && (l.semesters || [l.semester]).indexOf(semSelect.value) < 0) return false;
                 if (hiddenBox.checked && !l.hidden && l.status === 'open') return false;
                 return true;
             });

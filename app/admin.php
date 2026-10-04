@@ -26,11 +26,15 @@ $imageDisk = image_folder_usage();
 $emailableUsers = (int)$pdo->query("SELECT COUNT(DISTINCT s.username) FROM sublets s " . VISIBLE_SEMESTER_JOIN . " WHERE " . PUBLIC_LISTING_WHERE)->fetchColumn();
 
 // All semesters
-$allSemesters = $pdo->query("SELECT s.*, (SELECT COUNT(*) FROM sublets WHERE semester = s.code) as post_count FROM semesters s ORDER BY s.sort_order, s.code")->fetchAll(PDO::FETCH_ASSOC);
+// post_count counts every listing that runs for the semester, including those
+// that also run for another (sublet_semesters).
+$allSemesters = $pdo->query("SELECT s.*, (SELECT COUNT(*) FROM sublet_semesters WHERE semester_code = s.code) as post_count FROM semesters s ORDER BY s.sort_order, s.code")->fetchAll(PDO::FETCH_ASSOC);
 
 // All posts with images. Admin sees every listing including ones hidden from
 // the public site, so is_hidden is selected to flag them in the table.
-$allPosts = $pdo->query("SELECT s.*, COALESCE(sem.name, s.semester) as semester_name, NOT (" . VISIBLE_SEMESTER_WHERE . ") as is_hidden, (SELECT COUNT(*) FROM sublet_images WHERE sublet_id = s.id) as image_count FROM sublets s " . VISIBLE_SEMESTER_JOIN . " ORDER BY s.posted_at DESC")->fetchAll(PDO::FETCH_ASSOC);
+// semester_name is the label of every semester the listing runs for, closed
+// ones included: the admin sees all of it.
+$allPosts = with_semester_labels($pdo, $pdo->query("SELECT s.*, COALESCE(sem.name, s.semester) as semester_name, NOT (" . VISIBLE_SEMESTER_WHERE . ") as is_hidden, (SELECT COUNT(*) FROM sublet_images WHERE sublet_id = s.id) as image_count FROM sublets s " . VISIBLE_SEMESTER_JOIN . " ORDER BY s.posted_at DESC")->fetchAll(PDO::FETCH_ASSOC), false);
 
 $hiddenCount = count(array_filter($allPosts, fn($p) => $p['is_hidden']));
 // Listings their posters took off the board (visibility.php). Taken is the
