@@ -72,6 +72,19 @@ $carrySuffix = $carryQuery !== '' ? '?' . $carryQuery : '';
                 <?php endforeach; ?>
             </select>
         </div>
+        <?php /* Only places that welcome the searcher: one choice of who they
+                 are, rather than exclude boxes (LISTING_OPEN_TO_FILTERS). */ ?>
+        <?php if (isset($columns['roommate_preference'])): ?>
+            <div class="filter-group">
+                <label class="filter-label" for="openToFilter">Roommate preference</label>
+                <select name="open_to" id="openToFilter">
+                    <option value="">Show all</option>
+                    <?php foreach (LISTING_OPEN_TO_FILTERS as $key => $openTo): ?>
+                        <option value="<?= htmlspecialchars($key) ?>" <?= $filters['open_to'] === $key ? 'selected' : '' ?>><?= htmlspecialchars($openTo['label']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        <?php endif; ?>
         <div class="filter-group">
             <div class="filter-label">
                 <span id="distanceLabel">Distance from campus</span>

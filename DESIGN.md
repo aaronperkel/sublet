@@ -328,6 +328,9 @@ The pinned index card, in this order:
 
 The poster's name is not on the card; it is in the listing view. The whole card is a keyboard-focusable button that opens the listing view.
 
+### Roommate Preference Filter
+A select in the filter panel, between Semester and Distance: "Show all", "Open to men", "Open to women", "Open to nonbinary folks". It is phrased as who a place welcomes, one choice rather than a row of exclude chips, and listings with no stated preference always show. It counts toward the Filters badge like any other filter.
+
 ### Filter Bar and Sheet (phones)
 At 768px and below the filter panel is replaced by a sticky bar under the nav: a white pill "Filters" button with a green count badge for the active filters, and a List / Map segmented switch (the active segment filled green) that keeps the filters when switching. "Filters" opens the same form as a bottom sheet (12px top corners, Floating shadow, over the slate scrim) with a sticky header (title, close) and a sticky footer button. On Browse the listings update underneath as filters change and the button reads "Show 12 sublets"; on Map it applies them. Chips grow to 40px tap targets inside the sheet. Untouched sliders do not count as filters.
 

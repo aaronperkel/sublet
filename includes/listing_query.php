@@ -92,8 +92,18 @@ function build_listing_filters(array $query, array $columns): array {
         $params[] = (int)$query['min_bedrooms'];
     }
 
+    // "Open to men": no stated preference, or one that includes them (see
+    // LISTING_OPEN_TO_FILTERS). The quoted values are literals from that
+    // constant, never the request.
+    $openTo = is_string($query['open_to'] ?? null) && isset(LISTING_OPEN_TO_FILTERS[$query['open_to']])
+        && isset($columns['roommate_preference']) ? $query['open_to'] : '';
+    if ($openTo !== '') {
+        $prefs = "'" . implode("', '", LISTING_OPEN_TO_FILTERS[$openTo]['prefs']) . "'";
+        $where[] = "(s.roommate_preference IS NULL OR s.roommate_preference = '' OR s.roommate_preference IN ($prefs))";
+    }
+
     // How many separate things the visitor narrowed by: price, semester,
-    // distance, each amenity, negotiable, bedrooms. It decides which empty
+    // distance, each amenity, negotiable, bedrooms, roommate preference. It decides which empty
     // state to show, whether "Clear filters" is offered, and the number on the
     // phone's Filters button. app.js leaves the price and distance fields empty
     // while their sliders sit at the ends of the range, so an untouched slider
@@ -102,6 +112,7 @@ function build_listing_filters(array $query, array $columns): array {
         + (!empty($query['semester']) ? 1 : 0)
         + (!empty($query['negotiable']) && isset($columns['price_negotiable']) ? 1 : 0)
         + (!empty($query['min_bedrooms']) && isset($columns['bedrooms']) ? 1 : 0)
+        + ($openTo !== '' ? 1 : 0)
         + ((isset($query['max_distance']) && $query['max_distance'] !== '') ? 1 : 0)
         + ((isset($query['min_price'], $query['max_price'])
             && $query['min_price'] !== '' && $query['max_price'] !== '') ? 1 : 0);
@@ -110,6 +121,7 @@ function build_listing_filters(array $query, array $columns): array {
         'where' => $where,
         'params' => $params,
         'amenities' => $amenities,
+        'open_to' => $openTo,
         'active' => $count > 0,
         'count' => $count,
     ];
@@ -146,7 +158,7 @@ function listing_sort_sql(?string $sort): array {
 }
 
 /** The query-string keys that describe listing filters (not sort, not ?id=). */
-const LISTING_FILTER_KEYS = ['min_price', 'max_price', 'semester', 'max_distance', 'amenities', 'negotiable', 'min_bedrooms'];
+const LISTING_FILTER_KEYS = ['min_price', 'max_price', 'semester', 'max_distance', 'amenities', 'negotiable', 'min_bedrooms', 'open_to'];
 
 /**
  * The filter part of a request's query, re-encoded, for links that switch

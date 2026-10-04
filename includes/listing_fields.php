@@ -47,6 +47,22 @@ const ROOMMATE_PREFERENCE_OPTIONS = [
 ];
 
 /**
+ * The "Roommate preference" filter on Browse and Map: show only the places
+ * whose stated preference includes the searcher. A listing with no preference
+ * welcomes everyone and always shows. Phrased as who a place is open to, one
+ * choice, rather than a row of exclude boxes; it hides listings for the
+ * searcher only, and a poster's preference stays a preference.
+ *
+ * `prefs` are ROOMMATE_PREFERENCE_OPTIONS keys, literals that go into the SQL;
+ * only the array key is matched against $_GET.
+ */
+const LISTING_OPEN_TO_FILTERS = [
+    'men'       => ['label' => 'Open to men',             'prefs' => ['men', 'men_nonbinary']],
+    'women'     => ['label' => 'Open to women',           'prefs' => ['women', 'women_nonbinary']],
+    'nonbinary' => ['label' => 'Open to nonbinary folks', 'prefs' => ['nonbinary', 'women_nonbinary', 'men_nonbinary']],
+];
+
+/**
  * What to call the person behind a listing.
  *
  * Falls back to the NetID, which is what every listing showed before
