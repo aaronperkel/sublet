@@ -252,7 +252,7 @@ Seven sizes, as custom properties (`--text-xs` to `--text-3xl`), plus Display fo
 
 ## Layout
 
-A centered column at most 1280px wide (`--max-width`) with 1.5rem gutters, under a sticky 64px green nav. Browse stacks a white filter panel, then a sort bar whose left side is the page's heading ("32 Spring 2027 sublets", or "34 sublets" with "For Spring 2027 unless marked" when the listings span semesters), then a listing grid of auto-fill columns at least 280px wide with 1.25rem gaps: one column on phones, up to four at full width. At 768px and below the columns are at least 290px, so a two-column tablet layout never squeezes the facts line, and the filter panel gives way to a sticky filter bar (see Components) so a phone opens on listings, not on controls. The listing opens in a centered dialog up to 720px wide over a slate scrim. The post form is a single white panel with grouped sections.
+A centered column at most 1280px wide (`--max-width`) with 1.5rem gutters, under a sticky 64px green nav. Browse stacks a white filter panel, then a sort bar whose left side is the page's heading ("32 Spring 2027 sublets" when every listing shares a semester, otherwise "34 sublets"), then a listing grid of auto-fill columns at least 280px wide with 1.25rem gaps: one column on phones, up to four at full width. At 768px and below the columns are at least 290px, so a two-column tablet layout never squeezes the facts line, and the filter panel gives way to a sticky filter bar (see Components) so a phone opens on listings, not on controls. The listing opens in a centered dialog up to 720px wide over a slate scrim. The post form is a single white panel with grouped sections.
 
 Spacing follows a loose 4px rhythm (0.25, 0.5, 0.75, 1, 1.25, 1.5 and 2rem). Breakpoints: 768px (nav collapses to a toggle; filters become the sticky bar and a bottom sheet), 600px (the listing view and the share sheet become full-height and bottom sheets), 480px (the tightest phone adjustments). Hover effects are gated on `(hover: hover)`, and `prefers-reduced-motion` turns animation off site-wide.
 
@@ -320,7 +320,7 @@ Small facts at the bottom of a card and inside the listing view.
 
 ### Listing Card (signature)
 The pinned index card, in this order:
-1. A 3:2 photo. A green semester badge with white text (top right, uppercase label) appears only on a card whose semester differs from the one most listings on screen share.
+1. A 3:2 photo with a green semester badge in white text (top right, uppercase label) on every card. Until October 2026 only the cards outside the most common semester had one, under a "For Spring 2027 unless marked" note that was easy to miss.
 2. The **price tab**: a Gold tab with rounded top corners standing up over the photo's bottom edge. Everything on it is Catamount Green (7.25:1): the rent (Title, 700, tabular figures), "/mo", and "or best offer" as a label when negotiable.
 3. The shortened address on one line (Body).
 4. One facts line in Text Secondary: size and roommates, then distance from campus ("3 bd · 1 ba · 1 roommate · 0.5 mi"; the card's accessible name spells out "miles from campus"). It fits one line at both 390px and 1280px; a second line carries estimated utilities when given.

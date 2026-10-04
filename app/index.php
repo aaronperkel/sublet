@@ -44,18 +44,16 @@ $openMissing = $openId && !in_array($openId, array_map('intval', array_column($s
 // arrows and counter instead of fetching them (see listing_photos()).
 $photosById = listing_photos($pdo, $sublets);
 
-// The heading names the semester most of these listings are for, and only
-// the cards for any other semester carry a badge. A badge on every card was the
-// loudest thing on each one and, with nearly every listing in the same
-// semester, said the same thing on all of them.
+// Every card carries its semester. Until October 2026 only the cards outside
+// the most common semester did, under a "For Spring 2027 unless marked" note,
+// which was easy to miss and left the unmarked cards reading as undated. The
+// heading still names the semester when every listing shares one.
 $semesterCounts = array_count_values(array_map('strval', array_column($sublets, 'semester_name')));
-arsort($semesterCounts);
-$mainSemester = (string)array_key_first($semesterCounts);
-$mixedSemesters = count($semesterCounts) > 1;
+$onlySemester = count($semesterCounts) === 1 ? (string)array_key_first($semesterCounts) : '';
 $amenityCounts = listing_amenity_counts($sublets);
 
 $boardTitle = count($sublets) . ' '
-    . (count($semesterCounts) === 1 ? $mainSemester . ' ' : '')
+    . ($onlySemester !== '' ? $onlySemester . ' ' : '')
     . 'sublet' . (count($sublets) !== 1 ? 's' : '')
     . ($hasActiveFilters ? ' match these filters' : '');
 
@@ -74,9 +72,6 @@ foreach ($availableSemesters as $sem) {
              semester when there is only one. */ ?>
     <div class="sort-bar-heading">
         <h1 class="sort-bar-count"><?= htmlspecialchars($boardTitle) ?></h1>
-        <?php if ($mixedSemesters): ?>
-            <p class="sort-bar-note">For <?= htmlspecialchars($mainSemester) ?> unless marked</p>
-        <?php endif; ?>
     </div>
     <div class="sort-bar-controls">
         <label for="sortFilter">Sort by</label>
@@ -195,9 +190,7 @@ foreach ($availableSemesters as $sem) {
                              600x400 is the card's 3:2 box; CSS crops the
                              thumbnail to it with object-fit. */ ?>
                     <img src="<?= htmlspecialchars(image_src($sublet['thumbnail_url'] ?: $sublet['image_url'])) ?>" alt="Sublet at <?= htmlspecialchars($displayAddress) ?>" width="600" height="400" decoding="async"<?= $cardIndex >= 4 ? ' loading="lazy"' : '' ?> onerror="this.dataset.imgError='1'">
-                    <?php if ($mixedSemesters && $sublet['semester_name'] !== $mainSemester): ?>
-                        <span class="card-semester"><?= htmlspecialchars($sublet['semester_name']) ?></span>
-                    <?php endif; ?>
+                    <span class="card-semester"><?= htmlspecialchars($sublet['semester_name']) ?></span>
                 </div>
                 <div class="card-info">
                     <?php /* The price is a paper tab pinned over the photo's edge:
